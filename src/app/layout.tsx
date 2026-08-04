@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import AuthProvider from "@/components/AuthProvider";
 import Navbar from "@/components/Navbar";
+import SmoothScrollProvider from "@/providers/SmoothScrollProvider";
 
 export const metadata: Metadata = {
   title: "Shakti Gaming | Esports & Gaming Community Hub",
@@ -17,28 +18,30 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <AuthProvider>
-          <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-            <Navbar />
-            <main style={{ flex: '1 0 auto' }}>
-              {children}
-            </main>
-            <footer style={{
-              background: 'var(--bg-secondary)',
-              borderTop: '1px solid var(--border-color)',
-              padding: '2rem 0',
-              textAlign: 'center',
-              color: 'var(--text-muted)',
-              fontSize: '0.9rem',
-              flexShrink: 0
-            }}>
-              <div className="container">
-                <p>&copy; {new Date().getFullYear()} Shakti Gaming. All rights reserved.</p>
-                <p style={{ fontSize: '0.8rem', marginTop: '0.5rem', color: 'hsla(217, 12%, 50%, 0.7)' }}>
-                  Tournament brackets & Live Leaderboard updates synced in real-time.
-                </p>
-              </div>
-            </footer>
-          </div>
+          <SmoothScrollProvider>
+            <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+              <Navbar />
+              <main style={{ flex: '1 0 auto' }}>
+                {children}
+              </main>
+              <footer style={{
+                background: 'var(--bg-secondary)',
+                borderTop: '1px solid var(--border-color)',
+                padding: '2.5rem 0',
+                textAlign: 'center',
+                color: 'var(--text-muted)',
+                fontSize: '0.9rem',
+                flexShrink: 0
+              }}>
+                <div className="container">
+                  <p>&copy; {new Date().getFullYear()} Shakti Gaming Esports. All rights reserved.</p>
+                  <p style={{ fontSize: '0.8rem', marginTop: '0.5rem', color: 'hsla(217, 12%, 50%, 0.7)' }}>
+                    Tournament brackets & Live Leaderboards synced in real-time.
+                  </p>
+                </div>
+              </footer>
+            </div>
+          </SmoothScrollProvider>
         </AuthProvider>
       </body>
     </html>

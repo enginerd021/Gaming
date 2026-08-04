@@ -2,19 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { collection, getDocs, limit, query, orderBy } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import { useAppStore } from '@/store/useAppStore';
-import { Trophy, Gamepad2, Users, Flame, ChevronRight, Award, Shield, Sparkles, Loader } from 'lucide-react';
-
-interface Tournament {
-  id: string;
-  name: string;
-  game: string;
-  status: 'Upcoming' | 'Active' | 'Completed';
-  registeredTeamIds: string[];
-  maxTeams: number;
-}
+import { tournamentService, Tournament } from '@/services/tournamentService';
+import { Trophy, Gamepad2, Flame, ChevronRight } from 'lucide-react';
+import Button from '@/components/ui/Button';
+import Badge from '@/components/ui/Badge';
+import GlassCard from '@/components/ui/GlassCard';
+import StatsTicker from '@/components/ui/StatsTicker';
+import ZentryHero from '@/components/ui/ZentryHero';
+import BentoGrid from '@/components/ui/BentoGrid';
+import { initScrollReveals } from '@/animations/scroll';
 
 const SUPPORTED_GAMES = [
   {
@@ -55,21 +51,14 @@ const SUPPORTED_GAMES = [
   }
 ];
 
-export default function HomeClient() {
-  const user = useAppStore((state) => state.user);
+export default function HomeView() {
   const [activeTournaments, setActiveTournaments] = useState<Tournament[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchRecentTournaments = async () => {
+    const loadTournaments = async () => {
       try {
-        const q = query(
-          collection(db, "tournaments"),
-          orderBy("createdAt", "desc"),
-          limit(3)
-        );
-        const snap = await getDocs(q);
-        const list = snap.docs.map(d => ({ id: d.id, ...d.data() } as Tournament));
+        const list = await tournamentService.getRecentTournaments(3);
         setActiveTournaments(list);
       } catch (err) {
         console.error("Failed to load home tournaments:", err);
@@ -77,77 +66,35 @@ export default function HomeClient() {
         setLoading(false);
       }
     };
-    fetchRecentTournaments();
+
+    loadTournaments();
+    initScrollReveals();
   }, []);
 
   return (
     <main style={{ position: 'relative', overflow: 'hidden' }}>
       
-      {/* Decorative Hero Background Glows */}
-      <div className="hero-glow hero-glow-1" style={{ top: '-10%', left: '-5%', width: '50vw', height: '50vw', opacity: 0.18 }} />
-      <div className="hero-glow hero-glow-2" style={{ bottom: '20%', right: '-5%', width: '50vw', height: '50vw', opacity: 0.18 }} />
+      {/* Chapter 1: 100vh Interactive Zentry Video Hero */}
+      <ZentryHero />
 
-      {/* HERO SECTION */}
-      <section className="section-padding" style={{ position: 'relative', zIndex: 1, textAlign: 'center', minHeight: '80vh', display: 'flex', alignItems: 'center' }}>
-        <div className="container" style={{ maxWidth: '900px' }}>
-          
-          <div className="fade-in" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', background: 'hsla(186, 100%, 48%, 0.08)', padding: '0.4rem 1rem', borderRadius: '9999px', border: '1px solid hsla(186, 100%, 48%, 0.2)', marginBottom: '1.5rem' }}>
-            <Sparkles size={14} style={{ color: 'var(--accent-cyan)' }} />
-            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--accent-cyan)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Next-Gen Esports Community
-            </span>
-          </div>
+      {/* Stats Ticker Banner */}
+      <div className="container" style={{ position: 'relative', zIndex: 10, marginTop: '-2.5rem', marginBottom: '3rem' }}>
+        <StatsTicker />
+      </div>
 
-          <h1 className="fade-in" style={{ fontSize: '3.75rem', lineHeight: '1.1', fontWeight: 800, marginBottom: '1.5rem', fontFamily: 'var(--font-title)' }}>
-            Unify Your Presence.
-            <br />
-            <span style={{
-              background: 'linear-gradient(135deg, var(--accent-cyan) 0%, var(--accent-violet) 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-            }}>
-              Dominate the Bracket.
-            </span>
-          </h1>
+      {/* Chapter 2: Zentry Bento Grid Feature Showcase */}
+      <div data-scroll-section>
+        <BentoGrid />
+      </div>
 
-          <p className="fade-in" style={{ fontSize: '1.2rem', color: 'var(--text-secondary)', marginBottom: '2.5rem', maxWidth: '680px', margin: '0 auto 2.5rem auto' }}>
-            Shakti Gaming is the central hub for competitive gamers. Recruit teammates, manage tournament brackets in real-time, build rosters, and showcase your achievements.
-          </p>
-
-          <div className="fade-in" style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-            {user ? (
-              <>
-                <Link href="/tournaments" className="btn btn-primary">
-                  <Trophy size={18} />
-                  Browse Tournaments
-                </Link>
-                <Link href="/teams" className="btn btn-outline">
-                  <Users size={18} />
-                  Manage Team
-                </Link>
-              </>
-            ) : (
-              <>
-                <Link href="/register" className="btn btn-primary" style={{ padding: '0.9rem 2.2rem', fontSize: '1.05rem' }}>
-                  Create Player Profile
-                </Link>
-                <Link href="/login" className="btn btn-outline" style={{ padding: '0.9rem 2.2rem', fontSize: '1.05rem' }}>
-                  Organizer Sign In
-                </Link>
-              </>
-            )}
-          </div>
-        </div>
-      </section>
-
-      {/* GAME DISCOVERY SECTION (Requirement: Discover new games & unified presence) */}
-      <section className="section-padding" style={{ background: 'var(--bg-secondary)', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)', position: 'relative', zIndex: 1 }}>
+      {/* Chapter 3: Game Discovery Section */}
+      <section data-scroll-section className="section-padding" style={{ background: 'var(--bg-secondary)', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)', position: 'relative', zIndex: 1 }}>
         <div className="container">
           <div style={{ textAlign: 'center', marginBottom: '3.5rem' }}>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: 'var(--accent-cyan)', fontWeight: 700, fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.5rem' }}>
-              <Gamepad2 size={16} /> Discover Competitive Arenas
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: 'var(--accent-cyan)', fontWeight: 700, fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '0.5rem' }}>
+              <Gamepad2 size={16} /> DISCOVER COMPETITIVE ARENAS
             </div>
-            <h2 style={{ fontSize: '2.25rem' }}>Supported Esports Titles</h2>
+            <h2 style={{ fontSize: '2.5rem', textTransform: 'uppercase', fontWeight: 900 }}>SUPPORTED ESPORTS TITLES</h2>
             <p style={{ color: 'var(--text-secondary)', marginTop: '0.4rem', maxWidth: '600px', margin: '0.4rem auto 0 auto' }}>
               Select your battleground, customize your role preferences in your profile, and search for compatible teammates.
             </p>
@@ -155,9 +102,9 @@ export default function HomeClient() {
 
           <div className="grid-responsive">
             {SUPPORTED_GAMES.map((game) => (
-              <article key={game.name} className="glass-card card-hover" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+              <GlassCard key={game.name} style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
                 
-                {/* Visual Header */}
+                {/* Visual Header Gradient */}
                 <div style={{
                   height: '6px',
                   background: game.gradient,
@@ -179,9 +126,9 @@ export default function HomeClient() {
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
                     {game.roles.map(r => (
-                      <span key={r} className="badge badge-cyan" style={{ fontSize: '0.65rem', padding: '0.15rem 0.5rem', textTransform: 'none' }}>
+                      <Badge key={r} variant="cyan" style={{ fontSize: '0.65rem', padding: '0.15rem 0.5rem', textTransform: 'none' }}>
                         {r}
-                      </span>
+                      </Badge>
                     ))}
                   </div>
                 </div>
@@ -189,21 +136,21 @@ export default function HomeClient() {
                 <Link href={`/tournaments?game=${encodeURIComponent(game.name)}`} style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--accent-cyan)', display: 'inline-flex', alignItems: 'center', gap: '0.2rem', marginTop: 'auto' }} className="hover-cyan">
                   Explore Tournaments <ChevronRight size={16} />
                 </Link>
-              </article>
+              </GlassCard>
             ))}
           </div>
         </div>
       </section>
 
-      {/* RECENT ACTIVE TOURNAMENTS SECTION */}
-      <section className="section-padding" style={{ position: 'relative', zIndex: 1 }}>
+      {/* Chapter 4: Active Championship Arenas Section */}
+      <section data-scroll-section className="section-padding" style={{ position: 'relative', zIndex: 1 }}>
         <div className="container">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '1rem', marginBottom: '3rem' }}>
             <div>
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: 'var(--accent-violet)', fontWeight: 700, fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '0.5rem' }}>
                 <Flame size={16} /> Active Arenas
               </div>
-              <h2 style={{ fontSize: '2.25rem' }}>Championship Clashes</h2>
+              <h2 style={{ fontSize: '2.25rem', textTransform: 'uppercase', fontWeight: 900 }}>Championship Clashes</h2>
             </div>
             <Link href="/tournaments" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem', fontWeight: 600, color: 'var(--accent-cyan)' }} className="hover-cyan">
               View All Brackets <ChevronRight size={16} />
@@ -219,22 +166,24 @@ export default function HomeClient() {
           ) : activeTournaments.length > 0 ? (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
               {activeTournaments.map((t) => (
-                <article key={t.id} className="glass-panel" style={{ padding: '2rem' }}>
+                <GlassCard key={t.id} variant="panel" style={{ padding: '2rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                    <span className={`badge ${t.status === 'Upcoming' ? 'badge-cyan' : t.status === 'Active' ? 'badge-violet' : 'badge-gold'}`}>
+                    <Badge variant={t.status === 'Active' ? 'live' : t.status === 'Upcoming' ? 'cyan' : 'gold'}>
                       {t.status === 'Active' ? 'Live' : t.status}
-                    </span>
-                    <span className="badge badge-cyan" style={{ fontSize: '0.75rem', textTransform: 'none' }}>{t.game}</span>
+                    </Badge>
+                    <Badge variant="cyan" style={{ fontSize: '0.75rem', textTransform: 'none' }}>{t.game}</Badge>
                   </div>
                   <h3 style={{ fontSize: '1.25rem', marginBottom: '1rem' }}>{t.name}</h3>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--text-secondary)', borderTop: '1px solid var(--border-color)', paddingTop: '1rem', marginTop: '1rem' }}>
                     <span>Rosters Registered</span>
                     <strong style={{ color: 'var(--text-primary)' }}>{t.registeredTeamIds?.length || 0} / {t.maxTeams}</strong>
                   </div>
-                  <Link href={`/tournaments/${t.id}`} className="btn btn-outline" style={{ width: '100%', marginTop: '1.5rem', justifyContent: 'center' }}>
-                    Spectate Bracket
+                  <Link href={`/tournaments/${t.id}`}>
+                    <Button variant="outline" style={{ width: '100%', marginTop: '1.5rem', justifyContent: 'center' }}>
+                      Spectate Bracket
+                    </Button>
                   </Link>
-                </article>
+                </GlassCard>
               ))}
             </div>
           ) : (

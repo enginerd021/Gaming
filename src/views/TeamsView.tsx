@@ -17,10 +17,13 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAppStore, Profile, Team } from '@/store/useAppStore';
-import { Users, UserPlus, UserMinus, Check, X, Shield, LogOut, Loader, PlusCircle, AlertCircle } from 'lucide-react';
+import { Users, UserPlus, UserMinus, Check, X, Shield, LogOut, PlusCircle, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
+import Button from '@/components/ui/Button';
+import Badge from '@/components/ui/Badge';
+import GlassCard from '@/components/ui/GlassCard';
 
-export default function TeamsClient() {
+export default function TeamsView() {
   const user = useAppStore((state) => state.user);
   const profile = useAppStore((state) => state.profile);
   const team = useAppStore((state) => state.team);
@@ -364,9 +367,7 @@ export default function TeamsClient() {
     return (
       <div style={{ position: 'relative', minHeight: 'calc(100vh - 4.5rem)', padding: '3rem 1.5rem' }}>
         <div className="container" style={{ maxWidth: '900px', position: 'relative', zIndex: 1 }}>
-          <div className="glass-panel skeleton-pulse" style={{ padding: '2.5rem', height: '120px', marginBottom: '2rem' }}>
-            <div className="skeleton-text" style={{ width: '40%', height: '32px' }} />
-          </div>
+          <div className="glass-panel skeleton-pulse" style={{ padding: '2.5rem', height: '120px', marginBottom: '2rem' }} />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }} className="grid-2-col">
             <div className="glass-panel skeleton-pulse" style={{ padding: '2.5rem', height: '350px' }} />
             <div className="glass-panel skeleton-pulse" style={{ padding: '2.5rem', height: '350px' }} />
@@ -414,7 +415,7 @@ export default function TeamsClient() {
         {!team ? (
           <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '2rem' }} className="grid-2-col">
             {/* Create Team Card */}
-            <article className="glass-panel" style={{ padding: '2.5rem' }}>
+            <GlassCard variant="panel" style={{ padding: '2.5rem' }}>
               <h2 style={{ fontSize: '1.5rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <PlusCircle size={22} style={{ color: 'var(--accent-cyan)' }} />
                 Create a Roster
@@ -436,19 +437,19 @@ export default function TeamsClient() {
                     disabled={actionLoading}
                   />
                 </div>
-                <button 
+                <Button 
                   type="submit" 
-                  className="btn btn-primary" 
+                  variant="primary" 
                   style={{ width: '100%', marginTop: '0.5rem' }}
                   disabled={actionLoading}
                 >
                   {actionLoading ? 'Creating...' : 'Initialize Team'}
-                </button>
+                </Button>
               </form>
-            </article>
+            </GlassCard>
 
             {/* Received Invitations Card */}
-            <article className="glass-panel" style={{ padding: '2.5rem' }}>
+            <GlassCard variant="panel" style={{ padding: '2.5rem' }}>
               <h2 style={{ fontSize: '1.5rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <UserPlus size={22} style={{ color: 'var(--accent-violet)' }} />
                 Active Invites
@@ -478,26 +479,24 @@ export default function TeamsClient() {
                         <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Created by Captain</div>
                       </div>
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <button 
+                        <Button 
                           onClick={() => handleAcceptInvite(invTeam)}
-                          className="btn btn-primary"
+                          variant="primary"
                           style={{ padding: '0.4rem 0.6rem', fontSize: '0.8rem' }}
                           title="Accept Invite"
-                          aria-label={`Accept invite to join team ${invTeam.name}`}
                           disabled={actionLoading}
                         >
                           <Check size={14} />
-                        </button>
-                        <button 
+                        </Button>
+                        <Button 
                           onClick={() => handleRejectInvite(invTeam)}
-                          className="btn btn-outline"
-                          style={{ padding: '0.4rem 0.6rem', fontSize: '0.8rem', color: 'var(--accent-red)', borderColor: 'hsla(350, 85%, 55%, 0.3)' }}
+                          variant="outline"
+                          style={{ padding: '0.4rem 0.6rem', fontSize: '0.8rem', color: 'var(--accent-red)' }}
                           title="Decline Invite"
-                          aria-label={`Decline invite to join team ${invTeam.name}`}
                           disabled={actionLoading}
                         >
                           <X size={14} />
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   );
@@ -510,38 +509,38 @@ export default function TeamsClient() {
                   </div>
                 )}
               </div>
-            </article>
+            </GlassCard>
           </div>
         ) : (
           /* CASE 2: USER IS ALREADY IN A TEAM */
           <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: '2rem' }} className="grid-2-col">
             
             {/* Roster & Members list */}
-            <article className="glass-panel" style={{ padding: '2.5rem' }}>
+            <GlassCard variant="panel" style={{ padding: '2.5rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '2rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>
                 <div>
-                  <span className="badge badge-cyan" style={{ marginBottom: '0.3rem' }}>ACTIVE ROSTER</span>
+                  <Badge variant="cyan" style={{ marginBottom: '0.3rem' }}>ACTIVE ROSTER</Badge>
                   <h2 style={{ fontSize: '1.75rem' }}>{team.name}</h2>
                 </div>
                 {isCaptain ? (
-                  <button 
+                  <Button 
                     onClick={handleDisbandTeam}
-                    className="btn btn-outline"
-                    style={{ fontSize: '0.85rem', color: 'var(--accent-red)', borderColor: 'hsla(350, 85%, 55%, 0.3)', padding: '0.4rem 0.8rem' }}
+                    variant="outline"
+                    style={{ fontSize: '0.85rem', color: 'var(--accent-red)', padding: '0.4rem 0.8rem' }}
                     disabled={actionLoading}
                   >
                     Disband Team
-                  </button>
+                  </Button>
                 ) : (
-                  <button 
+                  <Button 
                     onClick={handleLeaveTeam}
-                    className="btn btn-outline"
-                    style={{ fontSize: '0.85rem', color: 'var(--accent-red)', borderColor: 'hsla(350, 85%, 55%, 0.3)', padding: '0.4rem 0.8rem' }}
+                    variant="outline"
+                    style={{ fontSize: '0.85rem', color: 'var(--accent-red)', padding: '0.4rem 0.8rem' }}
                     disabled={actionLoading}
                   >
                     <LogOut size={14} style={{ marginRight: '0.2rem' }} />
                     Leave Team
-                  </button>
+                  </Button>
                 )}
               </div>
 
@@ -551,7 +550,7 @@ export default function TeamsClient() {
                 {memberProfiles.map((member) => {
                   const memberIsCaptain = member.uid === team.captainId;
                   return (
-                    <div key={member.uid} className="glass-card card-hover" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem' }}>
+                    <GlassCard key={member.uid} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                         <div style={{ 
                           width: '40px', 
@@ -587,24 +586,23 @@ export default function TeamsClient() {
                           onClick={() => handleRemoveMember(member.uid, member.gamertag)}
                           className="btn btn-outline"
                           style={{ padding: '0.3rem 0.5rem', color: 'var(--accent-red)', borderColor: 'transparent' }}
-                          aria-label={`Remove teammate ${member.displayName}`}
                           title="Remove Player"
                         >
                           <UserMinus size={16} />
                         </button>
                       )}
-                    </div>
+                    </GlassCard>
                   );
                 })}
               </div>
-            </article>
+            </GlassCard>
 
-            {/* Captain Actions Panel (Invite / Pending Invites) */}
+            {/* Captain Actions Panel */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
               {isCaptain ? (
                 <>
                   {/* Invite Panel */}
-                  <article className="glass-panel" style={{ padding: '2rem' }}>
+                  <GlassCard variant="panel" style={{ padding: '2rem' }}>
                     <h2 style={{ fontSize: '1.25rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       <UserPlus size={18} style={{ color: 'var(--accent-cyan)' }} />
                       Recruit Teammate
@@ -626,19 +624,19 @@ export default function TeamsClient() {
                           />
                         </div>
                       </div>
-                      <button 
+                      <Button 
                         type="submit" 
-                        className="btn btn-primary" 
+                        variant="primary" 
                         style={{ width: '100%', height: '2.6rem' }}
                         disabled={actionLoading}
                       >
                         Send Roster Invite
-                      </button>
+                      </Button>
                     </form>
-                  </article>
+                  </GlassCard>
 
                   {/* Pending Outbound Invites */}
-                  <article className="glass-panel" style={{ padding: '2rem' }}>
+                  <GlassCard variant="panel" style={{ padding: '2rem' }}>
                     <h2 style={{ fontSize: '1.25rem', marginBottom: '1rem' }}>Pending Outbound Invites</h2>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1rem' }}>
                       {team.pendingInvites && team.pendingInvites.map((pGamertag) => (
@@ -648,7 +646,6 @@ export default function TeamsClient() {
                             onClick={() => handleRevokeInvite(pGamertag)}
                             style={{ background: 'none', border: 'none', color: 'var(--accent-red)', cursor: 'pointer' }}
                             title="Cancel Invite"
-                            aria-label={`Cancel invitation for @${pGamertag}`}
                           >
                             <X size={14} />
                           </button>
@@ -659,11 +656,10 @@ export default function TeamsClient() {
                         <p style={{ fontStyle: 'italic', color: 'var(--text-muted)', fontSize: '0.85rem' }}>No pending outbound invites.</p>
                       )}
                     </div>
-                  </article>
+                  </GlassCard>
                 </>
               ) : (
-                /* Non-captain summary */
-                <article className="glass-panel" style={{ padding: '2rem' }}>
+                <GlassCard variant="panel" style={{ padding: '2rem' }}>
                   <h2 style={{ fontSize: '1.25rem', marginBottom: '1rem' }}>Role Info</h2>
                   <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
                     You are a registered roster member of <strong style={{ color: 'var(--text-primary)' }}>{team.name}</strong>.
@@ -671,7 +667,7 @@ export default function TeamsClient() {
                   <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.75rem' }}>
                     Only the captain can modify team rosters, invite new players, or sign up the team for bracket tournaments.
                   </p>
-                </article>
+                </GlassCard>
               )}
             </div>
 

@@ -1,11 +1,11 @@
 import { Metadata } from 'next';
-import TournamentsClient from './TournamentsClient';
+import TournamentsView from '@/views/TournamentsView';
 
 export const metadata: Metadata = {
-  title: "Esports Tournaments & Bracket Matches — Shakti Gaming",
-  description: "Browse, register, and compete in competitive bracket matches hosted by the community.",
+  title: "Tournaments — Shakti Gaming Esports",
+  description: "Browse live and upcoming esports bracket tournaments. Register your team roster and compete for prize pools.",
 };
 
 export default function Page() {
-  return <TournamentsClient />;
+  return <TournamentsView />;
 }
