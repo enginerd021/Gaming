@@ -1,7 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
 
 :root {
-<<<<<<< HEAD
   /* Electric Cyber Sapphire Blue Theme */
   --bg-primary: hsl(222, 45%, 6%);
   --bg-secondary: hsl(220, 40%, 10%);
@@ -12,38 +11,17 @@
   --accent-cyan-rgb: 0, 136, 255;
   --accent-violet: hsl(195, 100%, 45%);       /* Deep Ice Cyan */
   --accent-violet-rgb: 0, 191, 255;
-=======
-  /* HSL Tailored Gaming Color Palette & Zentry Cyber Tokens */
-  --bg-primary: hsl(228, 28%, 5%);
-  --bg-secondary: hsl(225, 22%, 9%);
-  --bg-tertiary: hsl(223, 18%, 14%);
-  --bg-card: hsla(225, 24%, 10%, 0.75);
-  
-  --accent-cyan: hsl(186, 100%, 50%);
-  --accent-cyan-rgb: 0, 240, 255;
-  --accent-violet: hsl(268, 92%, 64%);
-  --accent-violet-rgb: 138, 43, 226;
->>>>>>> origin/main
   --accent-gold: hsl(45, 100%, 55%);
   --accent-red: hsl(350, 85%, 55%);
   --accent-green: hsl(145, 80%, 45%);
 
   --text-primary: hsl(210, 40%, 98%);
-<<<<<<< HEAD
   --text-secondary: hsl(215, 25%, 78%);
   --text-muted: hsl(217, 18%, 55%);
 
   --border-color: hsla(210, 100%, 55%, 0.18);
   --border-glow: hsla(210, 100%, 55%, 0.35);
   --border-glow-violet: hsla(195, 100%, 45%, 0.25);
-=======
-  --text-secondary: hsl(215, 20%, 75%);
-  --text-muted: hsl(217, 12%, 50%);
-
-  --border-color: hsla(217, 20%, 25%, 0.35);
-  --border-glow: hsla(186, 100%, 50%, 0.25);
-  --border-glow-violet: hsla(268, 92%, 64%, 0.25);
->>>>>>> origin/main
 
   --font-title: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -51,13 +29,8 @@
   --transition-smooth: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
   --transition-fast: all 0.15s ease;
   
-<<<<<<< HEAD
   --glow-cyan: 0 0 25px hsla(210, 100%, 55%, 0.45);
   --glow-violet: 0 0 20px hsla(195, 100%, 45%, 0.35);
-=======
-  --glow-cyan: 0 0 25px hsla(186, 100%, 50%, 0.4);
-  --glow-violet: 0 0 25px hsla(268, 92%, 64%, 0.4);
->>>>>>> origin/main
 }
 
 /* Reset & Base Styles */
