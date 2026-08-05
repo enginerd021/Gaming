@@ -24,6 +24,7 @@ import { db } from '@/lib/firebase';
 import { useAppStore, Team } from '@/store/useAppStore';
 import { Trophy, Calendar, Shield, Users, Layers, Award, Loader, AlertCircle, Edit3, Save, Play, Check, X, MessageSquare, Send, Trash2 } from 'lucide-react';
 import Link from 'next/link';
+import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 
 interface Match {
   id: string; // m-r-idx (e.g., m-1-1, m-2-1)
@@ -67,6 +68,7 @@ export default function TournamentDetailClient({ id }: { id: string }) {
   const team = useAppStore((state) => state.team);
   const profile = useAppStore((state) => state.profile);
   const loading = useAppStore((state) => state.loading);
+  const { refreshCount } = useAutoRefresh();
 
   // Tournament state loaded from Firestore snapshot
   const [tournament, setTournament] = useState<Tournament | null>(null);
@@ -90,34 +92,44 @@ export default function TournamentDetailClient({ id }: { id: string }) {
   const [isChatExpanded, setIsChatExpanded] = useState(false);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
-  // Subscribe to Tournament real-time updates (Requirement 2 & Firestore listeners)
+  // Subscribe to Tournament real-time updates & Teams metadata
   useEffect(() => {
     if (!id) return;
 
-    const unsub = onSnapshot(doc(db, "tournaments", id), async (docSnap) => {
+    let teamsUnsub: (() => void) | null = null;
+
+    const unsub = onSnapshot(doc(db, "tournaments", id), (docSnap) => {
       if (docSnap.exists()) {
         const tData = { id: docSnap.id, ...docSnap.data() } as Tournament;
         setTournament(tData);
         
-        // Fetch teams metadata
+        // Real-time subscription for registered teams names & metadata
         if (tData.registeredTeamIds && tData.registeredTeamIds.length > 0) {
-          try {
-            const teamsRef = collection(db, "teams");
-            const q = query(teamsRef, where("id", "in", tData.registeredTeamIds));
-            const teamSnap = await getDocs(q);
-            
-            const tempMap: Record<string, string> = {};
-            for (const tId of tData.registeredTeamIds) {
-              const dRef = doc(db, "teams", tId);
-              const snapDoc = await getDoc(dRef);
-              if (snapDoc.exists()) {
-                tempMap[tId] = snapDoc.data().name;
-              }
-            }
-            setTeamsMap(tempMap);
-          } catch (err) {
-            console.error("Error fetching tournament teams details:", err);
+          if (teamsUnsub) teamsUnsub();
+          const teamsRef = collection(db, "teams");
+          const chunks = [];
+          const idsCopy = [...tData.registeredTeamIds];
+          while (idsCopy.length > 0) {
+            chunks.push(idsCopy.splice(0, 30));
           }
+
+          const tempMap: Record<string, string> = {};
+          const unsubs: (() => void)[] = [];
+
+          for (const chunk of chunks) {
+            const qTeams = query(teamsRef, where("__name__", "in", chunk));
+            const u = onSnapshot(qTeams, (snap) => {
+              snap.docs.forEach(d => {
+                tempMap[d.id] = d.data().name;
+              });
+              setTeamsMap({ ...tempMap });
+            }, (err) => {
+              console.error("Error streaming tournament teams details:", err);
+            });
+            unsubs.push(u);
+          }
+
+          teamsUnsub = () => unsubs.forEach(fn => fn());
         }
       } else {
         setError("Tournament does not exist.");
@@ -129,8 +141,11 @@ export default function TournamentDetailClient({ id }: { id: string }) {
       setPageLoading(false);
     });
 
-    return () => unsub();
-  }, [id]);
+    return () => {
+      unsub();
+      if (teamsUnsub) teamsUnsub();
+    };
+  }, [id, refreshCount]);
 
   const isOrganizer = tournament?.organizerId === user?.uid;
   const isParticipant = team && tournament?.registeredTeamIds?.includes(team.id);

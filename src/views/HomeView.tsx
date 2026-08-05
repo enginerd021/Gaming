@@ -2,24 +2,21 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { collection, getDocs, limit, query, orderBy } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { tournamentService, Tournament } from '@/services/tournamentService';
 import { useAppStore } from '@/store/useAppStore';
+import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 import { Trophy, Gamepad2, Users, Flame, ChevronRight, Activity, Radio, Zap, ArrowDownRight } from 'lucide-react';
+import Button from '@/components/ui/Button';
+import Badge from '@/components/ui/Badge';
+import GlassCard from '@/components/ui/GlassCard';
+import StatsTicker from '@/components/ui/StatsTicker';
+import BentoGrid from '@/components/ui/BentoGrid';
+import { initScrollReveals } from '@/animations/scroll';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
 gsap.registerPlugin(ScrollTrigger);
-
-interface Tournament {
-  id: string;
-  name: string;
-  game: string;
-  status: 'Upcoming' | 'Active' | 'Completed';
-  registeredTeamIds: string[];
-  maxTeams: number;
-}
 
 const SUPPORTED_GAMES = [
   {
@@ -104,7 +101,6 @@ const ZentryBentoCard = ({ game }: { game: typeof SUPPORTED_GAMES[0] }) => {
             ))}
           </div>
 
-          {/* Restored Functional Tournament Filter Link */}
           <Link 
             href={`/tournaments?game=${encodeURIComponent(game.name)}`} 
             style={{ 
@@ -122,29 +118,33 @@ const ZentryBentoCard = ({ game }: { game: typeof SUPPORTED_GAMES[0] }) => {
   );
 };
 
-export default function HomeClient() {
+export default function HomeView() {
   const user = useAppStore((state) => state.user);
   const [activeTournaments, setActiveTournaments] = useState<Tournament[]>([]);
   const [loading, setLoading] = useState(true);
+  const { refreshCount } = useAutoRefresh();
 
   const heroWrapperRef = useRef<HTMLDivElement>(null);
   const videoFrameRef = useRef<HTMLDivElement>(null);
   const sectionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const fetchRecentTournaments = async () => {
-      try {
-        const q = query(collection(db, "tournaments"), orderBy("createdAt", "desc"), limit(3));
-        const snap = await getDocs(q);
-        setActiveTournaments(snap.docs.map(d => ({ id: d.id, ...d.data() } as Tournament)));
-      } catch (err) {
-        console.error("Failed to load tournaments:", err);
-      } finally {
+    setLoading(true);
+    const unsub = tournamentService.subscribeRecentTournaments(
+      3,
+      (list) => {
+        setActiveTournaments(list);
         setLoading(false);
-      }
+      },
+      () => setLoading(false)
+    );
+
+    initScrollReveals();
+
+    return () => {
+      unsub();
     };
-    fetchRecentTournaments();
-  }, []);
+  }, [refreshCount]);
 
   useGSAP(() => {
     if (!heroWrapperRef.current || !videoFrameRef.current) return;
@@ -180,80 +180,141 @@ export default function HomeClient() {
   }, { scope: heroWrapperRef });
 
   return (
-    <>
-      <main style={{ position: 'relative', overflowX: 'hidden', backgroundColor: 'var(--bg-primary)' }}>
-        
-        {/* COCKPIT HERO SECTION */}
-        <section ref={heroWrapperRef} style={{ position: 'relative', width: '100%', height: '100vh', display: 'flex', flexDirection: 'column' }}>
-          <div ref={videoFrameRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', clipPath: 'polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)', overflow: 'hidden' }}>
-            <video autoPlay loop muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.85 }}>
-              <source src="/videos/hero-drive.mp4" type="video/mp4" />
-            </video>
-            <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at center, transparent 40%, rgba(2, 9, 22, 0.9) 100%)', pointerEvents: 'none' }} />
-          </div>
+    <main style={{ position: 'relative', overflowX: 'hidden', backgroundColor: 'var(--bg-primary)' }}>
+      
+      {/* COCKPIT HERO SECTION */}
+      <section ref={heroWrapperRef} style={{ position: 'relative', width: '100%', height: '100vh', display: 'flex', flexDirection: 'column' }}>
+        <div ref={videoFrameRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', clipPath: 'polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)', overflow: 'hidden' }}>
+          <video autoPlay loop muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.85 }}>
+            <source src="/videos/hero-drive.mp4" type="video/mp4" />
+          </video>
+          <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at center, transparent 40%, rgba(2, 9, 22, 0.9) 100%)', pointerEvents: 'none' }} />
+        </div>
 
-          <div className="cockpit-hud" style={{ position: 'relative', zIndex: 10, width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '7rem 2.5rem 2.5rem 2.5rem', maxWidth: '1440px', margin: '0 auto', pointerEvents: 'none' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', pointerEvents: 'auto' }}>
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'hsla(220, 40%, 8%, 0.6)', backdropFilter: 'blur(12px)', padding: '0.45rem 1.1rem', borderRadius: '9999px', border: '1px solid hsla(210, 100%, 55%, 0.3)' }}>
-                <Radio size={14} style={{ color: 'var(--accent-cyan)', animation: 'pulse 1.5s infinite' }} />
-                <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--accent-cyan)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>CO-PILOT ACTIVE</span>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', pointerEvents: 'auto', flexWrap: 'wrap', gap: '2rem' }}>
-              <div>
-                <h1 style={{ fontSize: 'clamp(3.5rem, 7vw, 6rem)', lineHeight: '0.9', fontWeight: 900, letterSpacing: '-0.02em', color: '#fff', textShadow: '0 0 30px rgba(0, 136, 255, 0.6)', fontFamily: 'var(--font-title)' }}>
-                  SHAKTI<br />GAMING
-                </h1>
-              </div>
-              <div style={{ display: 'flex', gap: '1rem' }}>
-                {user ? (
-                  <Link href="/tournaments" className="btn btn-primary glow-pulse" style={{ padding: '1rem 2rem', borderRadius: '12px' }}><ArrowDownRight size={18} /> Enter Arena</Link>
-                ) : (
-                  <Link href="/register" className="btn btn-primary glow-pulse" style={{ padding: '1rem 2rem', borderRadius: '12px' }}>Join Now</Link>
-                )}
-              </div>
+        <div className="cockpit-hud" style={{ position: 'relative', zIndex: 10, width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '7rem 2.5rem 2.5rem 2.5rem', maxWidth: '1440px', margin: '0 auto', pointerEvents: 'none' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', pointerEvents: 'auto' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'hsla(220, 40%, 8%, 0.6)', backdropFilter: 'blur(12px)', padding: '0.45rem 1.1rem', borderRadius: '9999px', border: '1px solid hsla(210, 100%, 55%, 0.3)' }}>
+              <Radio size={14} style={{ color: 'var(--accent-cyan)', animation: 'pulse 1.5s infinite' }} />
+              <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--accent-cyan)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>CO-PILOT ACTIVE</span>
             </div>
           </div>
-        </section>
 
-        {/* ZENTRY BENTO GRID SECTION WITH RESTORED LINKS */}
-        <section 
-          ref={sectionRef} 
-          style={{ 
-            padding: '8rem 2rem', 
-            background: 'linear-gradient(180deg, var(--bg-primary) 0%, var(--bg-secondary) 50%, var(--bg-primary) 100%)', 
-            position: 'relative', 
-            zIndex: 2,
-            borderTop: '1px solid var(--border-color)',
-            borderBottom: '1px solid var(--border-color)'
-          }}
-        >
-          <div style={{ maxWidth: '1440px', margin: '0 auto' }}>
-            
-            <div style={{ marginBottom: '4rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <div style={{ overflow: 'hidden' }}>
-                <p className="zentry-reveal-text" style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em', color: 'var(--accent-cyan)' }}>
-                  Explore Zentry's Integrated Arenas
-                </p>
-              </div>
-              <div style={{ overflow: 'hidden' }}>
-                <p className="zentry-reveal-text" style={{ fontSize: '1.1rem', color: 'var(--text-primary)', maxWidth: '600px', lineHeight: 1.6, fontWeight: 500 }}>
-                  Select your battleground, customize your roles, and experience high-stakes esports matchmaking built for the modern competitive player.
-                </p>
-              </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', pointerEvents: 'auto', flexWrap: 'wrap', gap: '2rem' }}>
+            <div>
+              <h1 style={{ fontSize: 'clamp(3.5rem, 7vw, 6rem)', lineHeight: '0.9', fontWeight: 900, letterSpacing: '-0.02em', color: '#fff', textShadow: '0 0 30px rgba(0, 136, 255, 0.6)', fontFamily: 'var(--font-title)' }}>
+                SHAKTI<br />GAMING
+              </h1>
             </div>
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              {user ? (
+                <Link href="/tournaments" className="btn btn-primary glow-pulse" style={{ padding: '1rem 2rem', borderRadius: '12px' }}><ArrowDownRight size={18} /> Enter Arena</Link>
+              ) : (
+                <Link href="/register" className="btn btn-primary glow-pulse" style={{ padding: '1rem 2rem', borderRadius: '12px' }}>Join Now</Link>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
 
-            {/* The Bento Grid */}
-            <div className="zentry-bento-grid">
-              {SUPPORTED_GAMES.map(game => (
-                <ZentryBentoCard key={game.name} game={game} />
+      {/* Stats Ticker Banner */}
+      <div className="container" style={{ position: 'relative', zIndex: 10, marginTop: '-2.5rem', marginBottom: '3rem' }}>
+        <StatsTicker />
+      </div>
+
+      {/* Chapter 2: Zentry Bento Grid Feature Showcase */}
+      <div data-scroll-section>
+        <BentoGrid />
+      </div>
+
+      {/* ZENTRY BENTO GRID SECTION WITH RESTORED LINKS */}
+      <section 
+        ref={sectionRef} 
+        style={{ 
+          padding: '8rem 2rem', 
+          background: 'linear-gradient(180deg, var(--bg-primary) 0%, var(--bg-secondary) 50%, var(--bg-primary) 100%)', 
+          position: 'relative', 
+          zIndex: 2,
+          borderTop: '1px solid var(--border-color)',
+          borderBottom: '1px solid var(--border-color)'
+        }}
+      >
+        <div style={{ maxWidth: '1440px', margin: '0 auto' }}>
+          
+          <div style={{ marginBottom: '4rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <div style={{ overflow: 'hidden' }}>
+              <p className="zentry-reveal-text" style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em', color: 'var(--accent-cyan)' }}>
+                Explore Shakti's Integrated Arenas
+              </p>
+            </div>
+            <div style={{ overflow: 'hidden' }}>
+              <p className="zentry-reveal-text" style={{ fontSize: '1.1rem', color: 'var(--text-primary)', maxWidth: '600px', lineHeight: 1.6, fontWeight: 500 }}>
+                Select your battleground, customize your roles, and experience high-stakes esports matchmaking built for the modern competitive player.
+              </p>
+            </div>
+          </div>
+
+          {/* The Bento Grid */}
+          <div className="zentry-bento-grid">
+            {SUPPORTED_GAMES.map(game => (
+              <ZentryBentoCard key={game.name} game={game} />
+            ))}
+          </div>
+
+        </div>
+      </section>
+
+      {/* Chapter 4: Active Championship Arenas Section */}
+      <section data-scroll-section className="section-padding" style={{ position: 'relative', zIndex: 1 }}>
+        <div className="container">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '1rem', marginBottom: '3rem' }}>
+            <div>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: 'var(--accent-violet)', fontWeight: 700, fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '0.5rem' }}>
+                <Flame size={16} /> Active Arenas
+              </div>
+              <h2 style={{ fontSize: '2.25rem', textTransform: 'uppercase', fontWeight: 900 }}>Championship Clashes</h2>
+            </div>
+            <Link href="/tournaments" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem', fontWeight: 600, color: 'var(--accent-cyan)' }} className="hover-cyan">
+              View All Brackets <ChevronRight size={16} />
+            </Link>
+          </div>
+
+          {loading ? (
+            <div className="grid-responsive">
+              {[1, 2, 3].map((n) => (
+                <div key={n} className="glass-panel skeleton-pulse" style={{ padding: '2rem', height: '220px' }} />
               ))}
             </div>
-
-          </div>
-        </section>
-      </main>
+          ) : activeTournaments.length > 0 ? (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
+              {activeTournaments.map((t) => (
+                <GlassCard key={t.id} variant="panel" style={{ padding: '2rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                    <Badge variant={t.status === 'Active' ? 'live' : t.status === 'Upcoming' ? 'cyan' : 'gold'}>
+                      {t.status === 'Active' ? 'Live' : t.status}
+                    </Badge>
+                    <Badge variant="cyan" style={{ fontSize: '0.75rem', textTransform: 'none' }}>{t.game}</Badge>
+                  </div>
+                  <h3 style={{ fontSize: '1.25rem', marginBottom: '1rem' }}>{t.name}</h3>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--text-secondary)', borderTop: '1px solid var(--border-color)', paddingTop: '1rem', marginTop: '1rem' }}>
+                    <span>Rosters Registered</span>
+                    <strong style={{ color: 'var(--text-primary)' }}>{t.registeredTeamIds?.length || 0} / {t.maxTeams}</strong>
+                  </div>
+                  <Link href={`/tournaments/${t.id}`}>
+                    <Button variant="outline" style={{ width: '100%', marginTop: '1.5rem', justifyContent: 'center' }}>
+                      Spectate Bracket
+                    </Button>
+                  </Link>
+                </GlassCard>
+              ))}
+            </div>
+          ) : (
+            <div style={{ textAlign: 'center', padding: '3rem 1rem', border: '1px dashed var(--border-color)', borderRadius: '8px' }}>
+              <Trophy size={32} style={{ opacity: 0.25, margin: '0 auto 0.75rem auto' }} />
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontStyle: 'italic' }}>No tournaments hosted yet.</p>
+            </div>
+          )}
+        </div>
+      </section>
 
       {/* BENTO STYLES */}
       <style jsx global>{`
@@ -392,6 +453,6 @@ export default function HomeClient() {
           box-shadow: 0 0 15px var(--border-glow);
         }
       `}</style>
-    </>
+    </main>
   );
 }

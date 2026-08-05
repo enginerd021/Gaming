@@ -1,11 +1,11 @@
 import { Metadata } from 'next';
-import LeaderboardClient from './LeaderboardClient';
+import LeaderboardView from '@/views/LeaderboardView';
 
 export const metadata: Metadata = {
-  title: "Esports Leaderboards & Rankings — Shakti Gaming",
-  description: "See the highest ranked esports teams and players on the Shakti Gaming leaderboard. Synced in real-time.",
+  title: "Leaderboard & Hall of Fame — Shakti Gaming Esports",
+  description: "Live real-time leaderboards for esports players and team rosters based on XP points, victories, and match performance.",
 };
 
 export default function Page() {
-  return <LeaderboardClient />;
+  return <LeaderboardView />;
 }

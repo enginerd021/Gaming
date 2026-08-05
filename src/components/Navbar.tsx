@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAppStore } from '@/store/useAppStore';
@@ -17,6 +17,7 @@ import {
   updateDoc 
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 
 interface AppNotification {
   id: string;
@@ -34,12 +35,13 @@ export default function Navbar() {
   const loading = useAppStore((state) => state.loading);
   const isOffline = useAppStore((state) => state.isOffline);
   const pathname = usePathname();
-
   const isHome = pathname === '/';
+  const { refreshCount } = useAutoRefresh();
   
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [notifOpen, setNotifOpen] = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
 
   // Dropdown states for the inner-page black bar
   const [productsOpen, setProductsOpen] = useState(false);
@@ -82,31 +84,107 @@ export default function Navbar() {
     }
   };
 
+  // Relative time formatter
+  const formatTimeAgo = (date: Date) => {
+    const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
+    if (seconds < 60) return 'Just now';
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+  };
+
+  // Keyboard navigation & Escape key handler
   useEffect(() => {
-    if (!user) return setNotifications([]);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setNotifOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // Close notification dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setNotifOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Listen to unread notifications (limit to 50, sort client-side)
+  useEffect(() => {
+    if (!user) {
+      setNotifications([]);
+      return;
+    }
+
     const ref = collection(db, "profiles", user.uid, "notifications");
-    const q = query(ref, where("read", "==", false), orderBy("createdAt", "desc"), limit(30));
+    const q = query(ref, limit(50));
 
     const unsub = onSnapshot(q, (snap) => {
       const list = snap.docs.map(d => {
         const data = d.data();
+        const rawDate = data.createdAt;
+        let created = new Date();
+        if (rawDate && typeof rawDate.toDate === 'function') {
+          created = rawDate.toDate();
+        } else if (rawDate) {
+          created = new Date(rawDate);
+        }
         return {
-          id: d.id, ...data,
-          createdAt: data.createdAt ? data.createdAt.toDate() : new Date()
+          id: d.id,
+          type: data.type,
+          message: data.message,
+          relatedId: data.relatedId,
+          read: !!data.read,
+          createdAt: created
         } as AppNotification;
       });
-      setNotifications(list);
+
+      // Sort client-side newest first & filter unread
+      list.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      const unreadList = list.filter(n => !n.read);
+      setNotifications(unreadList);
+    }, (err) => {
+      console.error("Notifications listener error:", err);
     });
     return () => unsub();
-  }, [user]);
+  }, [user, refreshCount]);
+
+  const handleMarkRead = async (notifId: string) => {
+    if (!user) return;
+    // Optimistic UI removal
+    setNotifications(prev => prev.filter(n => n.id !== notifId));
+    try {
+      const ref = doc(db, "profiles", user.uid, "notifications", notifId);
+      await updateDoc(ref, { read: true });
+    } catch (err) {
+      console.error("Failed to mark notification read:", err);
+    }
+  };
 
   const handleMarkAllRead = async () => {
     if (!user || notifications.length === 0) return;
-    const batch = writeBatch(db);
-    notifications.forEach(n => {
-      batch.update(doc(db, "profiles", user.uid, "notifications", n.id), { read: true });
-    });
-    await batch.commit();
+    const targets = [...notifications];
+    // Optimistic UI clearance
+    setNotifications([]);
+    try {
+      const batch = writeBatch(db);
+      targets.forEach(n => {
+        const ref = doc(db, "profiles", user.uid, "notifications", n.id);
+        batch.update(ref, { read: true });
+      });
+      await batch.commit();
+    } catch (err) {
+      console.error("Failed to bulk mark read:", err);
+    }
   };
 
   return (
@@ -241,27 +319,138 @@ export default function Navbar() {
             {/* Authenticated User Controls */}
             {user && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-                <div style={{ position: 'relative' }}>
-                  <button onClick={() => setNotifOpen(!notifOpen)} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                <div ref={notifRef} style={{ position: 'relative' }}>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setNotifOpen(!notifOpen);
+                    }}
+                    className="btn btn-outline touch-target"
+                    aria-label={`Notifications, ${notifications.length} unread`}
+                    aria-expanded={notifOpen}
+                    style={{
+                      position: 'relative',
+                      padding: '0.5rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: notifOpen ? 'hsla(186, 100%, 48%, 0.1)' : 'none',
+                      border: notifOpen ? '1px solid var(--accent-cyan)' : '1px solid var(--border-color)',
+                      borderRadius: '6px',
+                      color: notifOpen ? 'var(--accent-cyan)' : 'var(--text-primary)',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
                     <Bell size={18} />
                     {notifications.length > 0 && (
-                      <span style={{
-                        position: 'absolute', top: '-4px', right: '-4px', width: '8px', height: '8px',
-                        background: 'var(--accent-cyan)', borderRadius: '50%', boxShadow: '0 0 10px var(--accent-cyan)'
-                      }} />
+                      <span 
+                        className="pulse-badge"
+                        style={{
+                          position: 'absolute',
+                          top: '-4px',
+                          right: '-4px',
+                          background: 'var(--accent-cyan)',
+                          color: 'var(--bg-primary)',
+                          fontSize: '0.65rem',
+                          fontWeight: 800,
+                          borderRadius: '50%',
+                          height: '16px',
+                          width: '16px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}
+                      >
+                        {notifications.length}
+                      </span>
                     )}
                   </button>
-                  
+
+                  {/* Notification Dropdown Panel */}
                   {notifOpen && (
-                    <div style={{
-                      position: 'absolute', top: '2.5rem', right: 0, width: '320px', maxHeight: '400px', overflowY: 'auto',
-                      background: 'rgba(5, 12, 25, 0.95)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.1)',
-                      borderRadius: '12px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', zIndex: 100
-                    }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#fff', letterSpacing: '0.1em' }}>ALERTS</span>
+                    <div 
+                      className="glass-panel fade-in"
+                      style={{
+                        position: 'absolute',
+                        top: '3rem',
+                        right: 0,
+                        width: '320px',
+                        maxHeight: '400px',
+                        overflowY: 'auto',
+                        zIndex: 1000,
+                        padding: '1rem',
+                        border: '1px solid hsla(186, 100%, 48%, 0.15)',
+                        background: 'hsla(223, 20%, 5%, 0.95)',
+                        boxShadow: '0 10px 30px rgba(0, 0, 0, 0.5)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.75rem'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
+                        <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>Notifications</span>
                         {notifications.length > 0 && (
-                          <button onClick={handleMarkAllRead} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '0.65rem', cursor: 'pointer' }}>Mark all read</button>
+                          <button 
+                            onClick={handleMarkAllRead}
+                            style={{ background: 'none', border: 'none', color: 'var(--accent-cyan)', fontSize: '0.75rem', cursor: 'pointer', padding: 0 }}
+                          >
+                            Mark all as read
+                          </button>
+                        )}
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        {notifications.length === 0 ? (
+                          <div style={{ padding: '1.5rem 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', fontStyle: 'italic' }}>
+                            No unread notifications.
+                          </div>
+                        ) : (
+                          notifications.map(notif => (
+                            <div 
+                              key={notif.id}
+                              style={{
+                                padding: '0.6rem',
+                                borderRadius: '6px',
+                                background: 'var(--bg-secondary)',
+                                border: '1px solid var(--border-color)',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '0.25rem'
+                              }}
+                            >
+                              <p style={{ fontSize: '0.8rem', color: 'var(--text-primary)', margin: 0, lineHeight: 1.4 }}>
+                                {notif.message}
+                              </p>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.2rem' }}>
+                                <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                                  {formatTimeAgo(notif.createdAt)}
+                                </span>
+                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                  <Link 
+                                    href={
+                                      notif.type === 'team_invite' 
+                                        ? '/teams' 
+                                        : `/tournaments/${notif.relatedId}`
+                                    }
+                                    onClick={() => {
+                                      handleMarkRead(notif.id);
+                                      setNotifOpen(false);
+                                    }}
+                                    style={{ fontSize: '0.65rem', color: 'var(--accent-cyan)', textDecoration: 'none', fontWeight: 600 }}
+                                  >
+                                    View
+                                  </Link>
+                                  <button 
+                                    onClick={() => handleMarkRead(notif.id)}
+                                    style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '0.65rem', cursor: 'pointer', padding: 0 }}
+                                  >
+                                    Dismiss
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ))
                         )}
                       </div>
                     </div>

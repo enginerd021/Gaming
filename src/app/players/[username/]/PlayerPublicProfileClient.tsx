@@ -10,12 +10,14 @@ import {
   orderBy,
   limit,
   startAfter,
+  onSnapshot,
   QueryDocumentSnapshot
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Profile, Team } from '@/store/useAppStore';
 import { Trophy, Gamepad2, Award, Users, Calendar, AlertCircle, Loader } from 'lucide-react';
 import Link from 'next/link';
+import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 
 interface MatchRecord {
   id: string;
@@ -53,54 +55,57 @@ export default function PlayerPublicProfileClient({ username }: { username: stri
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { refreshCount } = useAutoRefresh();
 
   useEffect(() => {
     if (!username) return;
 
-    const fetchPlayerData = async () => {
-      setLoading(true);
-      setError(null);
-      
-      try {
-        const decodedUsername = decodeURIComponent(username).toLowerCase();
-        
-        // 1. Fetch profile by gamertag
-        const profilesRef = collection(db, "profiles");
-        const qProfile = query(profilesRef, where("gamertag", "==", decodedUsername));
-        const profileSnap = await getDocs(qProfile);
-        
-        if (profileSnap.empty) {
-          setError(`Player @${decodedUsername} could not be found.`);
-          setLoading(false);
-          return;
-        }
+    setLoading(true);
+    setError(null);
+    const decodedUsername = decodeURIComponent(username).toLowerCase();
 
-        const profileDoc = profileSnap.docs[0];
-        const profileData = { uid: profileDoc.id, ...profileDoc.data() } as Profile;
-        setProfile(profileData);
+    let teamUnsub: (() => void) | null = null;
+    let matchUnsub: (() => void) | null = null;
 
-        // 2. Fetch team if they are in one
-        const teamsRef = collection(db, "teams");
-        const qTeam = query(teamsRef, where("members", "array-contains", profileData.uid));
-        const teamSnap = await getDocs(qTeam);
-        
+    // 1. Real-time profile subscription
+    const profilesRef = collection(db, "profiles");
+    const qProfile = query(profilesRef, where("gamertag", "==", decodedUsername));
+    
+    const profileUnsub = onSnapshot(qProfile, (profileSnap) => {
+      if (profileSnap.empty) {
+        setError(`Player @${decodedUsername} could not be found.`);
+        setLoading(false);
+        return;
+      }
+
+      const profileDoc = profileSnap.docs[0];
+      const profileData = { uid: profileDoc.id, ...profileDoc.data() } as Profile;
+      setProfile(profileData);
+
+      // 2. Real-time team subscription
+      if (teamUnsub) teamUnsub();
+      const teamsRef = collection(db, "teams");
+      const qTeam = query(teamsRef, where("members", "array-contains", profileData.uid));
+      teamUnsub = onSnapshot(qTeam, (teamSnap) => {
         if (!teamSnap.empty) {
           const teamDoc = teamSnap.docs[0];
           setTeam({ id: teamDoc.id, ...teamDoc.data() } as Team);
         } else {
           setTeam(null);
         }
+      }, (err) => console.error("Error streaming player team:", err));
 
-        // 3. Fetch match history logs (where participantIds contains the player's UID with native orderBy)
-        const historyRef = collection(db, "matchHistory");
-        const matchQuery = query(
-          historyRef, 
-          where("participantIds", "array-contains", profileData.uid),
-          orderBy("resolvedAt", "desc"),
-          limit(10)
-        );
-        const mSnap = await getDocs(matchQuery);
-        
+      // 3. Real-time match history subscription
+      if (matchUnsub) matchUnsub();
+      const historyRef = collection(db, "matchHistory");
+      const matchQuery = query(
+        historyRef, 
+        where("participantIds", "array-contains", profileData.uid),
+        orderBy("resolvedAt", "desc"),
+        limit(10)
+      );
+
+      matchUnsub = onSnapshot(matchQuery, (mSnap) => {
         const mList = mSnap.docs.map(docSnap => {
           const data = docSnap.data();
           return {
@@ -126,34 +131,31 @@ export default function PlayerPublicProfileClient({ username }: { username: stri
         setLastDoc(mSnap.docs[mSnap.docs.length - 1] || null);
         setHasMore(mSnap.docs.length === 10);
 
-        // 4. Calculate total Wins and Losses across ALL matches
-        const allMatchesQuery = query(historyRef, where("participantIds", "array-contains", profileData.uid));
-        const allSnap = await getDocs(allMatchesQuery);
         let wCount = 0;
         let lCount = 0;
-        allSnap.docs.forEach(docSnap => {
-          const data = docSnap.data();
-          const isT1 = data.team1Members?.includes(profileData.uid);
-          const isWin = (isT1 && data.winnerId === data.team1Id) || (!isT1 && data.winnerId === data.team2Id);
-          if (isWin) {
-            wCount++;
-          } else {
-            lCount++;
-          }
+        mList.forEach(m => {
+          const isT1 = m.team1Members?.includes(profileData.uid);
+          const isWin = (isT1 && m.winnerId === m.team1Id) || (!isT1 && m.winnerId === m.team2Id);
+          if (isWin) wCount++;
+          else if (m.winnerId) lCount++;
         });
         setTotalWinsCount(wCount);
         setTotalLossesCount(lCount);
+      }, (err) => console.error("Error streaming player matches:", err));
 
-      } catch (err: any) {
-        console.error("Error fetching player:", err);
-        setError("An error occurred while loading this profile.");
-      } finally {
-        setLoading(false);
-      }
+      setLoading(false);
+    }, (err) => {
+      console.error("Error streaming player profile:", err);
+      setError("Failed to stream player details.");
+      setLoading(false);
+    });
+
+    return () => {
+      profileUnsub();
+      if (teamUnsub) teamUnsub();
+      if (matchUnsub) matchUnsub();
     };
-
-    fetchPlayerData();
-  }, [username]);
+  }, [username, refreshCount]);
 
   useEffect(() => {
     const rId = profile?.riotId;

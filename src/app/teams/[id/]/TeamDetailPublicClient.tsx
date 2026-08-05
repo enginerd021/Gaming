@@ -13,11 +13,13 @@ import {
   limit,
   startAfter,
   getCountFromServer,
+  onSnapshot,
   QueryDocumentSnapshot
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Trophy, Users, Shield, Calendar, ArrowLeft, Loader, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
+import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 
 interface MatchRecord {
   id: string;
@@ -64,102 +66,89 @@ export default function TeamDetailPublicClient({ id }: { id: string }) {
   
   const [loading, setLoading] = useState(true);
   const [notifError, setNotifError] = useState<string | null>(null);
+  const { refreshCount } = useAutoRefresh();
 
   useEffect(() => {
     if (!id) return;
 
-    const fetchTeamDetails = async () => {
-      try {
-        setLoading(true);
-        // 1. Fetch team document
-        const teamRef = doc(db, "teams", id);
-        const teamSnap = await getDoc(teamRef);
-        if (!teamSnap.exists()) {
-          setNotifError("Team organization not found.");
-          setLoading(false);
-          return;
-        }
+    setLoading(true);
+    let membersUnsub: (() => void) | null = null;
 
-        const tData = { id: teamSnap.id, ...teamSnap.data() } as Team;
-        setTeam(tData);
+    // 1. Real-time subscription to team document
+    const teamUnsub = onSnapshot(doc(db, "teams", id), (teamSnap) => {
+      if (!teamSnap.exists()) {
+        setNotifError("Team organization not found.");
+        setLoading(false);
+        return;
+      }
 
-        // 2. Fetch member profiles
-        if (tData.members && tData.members.length > 0) {
-          const profilesRef = collection(db, "profiles");
-          const q = query(profilesRef, where("uid", "in", tData.members));
-          const pSnap = await getDocs(q);
+      const tData = { id: teamSnap.id, ...teamSnap.data() } as Team;
+      setTeam(tData);
+
+      // 2. Real-time subscription to member profiles
+      if (tData.members && tData.members.length > 0) {
+        if (membersUnsub) membersUnsub();
+        const profilesRef = collection(db, "profiles");
+        const qProfiles = query(profilesRef, where("uid", "in", tData.members));
+        membersUnsub = onSnapshot(qProfiles, (pSnap) => {
           const pList = pSnap.docs.map(d => d.data() as Profile);
           setMemberProfiles(pList);
-
-          // Find captain profile
           const cap = pList.find(p => p.uid === tData.captainId);
           if (cap) setCaptainProfile(cap);
-        }
-
-        // 3. Fetch match history (querying participantIds containing team ID with native orderBy and limit)
-        const historyRef = collection(db, "matchHistory");
-        const matchQuery = query(
-          historyRef, 
-          where("participantIds", "array-contains", id),
-          orderBy("resolvedAt", "desc"),
-          limit(20)
-        );
-        const mSnap = await getDocs(matchQuery);
-        
-        const mList = mSnap.docs.map(docSnap => {
-          const data = docSnap.data();
-          return {
-            id: docSnap.id,
-            matchId: data.matchId,
-            tournamentId: data.tournamentId,
-            tournamentName: data.tournamentName,
-            game: data.game,
-            team1Id: data.team1Id,
-            team1Name: data.team1Name,
-            team2Id: data.team2Id,
-            team2Name: data.team2Name,
-            score1: data.score1,
-            score2: data.score2,
-            winnerId: data.winnerId,
-            resolvedAt: data.resolvedAt ? data.resolvedAt.toDate() : new Date()
-          } as MatchRecord;
-        });
-
-        setMatches(mList);
-        setLastDoc(mSnap.docs[mSnap.docs.length - 1] || null);
-        setHasMore(mSnap.docs.length === 20);
-
-        // 4. Calculate total Wins and Losses server-side across all matches
-        const winQuery = query(
-          historyRef,
-          where("participantIds", "array-contains", id),
-          where("winnerId", "==", id)
-        );
-        const totalQuery = query(
-          historyRef,
-          where("participantIds", "array-contains", id)
-        );
-
-        const [winSnap, totalSnap] = await Promise.all([
-          getCountFromServer(winQuery),
-          getCountFromServer(totalQuery)
-        ]);
-
-        const wCount = winSnap.data().count;
-        const tCount = totalSnap.data().count;
-        setTotalWinsCount(wCount);
-        setTotalLossesCount(tCount - wCount);
-
-      } catch (err) {
-        console.error("Error loading team history:", err);
-        setNotifError("Failed to fetch team records.");
-      } finally {
-        setLoading(false);
+        }, (err) => console.error("Error streaming member profiles:", err));
       }
-    };
 
-    fetchTeamDetails();
-  }, [id]);
+      setLoading(false);
+    }, (err) => {
+      console.error("Error streaming team details:", err);
+      setNotifError("Failed to stream team updates.");
+      setLoading(false);
+    });
+
+    // 3. Real-time subscription to match history
+    const historyRef = collection(db, "matchHistory");
+    const matchQuery = query(
+      historyRef, 
+      where("participantIds", "array-contains", id),
+      orderBy("resolvedAt", "desc"),
+      limit(20)
+    );
+    const matchUnsub = onSnapshot(matchQuery, (mSnap) => {
+      const mList = mSnap.docs.map(docSnap => {
+        const data = docSnap.data();
+        return {
+          id: docSnap.id,
+          matchId: data.matchId,
+          tournamentId: data.tournamentId,
+          tournamentName: data.tournamentName,
+          game: data.game,
+          team1Id: data.team1Id,
+          team1Name: data.team1Name,
+          team2Id: data.team2Id,
+          team2Name: data.team2Name,
+          score1: data.score1,
+          score2: data.score2,
+          winnerId: data.winnerId,
+          resolvedAt: data.resolvedAt ? data.resolvedAt.toDate() : new Date()
+        } as MatchRecord;
+      });
+
+      setMatches(mList);
+      setLastDoc(mSnap.docs[mSnap.docs.length - 1] || null);
+      setHasMore(mSnap.docs.length === 20);
+
+      const wCount = mList.filter(m => m.winnerId === id).length;
+      const lCount = mList.filter(m => m.winnerId && m.winnerId !== id).length;
+      setTotalWinsCount(wCount);
+      setTotalLossesCount(lCount);
+    }, (err) => console.error("Error streaming match history:", err));
+
+    return () => {
+      teamUnsub();
+      if (membersUnsub) membersUnsub();
+      matchUnsub();
+    };
+  }, [id, refreshCount]);
 
   const loadMoreMatches = async () => {
     if (!lastDoc) return;
