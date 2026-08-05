@@ -45,7 +45,6 @@ export default function Navbar() {
 
   // Dropdown states for the inner-page black bar
   const [productsOpen, setProductsOpen] = useState(false);
-  const [zterminalOpen, setZterminalOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
 
   // Auto-hide scroll logic (Home page only)
@@ -236,7 +235,7 @@ export default function Navbar() {
                 {/* Products Dropdown */}
                 <div style={{ position: 'relative' }}>
                   <button 
-                    onClick={() => { setProductsOpen(!productsOpen); setZterminalOpen(false); setAboutOpen(false); }}
+                    onClick={() => { setProductsOpen(!productsOpen); setAboutOpen(false); }}
                     className="zentry-pill-btn"
                   >
                     PRODUCTS <ChevronDown size={14} className={`transform transition-transform ${productsOpen ? 'rotate-180' : ''}`} />
@@ -275,33 +274,19 @@ export default function Navbar() {
             
             <nav className="desktop-nav" style={{ display: 'none', alignItems: 'center', gap: '2rem' }}>
               
-              {/* Inner Page Zterminal / About Dropdowns */}
+              {/* Inner Page About Dropdown */}
               {!isHome && (
-                <>
-                  <div style={{ position: 'relative' }}>
-                    <button onClick={() => { setZterminalOpen(!zterminalOpen); setProductsOpen(false); setAboutOpen(false); }} className="zentry-text-link flex items-center gap-1">
-                      ZTERMINAL <ChevronDown size={12} />
-                    </button>
-                    {zterminalOpen && (
-                      <div className="zentry-dropdown-menu right-0">
-                        <Link href="/profile" onClick={() => setZterminalOpen(false)} className="dropdown-item">Command Center</Link>
-                        <Link href="/leaderboard" onClick={() => setZterminalOpen(false)} className="dropdown-item">Statistics</Link>
-                      </div>
-                    )}
-                  </div>
-
-                  <div style={{ position: 'relative' }}>
-                    <button onClick={() => { setAboutOpen(!aboutOpen); setProductsOpen(false); setZterminalOpen(false); }} className="zentry-text-link flex items-center gap-1">
-                      ABOUT <ChevronDown size={12} />
-                    </button>
-                    {aboutOpen && (
-                      <div className="zentry-dropdown-menu right-0">
-                        <a href="#about" onClick={() => setAboutOpen(false)} className="dropdown-item">Platform Mission</a>
-                        <a href="#rules" onClick={() => setAboutOpen(false)} className="dropdown-item">Rulebook</a>
-                      </div>
-                    )}
-                  </div>
-                </>
+                <div style={{ position: 'relative' }}>
+                  <button onClick={() => { setAboutOpen(!aboutOpen); setProductsOpen(false); }} className="zentry-text-link flex items-center gap-1">
+                    ABOUT <ChevronDown size={12} />
+                  </button>
+                  {aboutOpen && (
+                    <div className="zentry-dropdown-menu right-0">
+                      <a href="#about" onClick={() => setAboutOpen(false)} className="dropdown-item">Platform Mission</a>
+                      <a href="#rules" onClick={() => setAboutOpen(false)} className="dropdown-item">Rulebook</a>
+                    </div>
+                  )}
+                </div>
               )}
 
               <Link href="/leaderboard" className="zentry-text-link">
@@ -458,7 +443,7 @@ export default function Navbar() {
                 </div>
 
                 <div className="desktop-actions" style={{ display: 'none', alignItems: 'center', gap: '1.5rem' }}>
-                   <Link href={profile?.gamertag ? `/players/${profile.gamertag}` : '/profile'} className="zentry-text-link">
+                   <Link href="/profile" className="zentry-text-link">
                      PROFILE
                    </Link>
                    <button onClick={handleLogout} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', opacity: 0.7 }} className="hover-opacity">
