@@ -135,7 +135,7 @@ export function ZentryHero() {
           <div className="zentry-sub-badge">
             <span className="live-dot" />
             <Sparkles size={14} style={{ color: 'var(--accent-cyan)' }} />
-            <span>WELCOME TO SHAKTI ESPORTS METAGAME</span>
+            <span>WELCOME TO SHAKTRIX METAGAME</span>
           </div>
         </div>
 

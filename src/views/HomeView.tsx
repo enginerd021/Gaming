@@ -203,8 +203,9 @@ export default function HomeView() {
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', pointerEvents: 'auto', flexWrap: 'wrap', gap: '2rem' }}>
             <div>
-              <h1 style={{ fontSize: 'clamp(3.5rem, 7vw, 6rem)', lineHeight: '0.9', fontWeight: 900, letterSpacing: '-0.02em', color: '#fff', textShadow: '0 0 30px rgba(0, 136, 255, 0.6)', fontFamily: 'var(--font-title)' }}>
-                SHAKTI<br />GAMING
+              <h1 style={{ fontSize: 'clamp(3.5rem, 7vw, 6rem)', lineHeight: '0.9', fontWeight: 900, letterSpacing: '0.02em', textTransform: 'uppercase', fontFamily: 'var(--font-title)' }}>
+                <span style={{ color: 'var(--neon-blue)', textShadow: '0 0 35px rgba(0, 240, 255, 0.85)' }}>SHAKT</span>
+                <span style={{ color: 'var(--neon-purple)', textShadow: '0 0 35px rgba(176, 38, 255, 0.85)' }}>RIX</span>
               </h1>
             </div>
             <div style={{ display: 'flex', gap: '1rem' }}>
@@ -219,7 +220,7 @@ export default function HomeView() {
       </section>
 
       {/* Stats Ticker Banner */}
-      <div className="container" style={{ position: 'relative', zIndex: 10, marginTop: '-2.5rem', marginBottom: '3rem' }}>
+      <div className="container" style={{ position: 'relative', zIndex: 10, marginTop: '2rem', marginBottom: '4rem' }}>
         <StatsTicker />
       </div>
 
@@ -245,7 +246,7 @@ export default function HomeView() {
           <div style={{ marginBottom: '4rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             <div style={{ overflow: 'hidden' }}>
               <p className="zentry-reveal-text" style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em', color: 'var(--accent-cyan)' }}>
-                Explore Shakti's Integrated Arenas
+                Explore SHAKTRIX's Integrated Arenas
               </p>
             </div>
             <div style={{ overflow: 'hidden' }}>
