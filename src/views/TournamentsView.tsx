@@ -5,7 +5,10 @@ import Link from 'next/link';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/store/useAppStore';
-import { Trophy, Search, Gamepad2, Shield, Loader, PlusCircle } from 'lucide-react';
+import { Trophy, Search, Gamepad2, PlusCircle } from 'lucide-react';
+import Button from '@/components/ui/Button';
+import Badge from '@/components/ui/Badge';
+import GlassCard from '@/components/ui/GlassCard';
 
 interface Tournament {
   id: string;
@@ -19,7 +22,7 @@ interface Tournament {
   createdAt: number;
 }
 
-export default function TournamentsClient() {
+export default function TournamentsView() {
   const user = useAppStore((state) => state.user);
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,15 +58,14 @@ export default function TournamentsClient() {
   const getStatusBadge = (status: Tournament['status']) => {
     switch (status) {
       case 'Upcoming':
-        return <span className="badge badge-cyan">Upcoming</span>;
+        return <Badge variant="cyan">Upcoming</Badge>;
       case 'Active':
-        return <span className="badge badge-violet">Live</span>;
+        return <Badge variant="live">Live</Badge>;
       case 'Completed':
-        return <span className="badge badge-gold">Completed</span>;
+        return <Badge variant="gold">Completed</Badge>;
     }
   };
 
-  // Filter logic (Requirement 5)
   const filteredTournaments = tournaments.filter((tournament) => {
     const matchesSearch = tournament.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesGame = selectedGame === 'All' || tournament.game === selectedGame;
@@ -93,14 +95,16 @@ export default function TournamentsClient() {
             </p>
           </div>
           {user && (
-            <Link href="/tournaments/create" className="btn btn-primary">
-              <PlusCircle size={18} />
-              Host Tournament
+            <Link href="/tournaments/create">
+              <Button variant="primary">
+                <PlusCircle size={18} />
+                Host Tournament
+              </Button>
             </Link>
           )}
         </div>
 
-        {/* Filters Section (Requirement 5) */}
+        {/* Filters Section */}
         <div className="glass-panel filters-layout" style={{ padding: '1.5rem', marginBottom: '2rem' }}>
           
           {/* Search */}
@@ -144,24 +148,24 @@ export default function TournamentsClient() {
               onChange={(e) => setSelectedStatus(e.target.value)}
             >
               <option value="All">All Statuses</option>
-              <option value="Upcoming">Upcoming</option>
               <option value="Active">Live</option>
+              <option value="Upcoming">Upcoming</option>
               <option value="Completed">Completed</option>
             </select>
           </div>
 
-          {/* Entry Type Filter */}
+          {/* Entry Type filter */}
           <div style={{ flex: '1 0 140px' }}>
-            <label htmlFor="entry-filter" className="sr-only">Filter by Entry Type</label>
+            <label htmlFor="entry-type-filter" className="sr-only">Filter by Entry Fee</label>
             <select
-              id="entry-filter"
+              id="entry-type-filter"
               className="glass-input glass-select"
               value={selectedEntryType}
               onChange={(e) => setSelectedEntryType(e.target.value)}
             >
-              <option value="All">All Entry Types</option>
-              <option value="Free">Free</option>
-              <option value="Paid">Paid</option>
+              <option value="All">All Fees</option>
+              <option value="Free">Free Entry</option>
+              <option value="Paid">Paid Entry</option>
             </select>
           </div>
 
@@ -170,55 +174,55 @@ export default function TournamentsClient() {
         {/* Tournaments Grid */}
         {loading ? (
           <div className="grid-responsive">
-            {[1, 2, 3].map((n) => (
-              <div key={n} className="glass-card skeleton-pulse" style={{ display: 'flex', flexDirection: 'column', height: '220px', padding: '1.5rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
-                  <div className="skeleton-text" style={{ width: '80px', height: '18px' }} />
-                  <div className="skeleton-text" style={{ width: '60px', height: '18px' }} />
-                </div>
-                <div className="skeleton-text" style={{ width: '80%', height: '24px', marginBottom: '1rem' }} />
-                <div className="skeleton-text" style={{ width: '50%', height: '16px', marginBottom: '1.5rem' }} />
-                <div className="skeleton-button" style={{ marginTop: 'auto' }} />
-              </div>
+            {[1, 2, 3, 4, 5, 6].map(n => (
+              <div key={n} className="glass-panel skeleton-pulse" style={{ padding: '2rem', height: '240px' }} />
             ))}
           </div>
-        ) : filteredTournaments.length > 0 ? (
-          <div className="grid-responsive">
-            {filteredTournaments.map((t) => (
-              <article key={t.id} className="glass-card card-hover" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-                  {getStatusBadge(t.status)}
-                  <span className="badge badge-cyan" style={{ fontSize: '0.7rem' }}>{t.entryType} Entry</span>
-                </div>
-
-                <h3 style={{ fontSize: '1.25rem', marginBottom: '0.5rem', lineHeight: '1.4' }}>{t.name}</h3>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '0.75rem' }}>
-                  <Gamepad2 size={16} style={{ color: 'var(--accent-cyan)' }} />
-                  <span>{t.game}</span>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1.5rem', marginTop: 'auto' }}>
-                  <Shield size={16} />
-                  <span>Rosters: {t.registeredTeamIds?.length || 0} / {t.maxTeams}</span>
-                </div>
-
-                <Link href={`/tournaments/${t.id}`} className="btn btn-outline" style={{ width: '100%', justifyContent: 'center', marginTop: 'auto' }}>
-                  View Tournament
-                </Link>
-              </article>
-            ))}
-          </div>
+        ) : filteredTournaments.length === 0 ? (
+          <GlassCard variant="panel" style={{ textAlign: 'center', padding: '4rem 1.5rem' }}>
+            <Trophy size={48} style={{ color: 'var(--text-muted)', margin: '0 auto 1rem auto', opacity: 0.5 }} />
+            <h3 style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>No Tournaments Found</h3>
+            <p style={{ color: 'var(--text-secondary)' }}>Try broadening your search or filter settings.</p>
+          </GlassCard>
         ) : (
-          <div style={{ textAlign: 'center', padding: '5rem 2rem' }} className="glass-panel">
-            <Trophy size={48} style={{ color: 'var(--text-muted)', margin: '0 auto 1.5rem auto', opacity: 0.4 }} />
-            <h2 style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>No Tournaments Found</h2>
-            <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
-              We couldn&apos;t find any tournaments matching your filter selections.
-            </p>
-            <button onClick={() => { setSearchTerm(''); setSelectedGame('All'); setSelectedStatus('All'); setSelectedEntryType('All'); }} className="btn btn-outline">
-              Clear Filters
-            </button>
+          <div className="grid-responsive">
+            {filteredTournaments.map(tournament => {
+              const registeredCount = tournament.registeredTeamIds?.length || 0;
+              const isFull = registeredCount >= tournament.maxTeams;
+
+              return (
+                <GlassCard key={tournament.id} style={{ display: 'flex', flexDirection: 'column' }}>
+                  
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                    {getStatusBadge(tournament.status)}
+                    <Badge variant={tournament.entryType === 'Free' ? 'cyan' : 'gold'}>
+                      {tournament.entryType}
+                    </Badge>
+                  </div>
+
+                  <h3 style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>{tournament.name}</h3>
+                  <div style={{ color: 'var(--accent-cyan)', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '1.5rem' }}>
+                    <Gamepad2 size={16} /> {tournament.game}
+                  </div>
+
+                  <div style={{ marginTop: 'auto', borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+                      <span>Rosters</span>
+                      <strong style={{ color: isFull ? 'var(--accent-red)' : 'var(--text-primary)' }}>
+                        {registeredCount} / {tournament.maxTeams} {isFull && '(FULL)'}
+                      </strong>
+                    </div>
+
+                    <Link href={`/tournaments/${tournament.id}`}>
+                      <Button variant={tournament.status === 'Active' ? 'primary' : 'outline'} style={{ width: '100%', justifyContent: 'center' }}>
+                        {tournament.status === 'Active' ? 'Spectate Bracket' : 'View Tournament Details'}
+                      </Button>
+                    </Link>
+                  </div>
+
+                </GlassCard>
+              );
+            })}
           </div>
         )}
 

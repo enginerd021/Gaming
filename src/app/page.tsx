@@ -1,5 +1,5 @@
 import { Metadata } from 'next';
-import HomeClient from './HomeClient';
+import HomeView from '@/views/HomeView';
 
 export const metadata: Metadata = {
   title: "Shakti Gaming — Esports Tournament & Bracket Platform",
@@ -7,5 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function Page() {
-  return <HomeClient />;
+  return <HomeView />;
 }

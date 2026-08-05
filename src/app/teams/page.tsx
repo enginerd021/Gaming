@@ -1,11 +1,11 @@
 import { Metadata } from 'next';
-import TeamsClient from './TeamsClient';
+import TeamsView from '@/views/TeamsView';
 
 export const metadata: Metadata = {
-  title: "Esports Team Roster Management — Shakti Gaming",
-  description: "Create a team organization, invite players by gamertag, manage your active roster, and register for tournaments.",
+  title: "Team Management — Shakti Gaming Esports",
+  description: "Create and manage your competitive esports team roster, send player invitations, and view team rank stats.",
 };
 
 export default function Page() {
-  return <TeamsClient />;
+  return <TeamsView />;
 }
