@@ -368,7 +368,7 @@ export default function TeamsView() {
 
   if (loading || teamLoading) {
     return (
-      <div style={{ position: 'relative', minHeight: 'calc(100vh - 4.5rem)', padding: '3rem 1.5rem' }}>
+      <div style={{ position: 'relative', minHeight: 'calc(100vh - 4.5rem)', padding: '7.5rem 1.5rem 4rem 1.5rem' }}>
         <div className="container" style={{ maxWidth: '900px', position: 'relative', zIndex: 1 }}>
           <div className="glass-panel skeleton-pulse" style={{ padding: '2.5rem', height: '120px', marginBottom: '2rem' }} />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }} className="grid-2-col">
@@ -383,7 +383,7 @@ export default function TeamsView() {
   const isCaptain = team?.captainId === user?.uid;
 
   return (
-    <main style={{ position: 'relative', minHeight: 'calc(100vh - 4.5rem)', padding: '3rem 1.5rem' }}>
+    <main style={{ position: 'relative', minHeight: 'calc(100vh - 4.5rem)', padding: '7.5rem 1.5rem 4rem 1.5rem' }}>
       <div className="hero-glow hero-glow-1" />
       <div className="hero-glow hero-glow-2" />
 

@@ -124,7 +124,7 @@ export default function RegisterClient() {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      padding: '2rem 1.5rem',
+      padding: '7.5rem 1.5rem 4rem 1.5rem',
       overflow: 'hidden'
     }}>
       {/* Background Decorative Glows */}

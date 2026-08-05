@@ -221,7 +221,7 @@ export default function TeamDetailPublicClient({ id }: { id: string }) {
   }
 
   return (
-    <main style={{ minHeight: 'calc(100vh - 4.5rem)', padding: '3rem 1.5rem' }}>
+    <main style={{ minHeight: 'calc(100vh - 4.5rem)', padding: '7.5rem 1.5rem 4rem 1.5rem' }}>
       <div className="container" style={{ maxWidth: '1000px' }}>
         
         {/* Navigation back */}

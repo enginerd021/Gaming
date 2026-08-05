@@ -198,7 +198,7 @@ export default function Navbar() {
         </div>
       )}
 
-      {/* HEADER: Dynamic rendering based on isHome route */}
+      {/* HEADER: Glossy transparent neon navbar */}
       <header 
         style={{
           position: 'fixed',
@@ -206,26 +206,28 @@ export default function Navbar() {
           left: 0,
           right: 0,
           zIndex: 100,
-          // Inner pages get a solid black container bar; Home gets transparent edge-to-edge
           background: isHome 
-            ? (isScrolled ? 'linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, transparent 100%)' : 'transparent')
-            : '#000000',
-          padding: isHome ? '1.5rem 3rem' : '1.25rem 3rem',
-          borderBottom: isHome ? 'none' : '1px solid rgba(255, 255, 255, 0.1)',
+            ? (isScrolled ? 'rgba(4, 9, 20, 0.85)' : 'transparent')
+            : 'rgba(4, 9, 20, 0.75)',
+          backdropFilter: 'blur(20px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+          padding: isHome ? '1.25rem 3rem' : '1rem 3rem',
+          borderBottom: '1px solid rgba(0, 240, 255, 0.15)',
           transform: navVisible ? 'translateY(0)' : 'translateY(-100%)',
           transition: 'transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), background 0.3s ease',
-          boxShadow: isHome ? 'none' : '0 10px 30px rgba(0,0,0,0.5)'
+          boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.5), 0 1px 0 0 rgba(176, 38, 255, 0.15)'
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', maxWidth: '1920px', margin: '0 auto' }}>
           
-          {/* LEFT SIDE: Logo + Action Buttons/Dropdowns */}
+          {/* LEFT SIDE: SHAKTRIX Logo + Action Buttons/Dropdowns */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
             <Link href="/" style={{ 
-              fontWeight: 900, fontSize: '1.4rem', fontFamily: 'var(--font-title)', 
-              letterSpacing: '-0.02em', color: '#fff', textTransform: 'uppercase'
+              fontWeight: 900, fontSize: '1.5rem', fontFamily: 'var(--font-title)', 
+              letterSpacing: '0.04em', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.15rem'
             }}>
-              SHAKTI GAMING
+              <span style={{ color: 'var(--neon-blue)', textShadow: '0 0 15px rgba(0, 240, 255, 0.75)' }}>SHAKT</span>
+              <span style={{ color: 'var(--neon-purple)', textShadow: '0 0 15px rgba(176, 38, 255, 0.75)' }}>RIX</span>
             </Link>
 
             {/* Inner Page Interactive Dropdowns (Zentry Style) */}
