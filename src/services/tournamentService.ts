@@ -1,4 +1,4 @@
-import { collection, getDocs, doc, getDoc, query, orderBy, limit } from 'firebase/firestore';
+import { collection, onSnapshot, doc, query, orderBy, limit, Unsubscribe } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 export interface Tournament {
@@ -14,30 +14,55 @@ export interface Tournament {
 }
 
 export const tournamentService = {
-  async getRecentTournaments(max: number = 3): Promise<Tournament[]> {
-    try {
-      const q = query(
-        collection(db, "tournaments"),
-        orderBy("createdAt", "desc"),
-        limit(max)
-      );
-      const snap = await getDocs(q);
-      return snap.docs.map(d => ({ id: d.id, ...d.data() } as Tournament));
-    } catch (err) {
-      console.error("Error fetching recent tournaments:", err);
-      return [];
-    }
+  /**
+   * Real-time subscription for recent tournaments (e.g. Home Page)
+   */
+  subscribeRecentTournaments(max: number = 3, onUpdate: (tournaments: Tournament[]) => void, onError?: (err: any) => void): Unsubscribe {
+    const q = query(
+      collection(db, "tournaments"),
+      orderBy("createdAt", "desc"),
+      limit(max)
+    );
+    return onSnapshot(q, (snap) => {
+      const list = snap.docs.map(d => ({ id: d.id, ...d.data() } as Tournament));
+      onUpdate(list);
+    }, (err) => {
+      console.error("Error in subscribeRecentTournaments:", err);
+      if (onError) onError(err);
+    });
   },
 
-  async getAllTournaments(): Promise<Tournament[]> {
-    try {
-      const snap = await getDocs(collection(db, "tournaments"));
+  /**
+   * Real-time subscription for all tournaments (e.g. Tournaments Arena Hub)
+   */
+  subscribeAllTournaments(onUpdate: (tournaments: Tournament[]) => void, onError?: (err: any) => void): Unsubscribe {
+    const q = query(
+      collection(db, "tournaments"),
+      orderBy("createdAt", "desc")
+    );
+    return onSnapshot(q, (snap) => {
       const list = snap.docs.map(d => ({ id: d.id, ...d.data() } as Tournament));
-      list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-      return list;
-    } catch (err) {
-      console.error("Error fetching all tournaments:", err);
-      return [];
-    }
+      onUpdate(list);
+    }, (err) => {
+      console.error("Error in subscribeAllTournaments:", err);
+      if (onError) onError(err);
+    });
+  },
+
+  /**
+   * Real-time subscription for single tournament document
+   */
+  subscribeTournamentById(id: string, onUpdate: (tournament: Tournament | null) => void, onError?: (err: any) => void): Unsubscribe {
+    const ref = doc(db, "tournaments", id);
+    return onSnapshot(ref, (snap) => {
+      if (snap.exists()) {
+        onUpdate({ id: snap.id, ...snap.data() } as Tournament);
+      } else {
+        onUpdate(null);
+      }
+    }, (err) => {
+      console.error(`Error in subscribeTournamentById (${id}):`, err);
+      if (onError) onError(err);
+    });
   }
 };

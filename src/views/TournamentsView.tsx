@@ -2,30 +2,20 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { collection, getDocs } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { tournamentService, Tournament } from '@/services/tournamentService';
 import { useAppStore } from '@/store/useAppStore';
 import { Trophy, Search, Gamepad2, PlusCircle } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import GlassCard from '@/components/ui/GlassCard';
 
-interface Tournament {
-  id: string;
-  name: string;
-  game: string;
-  status: 'Upcoming' | 'Active' | 'Completed';
-  entryType: 'Free' | 'Paid';
-  maxTeams: number;
-  registeredTeamIds: string[];
-  organizerId: string;
-  createdAt: number;
-}
+import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 
 export default function TournamentsView() {
   const user = useAppStore((state) => state.user);
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [loading, setLoading] = useState(true);
+  const { refreshCount } = useAutoRefresh();
 
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
@@ -33,27 +23,20 @@ export default function TournamentsView() {
   const [selectedStatus, setSelectedStatus] = useState('All');
   const [selectedEntryType, setSelectedEntryType] = useState('All');
 
-  const fetchTournaments = async () => {
-    setLoading(true);
-    try {
-      const querySnapshot = await getDocs(collection(db, "tournaments"));
-      const list = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Tournament[];
-      // Sort by newest first
-      list.sort((a, b) => b.createdAt - a.createdAt);
-      setTournaments(list);
-    } catch (err) {
-      console.error("Error fetching tournaments:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchTournaments();
-  }, []);
+    setLoading(true);
+    const unsub = tournamentService.subscribeAllTournaments(
+      (list) => {
+        setTournaments(list);
+        setLoading(false);
+      },
+      () => setLoading(false)
+    );
+
+    return () => {
+      unsub();
+    };
+  }, [refreshCount]);
 
   const getStatusBadge = (status: Tournament['status']) => {
     switch (status) {

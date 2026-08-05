@@ -13,7 +13,8 @@ import {
   deleteDoc, 
   arrayUnion, 
   arrayRemove,
-  serverTimestamp
+  serverTimestamp,
+  onSnapshot
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAppStore, Profile, Team } from '@/store/useAppStore';
@@ -22,6 +23,7 @@ import Link from 'next/link';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import GlassCard from '@/components/ui/GlassCard';
+import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 
 export default function TeamsView() {
   const user = useAppStore((state) => state.user);
@@ -30,6 +32,7 @@ export default function TeamsView() {
   const teamLoading = useAppStore((state) => state.teamLoading);
   const loading = useAppStore((state) => state.loading);
   const router = useRouter();
+  const { refreshCount } = useAutoRefresh();
 
   // Component states
   const [newTeamName, setNewTeamName] = useState('');
@@ -49,56 +52,58 @@ export default function TeamsView() {
     }
   }, [user, loading, router]);
 
-  // Fetch profiles of members in user's team
+  // Real-time stream of member profiles in user's team
   useEffect(() => {
-    const fetchMemberProfiles = async () => {
-      if (!team?.members || team.members.length === 0) {
-        setMemberProfiles([]);
-        return;
-      }
-      try {
-        const profilesRef = collection(db, "profiles");
-        const chunks = [];
-        const memberIds = [...team.members];
-        while (memberIds.length > 0) {
-          chunks.push(memberIds.splice(0, 30));
-        }
+    if (!team?.members || team.members.length === 0) {
+      setMemberProfiles([]);
+      return;
+    }
 
-        let allProfiles: Profile[] = [];
-        for (const chunk of chunks) {
-          const q = query(profilesRef, where("uid", "in", chunk));
-          const snap = await getDocs(q);
-          const chunkProfiles = snap.docs.map(d => d.data() as Profile);
-          allProfiles = [...allProfiles, ...chunkProfiles];
-        }
-        setMemberProfiles(allProfiles);
-      } catch (err) {
-        console.error("Error fetching member profiles:", err);
-      }
-    };
+    const profilesRef = collection(db, "profiles");
+    const chunks = [];
+    const memberIds = [...team.members];
+    while (memberIds.length > 0) {
+      chunks.push(memberIds.splice(0, 30));
+    }
 
-    fetchMemberProfiles();
-  }, [team?.members]);
+    const unsubs: (() => void)[] = [];
+    const profilesMap = new Map<string, Profile>();
 
-  // Fetch pending invitations for this user
-  const fetchReceivedInvites = async () => {
-    if (!profile?.gamertag) return;
-    try {
-      const q = query(
-        collection(db, "teams"), 
-        where("pendingInvites", "array-contains", profile.gamertag)
-      );
-      const snap = await getDocs(q);
+    for (const chunk of chunks) {
+      const q = query(profilesRef, where("uid", "in", chunk));
+      const u = onSnapshot(q, (snap) => {
+        snap.docs.forEach(d => profilesMap.set(d.id, d.data() as Profile));
+        setMemberProfiles(Array.from(profilesMap.values()));
+      }, (err) => {
+        console.error("Error streaming member profiles:", err);
+      });
+      unsubs.push(u);
+    }
+
+    return () => unsubs.forEach(fn => fn());
+  }, [team?.members, refreshCount]);
+
+  // Real-time stream of pending invitations for this user
+  useEffect(() => {
+    if (!profile?.gamertag) {
+      setReceivedInvites([]);
+      return;
+    }
+
+    const q = query(
+      collection(db, "teams"), 
+      where("pendingInvites", "array-contains", profile.gamertag)
+    );
+
+    const unsub = onSnapshot(q, (snap) => {
       const invitesList = snap.docs.map(d => ({ id: d.id, ...d.data() } as Team));
       setReceivedInvites(invitesList);
-    } catch (err) {
-      console.error("Error fetching received invites:", err);
-    }
-  };
+    }, (err) => {
+      console.error("Error streaming received invites:", err);
+    });
 
-  useEffect(() => {
-    fetchReceivedInvites();
-  }, [profile?.gamertag, team]);
+    return () => unsub();
+  }, [profile?.gamertag, team, refreshCount]);
 
   const clearMessages = () => {
     setError(null);
@@ -244,7 +249,6 @@ export default function TeamsView() {
       });
       
       setSuccess(`Successfully joined team ${invitingTeam.name}!`);
-      fetchReceivedInvites();
     } catch (err: any) {
       console.error(err);
       if (err.code === 'permission-denied') {
@@ -273,7 +277,6 @@ export default function TeamsView() {
         pendingInvites: arrayRemove(profile.gamertag)
       });
       setSuccess(`Declined invitation from team ${invitingTeam.name}.`);
-      fetchReceivedInvites();
     } catch (err: any) {
       console.error(err);
       if (err.code === 'permission-denied') {

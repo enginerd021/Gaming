@@ -12,6 +12,8 @@ import ZentryHero from '@/components/ui/ZentryHero';
 import BentoGrid from '@/components/ui/BentoGrid';
 import { initScrollReveals } from '@/animations/scroll';
 
+import { useAutoRefresh } from '@/hooks/useAutoRefresh';
+
 const SUPPORTED_GAMES = [
   {
     name: "Valorant",
@@ -54,22 +56,25 @@ const SUPPORTED_GAMES = [
 export default function HomeView() {
   const [activeTournaments, setActiveTournaments] = useState<Tournament[]>([]);
   const [loading, setLoading] = useState(true);
+  const { refreshCount } = useAutoRefresh();
 
   useEffect(() => {
-    const loadTournaments = async () => {
-      try {
-        const list = await tournamentService.getRecentTournaments(3);
+    setLoading(true);
+    const unsub = tournamentService.subscribeRecentTournaments(
+      3,
+      (list) => {
         setActiveTournaments(list);
-      } catch (err) {
-        console.error("Failed to load home tournaments:", err);
-      } finally {
         setLoading(false);
-      }
-    };
+      },
+      () => setLoading(false)
+    );
 
-    loadTournaments();
     initScrollReveals();
-  }, []);
+
+    return () => {
+      unsub();
+    };
+  }, [refreshCount]);
 
   return (
     <main style={{ position: 'relative', overflow: 'hidden' }}>
