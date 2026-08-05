@@ -83,7 +83,7 @@ export default function CreateTournamentClient() {
   const uniqueGames = ["Valorant", "League of Legends", "CS:GO", "Apex Legends", "Rocket League", "Overwatch 2"];
 
   return (
-    <main style={{ position: 'relative', minHeight: 'calc(100vh - 4.5rem)', padding: '3rem 1.5rem' }}>
+    <main style={{ position: 'relative', minHeight: 'calc(100vh - 4.5rem)', padding: '7.5rem 1.5rem 4rem 1.5rem' }}>
       <div className="hero-glow hero-glow-1" />
       <div className="hero-glow hero-glow-2" />
 

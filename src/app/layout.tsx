@@ -5,8 +5,8 @@ import Navbar from "@/components/Navbar";
 import SmoothScrollProvider from "@/providers/SmoothScrollProvider";
 
 export const metadata: Metadata = {
-  title: "Shakti Gaming | Esports & Gaming Community Hub",
-  description: "Find teammates, register for tournaments, track stats, and build your gaming legacy.",
+  title: "SHAKTRIX | Esports & Gaming Community Hub",
+  description: "Find teammates, register for tournaments, track stats, and build your gaming legacy on SHAKTRIX.",
 };
 
 export default function RootLayout({
@@ -26,7 +26,7 @@ export default function RootLayout({
               </main>
               <footer style={{
                 background: 'var(--bg-secondary)',
-                borderTop: '1px solid var(--border-color)',
+                borderTop: '1px solid rgba(0, 240, 255, 0.15)',
                 padding: '2.5rem 0',
                 textAlign: 'center',
                 color: 'var(--text-muted)',
@@ -34,7 +34,7 @@ export default function RootLayout({
                 flexShrink: 0
               }}>
                 <div className="container">
-                  <p>&copy; {new Date().getFullYear()} Shakti Gaming Esports. All rights reserved.</p>
+                  <p>&copy; {new Date().getFullYear()} <span style={{ color: 'var(--neon-blue)', fontWeight: 800 }}>SHAKT</span><span style={{ color: 'var(--neon-purple)', fontWeight: 800 }}>RIX</span> Esports. All rights reserved.</p>
                   <p style={{ fontSize: '0.8rem', marginTop: '0.5rem', color: 'hsla(217, 12%, 50%, 0.7)' }}>
                     Tournament brackets & Live Leaderboards synced in real-time.
                   </p>

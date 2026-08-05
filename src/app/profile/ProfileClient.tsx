@@ -156,7 +156,7 @@ export default function ProfileClient() {
 
   if (loading || !profile) {
     return (
-      <div style={{ position: 'relative', minHeight: 'calc(100vh - 4.5rem)', padding: '3rem 1.5rem' }}>
+      <div style={{ position: 'relative', minHeight: 'calc(100vh - 4.5rem)', padding: '7.5rem 1.5rem 4rem 1.5rem' }}>
         <div className="container" style={{ maxWidth: '800px', position: 'relative', zIndex: 1 }}>
           <div className="glass-panel skeleton-pulse" style={{ padding: '2.5rem', height: '500px' }}>
             <div className="skeleton-text" style={{ width: '30%', height: '32px', marginBottom: '2.5rem' }} />
@@ -173,7 +173,7 @@ export default function ProfileClient() {
   }
 
   return (
-    <main style={{ position: 'relative', minHeight: 'calc(100vh - 4.5rem)', padding: '3rem 1.5rem' }}>
+    <main style={{ position: 'relative', minHeight: 'calc(100vh - 4.5rem)', padding: '7.5rem 1.5rem 4rem 1.5rem' }}>
       <div className="hero-glow hero-glow-1" />
       
       <div className="container" style={{ maxWidth: '800px', position: 'relative', zIndex: 1 }}>
