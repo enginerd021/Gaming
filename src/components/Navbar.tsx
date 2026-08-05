@@ -17,6 +17,7 @@ import {
   updateDoc 
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 
 interface AppNotification {
   id: string;
@@ -35,10 +36,12 @@ export default function Navbar() {
   const isOffline = useAppStore((state) => state.isOffline);
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { refreshCount } = useAutoRefresh();
   
   // Notification states
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [notifOpen, setNotifOpen] = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
 
   const navLinks = [
     { name: 'Tournaments', href: '/tournaments', icon: Trophy },
@@ -58,7 +61,7 @@ export default function Navbar() {
   // Relative time formatter
   const formatTimeAgo = (date: Date) => {
     const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
-    if (seconds < 60) return 'just now';
+    if (seconds < 60) return 'Just now';
     const minutes = Math.floor(seconds / 60);
     if (minutes < 60) return `${minutes}m ago`;
     const hours = Math.floor(minutes / 60);
@@ -78,7 +81,18 @@ export default function Navbar() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Listen to unread notifications (limit to 30)
+  // Close notification dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setNotifOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Listen to unread notifications (limit to 50, sort client-side)
   useEffect(() => {
     if (!user) {
       setNotifications([]);
@@ -86,35 +100,43 @@ export default function Navbar() {
     }
 
     const ref = collection(db, "profiles", user.uid, "notifications");
-    const q = query(
-      ref,
-      where("read", "==", false),
-      orderBy("createdAt", "desc"),
-      limit(30)
-    );
+    const q = query(ref, limit(50));
 
     const unsub = onSnapshot(q, (snap) => {
       const list = snap.docs.map(d => {
         const data = d.data();
+        const rawDate = data.createdAt;
+        let created = new Date();
+        if (rawDate && typeof rawDate.toDate === 'function') {
+          created = rawDate.toDate();
+        } else if (rawDate) {
+          created = new Date(rawDate);
+        }
         return {
           id: d.id,
           type: data.type,
           message: data.message,
           relatedId: data.relatedId,
-          read: data.read,
-          createdAt: data.createdAt ? data.createdAt.toDate() : new Date()
+          read: !!data.read,
+          createdAt: created
         } as AppNotification;
       });
-      setNotifications(list);
+
+      // Sort client-side newest first & filter unread
+      list.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      const unreadList = list.filter(n => !n.read);
+      setNotifications(unreadList);
     }, (err) => {
       console.error("Notifications listener error:", err);
     });
 
     return () => unsub();
-  }, [user]);
+  }, [user, refreshCount]);
 
   const handleMarkRead = async (notifId: string) => {
     if (!user) return;
+    // Optimistic UI removal
+    setNotifications(prev => prev.filter(n => n.id !== notifId));
     try {
       const ref = doc(db, "profiles", user.uid, "notifications", notifId);
       await updateDoc(ref, { read: true });
@@ -125,9 +147,12 @@ export default function Navbar() {
 
   const handleMarkAllRead = async () => {
     if (!user || notifications.length === 0) return;
+    const targets = [...notifications];
+    // Optimistic UI clearance
+    setNotifications([]);
     try {
       const batch = writeBatch(db);
-      notifications.forEach(n => {
+      targets.forEach(n => {
         const ref = doc(db, "profiles", user.uid, "notifications", n.id);
         batch.update(ref, { read: true });
       });
@@ -204,9 +229,12 @@ export default function Navbar() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           {/* Real-time Notification Bell */}
           {user && (
-            <div style={{ position: 'relative' }}>
+            <div ref={notifRef} style={{ position: 'relative' }}>
               <button
-                onClick={() => setNotifOpen(!notifOpen)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setNotifOpen(!notifOpen);
+                }}
                 className="btn btn-outline touch-target"
                 aria-label={`Notifications, ${notifications.length} unread`}
                 aria-expanded={notifOpen}
@@ -216,11 +244,12 @@ export default function Navbar() {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  background: 'none',
-                  border: '1px solid var(--border-color)',
+                  background: notifOpen ? 'hsla(186, 100%, 48%, 0.1)' : 'none',
+                  border: notifOpen ? '1px solid var(--accent-cyan)' : '1px solid var(--border-color)',
                   borderRadius: '6px',
                   color: notifOpen ? 'var(--accent-cyan)' : 'var(--text-primary)',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
                 }}
               >
                 <Bell size={18} />
@@ -251,15 +280,15 @@ export default function Navbar() {
               {/* Notification Dropdown Panel */}
               {notifOpen && (
                 <div 
-                  className="glass-panel"
+                  className="glass-panel fade-in"
                   style={{
                     position: 'absolute',
-                    top: '2.8rem',
+                    top: '3rem',
                     right: 0,
                     width: '320px',
                     maxHeight: '400px',
                     overflowY: 'auto',
-                    zIndex: 100,
+                    zIndex: 1000,
                     padding: '1rem',
                     border: '1px solid hsla(186, 100%, 48%, 0.15)',
                     background: 'hsla(223, 20%, 5%, 0.95)',
