@@ -1,27 +1,27 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
 
 :root {
-  /* HSL Tailored Gaming Color Palette & Zentry Cyber Tokens */
-  --bg-primary: hsl(228, 28%, 5%);
-  --bg-secondary: hsl(225, 22%, 9%);
-  --bg-tertiary: hsl(223, 18%, 14%);
-  --bg-card: hsla(225, 24%, 10%, 0.75);
+  /* Electric Cyber Sapphire Blue Theme */
+  --bg-primary: hsl(222, 45%, 6%);
+  --bg-secondary: hsl(220, 40%, 10%);
+  --bg-tertiary: hsl(218, 35%, 15%);
+  --bg-card: hsla(220, 40%, 10%, 0.7);
   
-  --accent-cyan: hsl(186, 100%, 50%);
-  --accent-cyan-rgb: 0, 240, 255;
-  --accent-violet: hsl(268, 92%, 64%);
-  --accent-violet-rgb: 138, 43, 226;
+  --accent-cyan: hsl(210, 100%, 55%);         /* Electric Sapphire Blue */
+  --accent-cyan-rgb: 0, 136, 255;
+  --accent-violet: hsl(195, 100%, 45%);       /* Deep Ice Cyan */
+  --accent-violet-rgb: 0, 191, 255;
   --accent-gold: hsl(45, 100%, 55%);
   --accent-red: hsl(350, 85%, 55%);
   --accent-green: hsl(145, 80%, 45%);
 
   --text-primary: hsl(210, 40%, 98%);
-  --text-secondary: hsl(215, 20%, 75%);
-  --text-muted: hsl(217, 12%, 50%);
+  --text-secondary: hsl(215, 25%, 78%);
+  --text-muted: hsl(217, 18%, 55%);
 
-  --border-color: hsla(217, 20%, 25%, 0.35);
-  --border-glow: hsla(186, 100%, 50%, 0.25);
-  --border-glow-violet: hsla(268, 92%, 64%, 0.25);
+  --border-color: hsla(210, 100%, 55%, 0.18);
+  --border-glow: hsla(210, 100%, 55%, 0.35);
+  --border-glow-violet: hsla(195, 100%, 45%, 0.25);
 
   --font-title: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -29,8 +29,8 @@
   --transition-smooth: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
   --transition-fast: all 0.15s ease;
   
-  --glow-cyan: 0 0 25px hsla(186, 100%, 50%, 0.4);
-  --glow-violet: 0 0 25px hsla(268, 92%, 64%, 0.4);
+  --glow-cyan: 0 0 25px hsla(210, 100%, 55%, 0.45);
+  --glow-violet: 0 0 20px hsla(195, 100%, 45%, 0.35);
 }
 
 /* Reset & Base Styles */
@@ -126,12 +126,14 @@ a {
 }
 
 .glass-panel:hover {
-  border-color: hsla(186, 100%, 48%, 0.25);
+  border-color: hsla(210, 100%, 55%, 0.25);
   box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.45), var(--border-glow);
 }
 
 .glass-card {
-  background: hsla(223, 20%, 8%, 0.45);
+  background: hsla(220, 40%, 8%, 0.65) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--border-color);
   border-radius: 10px;
   padding: 1.5rem;
@@ -140,7 +142,7 @@ a {
 
 .glass-card:hover {
   transform: translateY(-4px);
-  border-color: hsla(265, 89%, 63%, 0.3);
+  border-color: hsla(195, 100%, 45%, 0.3);
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.5), var(--border-glow-violet);
 }
 
@@ -168,7 +170,7 @@ a {
 
 .btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 0 30px hsla(186, 100%, 48%, 0.5);
+  box-shadow: 0 0 30px hsla(210, 100%, 55%, 0.5);
   filter: brightness(1.15);
 }
 
@@ -181,14 +183,14 @@ a {
 }
 
 .btn-secondary {
-  background: linear-gradient(135deg, var(--accent-violet) 0%, hsl(280, 80%, 55%) 100%);
+  background: linear-gradient(135deg, var(--accent-violet) 0%, hsl(210, 80%, 55%) 100%);
   color: var(--text-primary);
   box-shadow: var(--glow-violet);
 }
 
 .btn-secondary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 0 30px hsla(265, 89%, 63%, 0.5);
+  box-shadow: 0 0 30px hsla(195, 100%, 45%, 0.5);
   filter: brightness(1.15);
 }
 
@@ -200,7 +202,7 @@ a {
 
 .btn-outline:hover {
   border-color: var(--accent-cyan);
-  background: hsla(186, 100%, 48%, 0.05);
+  background: hsla(210, 100%, 55%, 0.05);
   box-shadow: var(--border-glow);
   transform: translateY(-1px);
 }
@@ -278,15 +280,15 @@ a {
 }
 
 .badge-cyan {
-  background: hsla(186, 100%, 48%, 0.15);
+  background: hsla(210, 100%, 55%, 0.15);
   color: var(--accent-cyan);
-  border: 1px solid hsla(186, 100%, 48%, 0.25);
+  border: 1px solid hsla(210, 100%, 55%, 0.25);
 }
 
 .badge-violet {
-  background: hsla(265, 89%, 63%, 0.15);
+  background: hsla(195, 100%, 45%, 0.15);
   color: var(--accent-violet);
-  border: 1px solid hsla(265, 89%, 63%, 0.25);
+  border: 1px solid hsla(195, 100%, 45%, 0.25);
 }
 
 .badge-gold {
@@ -322,7 +324,7 @@ a {
   position: sticky;
   top: 0;
   z-index: 100;
-  background: hsla(225, 25%, 6%, 0.75);
+  background: hsla(222, 45%, 6%, 0.75);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border-bottom: 1px solid var(--border-color);
@@ -387,7 +389,7 @@ h3 {
   min-height: 44px;
 }
 
-/* Mobile Breakpoint Tweaks (< 640px) */
+/* Breakpoints Config & Responsive Utilities */
 @media (max-width: 639.98px) {
   .mobile-hide { display: none !important; }
   .mobile-only { display: block !important; }
@@ -423,14 +425,12 @@ h3 {
   }
 }
 
-/* Tablet: 640px - 1024px */
 @media (min-width: 640px) and (max-width: 1024px) {
   .tablet-hide { display: none !important; }
   .tablet-only { display: block !important; }
   .tablet-grid-2 { grid-template-columns: 1fr 1fr !important; }
 }
 
-/* Desktop: > 1024px */
 @media (min-width: 1024.02px) {
   .desktop-hide { display: none !important; }
   .desktop-only { display: block !important; }
@@ -482,7 +482,6 @@ h3 {
   }
 }
 
-/* Horizontal scroll container for brackets (Req 4) */
 .scroll-x-container {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
@@ -498,7 +497,6 @@ h3 {
   border-radius: 3px;
 }
 
-/* Filters Layout for Tournaments */
 .filters-layout {
   display: flex;
   flex-wrap: wrap;
@@ -517,7 +515,6 @@ h3 {
   }
 }
 
-/* Page Transitions Wrapper */
 .page-transition-wrapper {
   opacity: 0;
   transform: translateY(8px);
@@ -529,7 +526,6 @@ h3 {
   transform: translateY(0);
 }
 
-/* Card Hover Lift & Glow (Req 2) */
 .card-hover {
   transition: transform 0.22s cubic-bezier(0.25, 0.8, 0.25, 1), border-color 0.22s ease, box-shadow 0.22s ease !important;
 }
@@ -542,11 +538,10 @@ h3 {
   }
 }
 
-/* Status Change Highlight Flash (Req 3) */
 @keyframes statusFlashHighlight {
   0% {
-    background-color: hsla(186, 100%, 48%, 0.22);
-    box-shadow: 0 0 12px hsla(186, 100%, 48%, 0.4);
+    background-color: hsla(210, 100%, 55%, 0.22);
+    box-shadow: 0 0 12px hsla(210, 100%, 55%, 0.4);
   }
   100% {
     background-color: transparent;
@@ -558,7 +553,6 @@ h3 {
   animation: statusFlashHighlight 0.8s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
-/* Input Form Validation Shake (Req 4) */
 @keyframes validationShake {
   0%, 100% { transform: translateX(0); }
   20%, 60% { transform: translateX(-6px); }
@@ -571,7 +565,6 @@ h3 {
   box-shadow: 0 0 10px hsla(350, 85%, 55%, 0.25) !important;
 }
 
-/* Glassmorphic pulse skeleton loaders (Req 5) */
 @keyframes pulseSkeleton {
   0%, 100% { opacity: 0.6; }
   50% { opacity: 0.25; }
@@ -579,25 +572,24 @@ h3 {
 
 .skeleton-pulse {
   animation: pulseSkeleton 1.5s infinite ease-in-out;
-  background: hsla(223, 20%, 14%, 0.6);
+  background: hsla(220, 40%, 14%, 0.6);
   border: 1px solid var(--border-color);
   border-radius: 10px;
 }
 
 .skeleton-text {
   height: 12px;
-  background: hsla(223, 20%, 25%, 0.4);
+  background: hsla(220, 40%, 25%, 0.4);
   border-radius: 4px;
   margin-bottom: 0.5rem;
 }
 
 .skeleton-button {
   height: 38px;
-  background: hsla(223, 20%, 25%, 0.4);
+  background: hsla(220, 40%, 25%, 0.4);
   border-radius: 6px;
 }
 
-/* Bracket Match Resolution Advancing Animation (Req 6) */
 @keyframes slideInMatchAdvancing {
   from {
     transform: translateX(18px);
@@ -613,7 +605,6 @@ h3 {
   animation: slideInMatchAdvancing 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-/* Accessibility prefers-reduced-motion overrides (Req 7) */
 @media (prefers-reduced-motion: reduce) {
   .page-transition-wrapper,
   .card-hover,
@@ -632,7 +623,6 @@ h3 {
   }
 }
 
-/* Screen reader only helper for visually hiding labels */
 .sr-only {
   position: absolute;
   width: 1px;
@@ -645,11 +635,47 @@ h3 {
   border: 0;
 }
 
-/* Keyboard accessibility: neon focus outlines on focusable elements */
 :focus-visible {
   outline: 2px solid var(--accent-cyan) !important;
   outline-offset: 3px !important;
   box-shadow: 0 0 8px var(--accent-cyan) !important;
+}
+
+/* Fix Video Hardware Acceleration Glitches */
+.gpu-accelerate {
+  will-change: transform, clip-path, opacity;
+  transform: translateZ(0);
+}
+
+/* Mix-Blend Kinetic Typography */
+.mix-blend-difference {
+  mix-blend-mode: difference;
+}
+
+/* Pulsing Blue Glow */
+@keyframes bluePulse {
+  0%, 100% {
+    box-shadow: 0 0 15px hsla(210, 100%, 55%, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 35px hsla(210, 100%, 55%, 0.7);
+  }
+}
+
+.glow-pulse {
+  animation: bluePulse 2.5s infinite;
+}
+
+/* Pulsing HUD Animation */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.95);
+  }
 }
 
 /* Esports Hero & Podium Extensions */
@@ -890,5 +916,3 @@ h3 {
   opacity: 0.45;
   transform: scale(1.04);
 }
-
-

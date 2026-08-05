@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAppStore } from '@/store/useAppStore';
-import { Trophy, Users, User, LogOut, Gamepad2, Menu, X, ShieldAlert, Bell } from 'lucide-react';
+import { User, LogOut, Menu, X, Bell, ChevronDown } from 'lucide-react';
 import { 
   collection, 
   query, 
@@ -35,24 +35,50 @@ export default function Navbar() {
   const loading = useAppStore((state) => state.loading);
   const isOffline = useAppStore((state) => state.isOffline);
   const pathname = usePathname();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const isHome = pathname === '/';
   const { refreshCount } = useAutoRefresh();
   
-  // Notification states
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [notifOpen, setNotifOpen] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
 
-  const navLinks = [
-    { name: 'Tournaments', href: '/tournaments', icon: Trophy },
-    { name: 'Teams', href: '/teams', icon: Users },
-    { name: 'Leaderboard', href: '/leaderboard', icon: ShieldAlert },
-  ];
+  // Dropdown states for the inner-page black bar
+  const [productsOpen, setProductsOpen] = useState(false);
+  const [zterminalOpen, setZterminalOpen] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
+
+  // Auto-hide scroll logic (Home page only)
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [lastScrollY, setLastScrollY] = useState(0);
+  const [navVisible, setNavVisible] = useState(true);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      setIsScrolled(currentScrollY > 50);
+      
+      if (isHome) {
+        if (currentScrollY > lastScrollY && currentScrollY > 100) {
+          setNavVisible(false);
+        } else {
+          setNavVisible(true);
+        }
+      } else {
+        setNavVisible(true);
+      }
+      setLastScrollY(currentScrollY);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [lastScrollY, isHome]);
 
   const handleLogout = async () => {
     try {
       await logout();
       setNotifOpen(false);
+      setMobileMenuOpen(false);
     } catch (err) {
       console.error('Failed to log out:', err);
     }
@@ -129,7 +155,6 @@ export default function Navbar() {
     }, (err) => {
       console.error("Notifications listener error:", err);
     });
-
     return () => unsub();
   }, [user, refreshCount]);
 
@@ -163,342 +188,324 @@ export default function Navbar() {
   };
 
   return (
-    <header className="header-glass">
+    <>
       {isOffline && (
         <div style={{
-          background: 'var(--accent-red)',
-          color: 'var(--text-primary)',
-          textAlign: 'center',
-          fontSize: '0.8rem',
-          fontWeight: 700,
-          padding: '0.4rem 1rem',
-          letterSpacing: '0.05em',
-          boxShadow: '0 4px 20px hsla(350, 85%, 55%, 0.4)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '0.5rem'
+          position: 'fixed', top: 0, left: 0, right: 0, zIndex: 110,
+          background: 'var(--accent-red)', color: '#fff', textAlign: 'center',
+          fontSize: '0.75rem', fontWeight: 800, padding: '0.4rem', letterSpacing: '0.1em',
         }}>
-          <ShieldAlert size={14} style={{ animation: 'pulse 1.5s infinite' }} />
-          <span>OFFLINE MODE &mdash; DISPLAYING CACHED DATA. CHANGES WILL SYNC ON RECONNECTION.</span>
+          OFFLINE MODE — DISPLAYING CACHED DATA
         </div>
       )}
-      <div className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '4.5rem' }}>
-        {/* Logo */}
-        <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 800, fontSize: '1.4rem', fontFamily: 'var(--font-title)' }}>
-          <Gamepad2 size={28} className="text-cyan" style={{ color: 'var(--accent-cyan)' }} />
-          <span style={{
-            background: 'linear-gradient(135deg, var(--accent-cyan) 0%, var(--accent-violet) 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-          }}>
-            SHAKTI
-          </span>
-          <span style={{ color: 'var(--text-primary)' }}>GAMING</span>
-        </Link>
 
-        {/* Desktop Navigation */}
-        <nav style={{ display: 'none', gap: '2rem', alignItems: 'center' }} className="desktop-nav">
-          {navLinks.map((link) => {
-            const Icon = link.icon;
-            const isActive = pathname.startsWith(link.href);
-            return (
-              <Link 
-                key={link.name} 
-                href={link.href}
-                style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '0.4rem',
-                  fontSize: '0.95rem',
-                  fontWeight: 500,
-                  color: isActive ? 'var(--accent-cyan)' : 'var(--text-secondary)',
-                  borderBottom: isActive ? '2px solid var(--accent-cyan)' : '2px solid transparent',
-                  padding: '0.5rem 0',
-                }}
-                className="nav-hover"
-              >
-                <Icon size={16} />
-                {link.name}
-              </Link>
-            );
-          })}
-        </nav>
+      {/* HEADER: Dynamic rendering based on isHome route */}
+      <header 
+        style={{
+          position: 'fixed',
+          top: isOffline ? '2rem' : '0',
+          left: 0,
+          right: 0,
+          zIndex: 100,
+          // Inner pages get a solid black container bar; Home gets transparent edge-to-edge
+          background: isHome 
+            ? (isScrolled ? 'linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, transparent 100%)' : 'transparent')
+            : '#000000',
+          padding: isHome ? '1.5rem 3rem' : '1.25rem 3rem',
+          borderBottom: isHome ? 'none' : '1px solid rgba(255, 255, 255, 0.1)',
+          transform: navVisible ? 'translateY(0)' : 'translateY(-100%)',
+          transition: 'transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), background 0.3s ease',
+          boxShadow: isHome ? 'none' : '0 10px 30px rgba(0,0,0,0.5)'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', maxWidth: '1920px', margin: '0 auto' }}>
+          
+          {/* LEFT SIDE: Logo + Action Buttons/Dropdowns */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
+            <Link href="/" style={{ 
+              fontWeight: 900, fontSize: '1.4rem', fontFamily: 'var(--font-title)', 
+              letterSpacing: '-0.02em', color: '#fff', textTransform: 'uppercase'
+            }}>
+              SHAKTI GAMING
+            </Link>
 
-        {/* Right side controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          {/* Real-time Notification Bell */}
-          {user && (
-            <div ref={notifRef} style={{ position: 'relative' }}>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setNotifOpen(!notifOpen);
-                }}
-                className="btn btn-outline touch-target"
-                aria-label={`Notifications, ${notifications.length} unread`}
-                aria-expanded={notifOpen}
-                style={{
-                  position: 'relative',
-                  padding: '0.5rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  background: notifOpen ? 'hsla(186, 100%, 48%, 0.1)' : 'none',
-                  border: notifOpen ? '1px solid var(--accent-cyan)' : '1px solid var(--border-color)',
-                  borderRadius: '6px',
-                  color: notifOpen ? 'var(--accent-cyan)' : 'var(--text-primary)',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease'
-                }}
-              >
-                <Bell size={18} />
-                {notifications.length > 0 && (
-                  <span 
-                    className="pulse-badge"
-                    style={{
-                      position: 'absolute',
-                      top: '-4px',
-                      right: '-4px',
-                      background: 'var(--accent-cyan)',
-                      color: 'var(--bg-primary)',
-                      fontSize: '0.65rem',
-                      fontWeight: 800,
-                      borderRadius: '50%',
-                      height: '16px',
-                      width: '16px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}
+            {/* Inner Page Interactive Dropdowns (Zentry Style) */}
+            {!isHome && (
+              <div className="desktop-nav" style={{ display: 'none', alignItems: 'center', gap: '0.75rem' }}>
+                
+                {/* Products Dropdown */}
+                <div style={{ position: 'relative' }}>
+                  <button 
+                    onClick={() => { setProductsOpen(!productsOpen); setZterminalOpen(false); setAboutOpen(false); }}
+                    className="zentry-pill-btn"
                   >
-                    {notifications.length}
-                  </span>
-                )}
-              </button>
-
-              {/* Notification Dropdown Panel */}
-              {notifOpen && (
-                <div 
-                  className="glass-panel fade-in"
-                  style={{
-                    position: 'absolute',
-                    top: '3rem',
-                    right: 0,
-                    width: '320px',
-                    maxHeight: '400px',
-                    overflowY: 'auto',
-                    zIndex: 1000,
-                    padding: '1rem',
-                    border: '1px solid hsla(186, 100%, 48%, 0.15)',
-                    background: 'hsla(223, 20%, 5%, 0.95)',
-                    boxShadow: '0 10px 30px rgba(0, 0, 0, 0.5)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '0.75rem'
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
-                    <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>Notifications</span>
-                    {notifications.length > 0 && (
-                      <button 
-                        onClick={handleMarkAllRead}
-                        style={{ background: 'none', border: 'none', color: 'var(--accent-cyan)', fontSize: '0.75rem', cursor: 'pointer', padding: 0 }}
-                      >
-                        Mark all as read
-                      </button>
-                    )}
-                  </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    {notifications.length === 0 ? (
-                      <div style={{ padding: '1.5rem 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', fontStyle: 'italic' }}>
-                        No unread notifications.
-                      </div>
-                    ) : (
-                      notifications.map(notif => (
-                        <div 
-                          key={notif.id}
-                          style={{
-                            padding: '0.6rem',
-                            borderRadius: '6px',
-                            background: 'var(--bg-secondary)',
-                            border: '1px solid var(--border-color)',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '0.25rem'
-                          }}
-                        >
-                          <p style={{ fontSize: '0.8rem', color: 'var(--text-primary)', margin: 0, lineHeight: 1.4 }}>
-                            {notif.message}
-                          </p>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.2rem' }}>
-                            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
-                              {formatTimeAgo(notif.createdAt)}
-                            </span>
-                            <div style={{ display: 'flex', gap: '0.5rem' }}>
-                              <Link 
-                                href={
-                                  notif.type === 'team_invite' 
-                                    ? '/teams' 
-                                    : `/tournaments/${notif.relatedId}`
-                                }
-                                onClick={() => {
-                                  handleMarkRead(notif.id);
-                                  setNotifOpen(false);
-                                }}
-                                style={{ fontSize: '0.65rem', color: 'var(--accent-cyan)', textDecoration: 'none', fontWeight: 600 }}
-                              >
-                                View
-                              </Link>
-                              <button 
-                                onClick={() => handleMarkRead(notif.id)}
-                                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '0.65rem', cursor: 'pointer', padding: 0 }}
-                              >
-                                Dismiss
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
+                    PRODUCTS <ChevronDown size={14} className={`transform transition-transform ${productsOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                  {productsOpen && (
+                    <div className="zentry-dropdown-menu">
+                      <Link href="/tournaments" onClick={() => setProductsOpen(false)} className="dropdown-item">Tournaments</Link>
+                      <Link href="/teams" onClick={() => setProductsOpen(false)} className="dropdown-item">Teams Hub</Link>
+                      <Link href="/leaderboard" onClick={() => setProductsOpen(false)} className="dropdown-item">Global Leaderboard</Link>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          )}
 
-          {/* User Actions (Desktop only) */}
-          <div style={{ display: 'none', alignItems: 'center', gap: '1rem' }} className="desktop-actions">
-            {loading ? (
-              <div style={{ width: '120px', height: '2.2rem', background: 'var(--bg-tertiary)', borderRadius: '6px', opacity: 0.5 }} />
-            ) : user ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                <Link 
-                  href={profile?.gamertag ? `/players/${profile.gamertag}` : '/profile'}
-                  style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '0.5rem', 
-                    fontSize: '0.9rem',
-                    color: 'var(--text-primary)',
-                    fontWeight: 600,
-                    background: 'var(--bg-tertiary)',
-                    padding: '0.4rem 0.8rem',
-                    borderRadius: '6px',
-                    border: '1px solid var(--border-color)'
-                  }}
-                >
-                  <User size={14} style={{ color: 'var(--accent-cyan)' }} />
-                  <span>@{profile?.gamertag || 'gamer'}</span>
+                {/* White Paper / Quick Link */}
+                <Link href="/tournaments" className="zentry-pill-btn">
+                  ARENAS
                 </Link>
-                <Link href="/profile" style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }} className="hover-cyan">
-                  Edit Profile
-                </Link>
-                <button 
-                  onClick={handleLogout} 
-                  className="btn btn-outline" 
-                  style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}
-                >
-                  <LogOut size={14} />
-                  Sign Out
-                </button>
               </div>
-            ) : (
-              <>
-                <Link href="/login" className="btn btn-outline" style={{ padding: '0.5rem 1.2rem', fontSize: '0.9rem' }}>
-                  Login
+            )}
+
+            {/* Home Page White Pills */}
+            {isHome && (
+              <nav className="desktop-nav" style={{ display: 'none', gap: '0.75rem' }}>
+                <Link href="/tournaments" className="zentry-pill-btn">
+                  TOURNAMENTS <ChevronDown size={14} />
                 </Link>
-                <Link href="/register" className="btn btn-primary" style={{ padding: '0.5rem 1.2rem', fontSize: '0.9rem' }}>
-                  Join Now
+                <Link href="/teams" className="zentry-pill-btn">
+                  TEAMS
                 </Link>
-              </>
+              </nav>
             )}
           </div>
 
-          {/* Mobile Menu Button */}
-          <button 
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            style={{ display: 'block', background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer' }}
-            className="mobile-toggle"
-            aria-label={mobileMenuOpen ? "Close main menu" : "Open main menu"}
-            aria-expanded={mobileMenuOpen}
-            aria-controls="mobile-nav-dropdown"
-          >
-            {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-          </button>
-        </div>
-      </div>
+          {/* RIGHT SIDE: Navigation Links / User Controls */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '2.5rem' }}>
+            
+            <nav className="desktop-nav" style={{ display: 'none', alignItems: 'center', gap: '2rem' }}>
+              
+              {/* Inner Page Zterminal / About Dropdowns */}
+              {!isHome && (
+                <>
+                  <div style={{ position: 'relative' }}>
+                    <button onClick={() => { setZterminalOpen(!zterminalOpen); setProductsOpen(false); setAboutOpen(false); }} className="zentry-text-link flex items-center gap-1">
+                      ZTERMINAL <ChevronDown size={12} />
+                    </button>
+                    {zterminalOpen && (
+                      <div className="zentry-dropdown-menu right-0">
+                        <Link href="/profile" onClick={() => setZterminalOpen(false)} className="dropdown-item">Command Center</Link>
+                        <Link href="/leaderboard" onClick={() => setZterminalOpen(false)} className="dropdown-item">Statistics</Link>
+                      </div>
+                    )}
+                  </div>
 
-      {/* Mobile Navigation Dropdown */}
-      {mobileMenuOpen && (
-        <nav 
-          id="mobile-nav-dropdown"
-          aria-label="Mobile Navigation"
-          style={{
-            position: 'absolute',
-            top: '4.5rem',
-            left: 0,
-            right: 0,
-            background: 'var(--bg-secondary)',
-            borderBottom: '1px solid var(--border-color)',
-            padding: '1.5rem',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '1.25rem',
-            zIndex: 99
-          }} className="mobile-dropdown">
-          {navLinks.map((link) => {
-            const Icon = link.icon;
-            return (
-              <Link 
-                key={link.name} 
-                href={link.href}
-                onClick={() => setMobileMenuOpen(false)}
-                className="touch-target"
-                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 500 }}
-              >
-                <Icon size={18} style={{ color: 'var(--accent-cyan)' }} />
-                {link.name}
+                  <div style={{ position: 'relative' }}>
+                    <button onClick={() => { setAboutOpen(!aboutOpen); setProductsOpen(false); setZterminalOpen(false); }} className="zentry-text-link flex items-center gap-1">
+                      ABOUT <ChevronDown size={12} />
+                    </button>
+                    {aboutOpen && (
+                      <div className="zentry-dropdown-menu right-0">
+                        <a href="#about" onClick={() => setAboutOpen(false)} className="dropdown-item">Platform Mission</a>
+                        <a href="#rules" onClick={() => setAboutOpen(false)} className="dropdown-item">Rulebook</a>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+
+              <Link href="/leaderboard" className="zentry-text-link">
+                LEADERBOARD
               </Link>
-            );
-          })}
-          <hr style={{ borderColor: 'var(--border-color)' }} />
-          {user ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <User size={18} style={{ color: 'var(--accent-cyan)' }} />
-                <span style={{ fontWeight: 600 }}>@{profile?.gamertag || 'gamer'}</span>
+
+              {!user && !loading && (
+                <>
+                  <Link href="/login" className="zentry-text-link">LOGIN</Link>
+                  <Link href="/register" className="zentry-text-link">JOIN NOW</Link>
+                </>
+              )}
+            </nav>
+
+            {/* Authenticated User Controls */}
+            {user && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+                <div ref={notifRef} style={{ position: 'relative' }}>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setNotifOpen(!notifOpen);
+                    }}
+                    className="btn btn-outline touch-target"
+                    aria-label={`Notifications, ${notifications.length} unread`}
+                    aria-expanded={notifOpen}
+                    style={{
+                      position: 'relative',
+                      padding: '0.5rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: notifOpen ? 'hsla(186, 100%, 48%, 0.1)' : 'none',
+                      border: notifOpen ? '1px solid var(--accent-cyan)' : '1px solid var(--border-color)',
+                      borderRadius: '6px',
+                      color: notifOpen ? 'var(--accent-cyan)' : 'var(--text-primary)',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    <Bell size={18} />
+                    {notifications.length > 0 && (
+                      <span 
+                        className="pulse-badge"
+                        style={{
+                          position: 'absolute',
+                          top: '-4px',
+                          right: '-4px',
+                          background: 'var(--accent-cyan)',
+                          color: 'var(--bg-primary)',
+                          fontSize: '0.65rem',
+                          fontWeight: 800,
+                          borderRadius: '50%',
+                          height: '16px',
+                          width: '16px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}
+                      >
+                        {notifications.length}
+                      </span>
+                    )}
+                  </button>
+
+                  {/* Notification Dropdown Panel */}
+                  {notifOpen && (
+                    <div 
+                      className="glass-panel fade-in"
+                      style={{
+                        position: 'absolute',
+                        top: '3rem',
+                        right: 0,
+                        width: '320px',
+                        maxHeight: '400px',
+                        overflowY: 'auto',
+                        zIndex: 1000,
+                        padding: '1rem',
+                        border: '1px solid hsla(186, 100%, 48%, 0.15)',
+                        background: 'hsla(223, 20%, 5%, 0.95)',
+                        boxShadow: '0 10px 30px rgba(0, 0, 0, 0.5)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.75rem'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
+                        <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>Notifications</span>
+                        {notifications.length > 0 && (
+                          <button 
+                            onClick={handleMarkAllRead}
+                            style={{ background: 'none', border: 'none', color: 'var(--accent-cyan)', fontSize: '0.75rem', cursor: 'pointer', padding: 0 }}
+                          >
+                            Mark all as read
+                          </button>
+                        )}
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        {notifications.length === 0 ? (
+                          <div style={{ padding: '1.5rem 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', fontStyle: 'italic' }}>
+                            No unread notifications.
+                          </div>
+                        ) : (
+                          notifications.map(notif => (
+                            <div 
+                              key={notif.id}
+                              style={{
+                                padding: '0.6rem',
+                                borderRadius: '6px',
+                                background: 'var(--bg-secondary)',
+                                border: '1px solid var(--border-color)',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '0.25rem'
+                              }}
+                            >
+                              <p style={{ fontSize: '0.8rem', color: 'var(--text-primary)', margin: 0, lineHeight: 1.4 }}>
+                                {notif.message}
+                              </p>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.2rem' }}>
+                                <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                                  {formatTimeAgo(notif.createdAt)}
+                                </span>
+                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                  <Link 
+                                    href={
+                                      notif.type === 'team_invite' 
+                                        ? '/teams' 
+                                        : `/tournaments/${notif.relatedId}`
+                                    }
+                                    onClick={() => {
+                                      handleMarkRead(notif.id);
+                                      setNotifOpen(false);
+                                    }}
+                                    style={{ fontSize: '0.65rem', color: 'var(--accent-cyan)', textDecoration: 'none', fontWeight: 600 }}
+                                  >
+                                    View
+                                  </Link>
+                                  <button 
+                                    onClick={() => handleMarkRead(notif.id)}
+                                    style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '0.65rem', cursor: 'pointer', padding: 0 }}
+                                  >
+                                    Dismiss
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="desktop-actions" style={{ display: 'none', alignItems: 'center', gap: '1.5rem' }}>
+                   <Link href={profile?.gamertag ? `/players/${profile.gamertag}` : '/profile'} className="zentry-text-link">
+                     PROFILE
+                   </Link>
+                   <button onClick={handleLogout} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', opacity: 0.7 }} className="hover-opacity">
+                     <LogOut size={18} />
+                   </button>
+                </div>
               </div>
-              <Link href="/profile" onClick={() => setMobileMenuOpen(false)} style={{ color: 'var(--text-secondary)' }}>
-                Edit Profile
-              </Link>
-              <button 
-                onClick={() => {
-                  handleLogout();
-                  setMobileMenuOpen(false);
-                }} 
-                className="btn btn-outline"
-                style={{ width: '100%', justifyContent: 'center' }}
-              >
-                <LogOut size={16} />
-                Sign Out
-              </button>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              <Link href="/login" onClick={() => setMobileMenuOpen(false)} className="btn btn-outline" style={{ width: '100%' }}>
-                Login
-              </Link>
-              <Link href="/register" onClick={() => setMobileMenuOpen(false)} className="btn btn-primary" style={{ width: '100%' }}>
-                Join Now
-              </Link>
-            </div>
-          )}
-        </nav>
+            )}
+
+            {/* Mobile Hamburger Menu */}
+            <button 
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="mobile-toggle"
+              style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer' }}
+            >
+              {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* MOBILE DROPDOWN */}
+      {mobileMenuOpen && (
+         <nav style={{
+            position: 'fixed', top: '5rem', left: '1rem', right: '1rem', background: 'rgba(0,0,0,0.95)', 
+            backdropFilter: 'blur(20px)', borderRadius: '16px', padding: '1.5rem', zIndex: 99,
+            display: 'flex', flexDirection: 'column', gap: '1rem', border: '1px solid rgba(255,255,255,0.1)'
+         }} className="mobile-dropdown">
+            <Link href="/tournaments" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>TOURNAMENTS</Link>
+            <Link href="/teams" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>TEAMS</Link>
+            <Link href="/leaderboard" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>LEADERBOARD</Link>
+            <hr style={{ borderColor: 'rgba(255,255,255,0.1)' }}/>
+            {user ? (
+               <>
+                  <Link href="/profile" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700 }}>PROFILE</Link>
+                  <button onClick={handleLogout} style={{ background: 'none', border: 'none', color: 'var(--accent-red)', fontWeight: 700, textAlign: 'left', padding: 0 }}>SIGN OUT</button>
+               </>
+            ) : (
+               <>
+                  <Link href="/login" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700 }}>LOGIN</Link>
+                  <Link href="/register" onClick={() => setMobileMenuOpen(false)} style={{ color: 'var(--accent-cyan)', fontWeight: 700 }}>JOIN NOW</Link>
+               </>
+            )}
+         </nav>
       )}
 
-      {/* Inline styles for responsive Navbar until CSS files are parsed */}
+      {/* GLOBAL ANIMATIONS & STYLING */}
       <style jsx global>{`
         @media (min-width: 1025px) {
           .desktop-nav { display: flex !important; }
@@ -506,26 +513,97 @@ export default function Navbar() {
           .mobile-toggle { display: none !important; }
           .mobile-dropdown { display: none !important; }
         }
-        .nav-hover:hover {
-          color: var(--accent-cyan) !important;
+        .zentry-pill-btn {
+          display: flex;
+          align-items: center;
+          gap: 0.25rem;
+          background: #fff;
+          color: #000;
+          padding: 0.4rem 1.25rem;
+          border-radius: 9999px;
+          fontSize: 0.75rem;
+          fontWeight: 800;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          border: none;
+          cursor: pointer;
+          transition: transform 0.2s ease, background 0.2s ease;
         }
-        .hover-cyan:hover {
-          color: var(--accent-cyan) !important;
+        .zentry-pill-btn:hover {
+          transform: scale(1.05);
+          background: #e2e8f0;
         }
-        @keyframes badgePulse {
-          0% { transform: scale(1); box-shadow: 0 0 0 0 hsla(186, 100%, 48%, 0.5); }
-          70% { transform: scale(1.1); box-shadow: 0 0 0 4px hsla(186, 100%, 48%, 0); }
-          100% { transform: scale(1); box-shadow: 0 0 0 0 hsla(186, 100%, 48%, 0); }
+        .zentry-dropdown-menu {
+          position: absolute;
+          top: calc(100% + 0.75rem);
+          left: 0;
+          min-width: 180px;
+          background: #111;
+          border: 1px solid rgba(255, 255, 255, 0.15);
+          border-radius: 12px;
+          padding: 0.5rem;
+          display: flex;
+          flex-direction: column;
+          gap: 0.25rem;
+          z-index: 200;
+          animation: dropdownFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+          box-shadow: 0 10px 30px rgba(0,0,0,0.8);
         }
-        .pulse-badge {
-          animation: badgePulse 2s infinite;
+        .zentry-dropdown-menu.right-0 {
+          left: auto;
+          right: 0;
         }
-        @media (prefers-reduced-motion: reduce) {
-          .pulse-badge {
-            animation: none !important;
-          }
+        .dropdown-item {
+          font-size: 0.7rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.1em;
+          color: rgba(255, 255, 255, 0.7);
+          padding: 0.6rem 0.8rem;
+          border-radius: 8px;
+          transition: background 0.2s, color 0.2s;
+        }
+        .dropdown-item:hover {
+          background: rgba(255, 255, 255, 0.1);
+          color: #fff;
+        }
+        @keyframes dropdownFadeIn {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .zentry-text-link {
+          color: #fff;
+          font-size: 0.7rem;
+          font-weight: 800;
+          text-transform: uppercase;
+          letter-spacing: 0.15em;
+          position: relative;
+          background: none;
+          border: none;
+          cursor: pointer;
+          opacity: 0.8;
+          transition: opacity 0.2s;
+        }
+        .zentry-text-link:hover {
+          opacity: 1;
+        }
+        .zentry-text-link::after {
+          content: '';
+          position: absolute;
+          bottom: -4px;
+          left: 0;
+          width: 0%;
+          height: 1px;
+          background: #fff;
+          transition: width 0.3s ease;
+        }
+        .zentry-text-link:hover::after {
+          width: 100%;
+        }
+        .hover-opacity:hover {
+          opacity: 1 !important;
         }
       `}</style>
-    </header>
+    </>
   );
 }
