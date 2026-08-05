@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAppStore } from '@/store/useAppStore';
-import { User, LogOut, Menu, X, Bell, ChevronDown } from 'lucide-react';
+import { User, LogOut, Menu, X, Bell, ChevronDown, Home } from 'lucide-react';
 import { 
   collection, 
   query, 
@@ -52,13 +52,30 @@ export default function Navbar() {
   const [lastScrollY, setLastScrollY] = useState(0);
   const [navVisible, setNavVisible] = useState(true);
 
+  // Click outside notification listener
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
+        setNotifOpen(false);
+      }
+    };
+
+    if (notifOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [notifOpen]);
+
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
-      setIsScrolled(currentScrollY > 50);
       
+      setIsScrolled(currentScrollY > 50);
+
       if (isHome) {
-        if (currentScrollY > lastScrollY && currentScrollY > 100) {
+        if (currentScrollY > lastScrollY && currentScrollY > 150) {
           setNavVisible(false);
         } else {
           setNavVisible(true);
@@ -66,6 +83,7 @@ export default function Navbar() {
       } else {
         setNavVisible(true);
       }
+
       setLastScrollY(currentScrollY);
     };
 
@@ -73,19 +91,62 @@ export default function Navbar() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [lastScrollY, isHome]);
 
+  // Firestore Notification Real-time Listener (Subcollection query without server orderBy)
+  useEffect(() => {
+    if (!user) {
+      setNotifications([]);
+      return;
+    }
+
+    const q = query(
+      collection(db, "profiles", user.uid, "notifications"),
+      limit(50)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const notifs: AppNotification[] = [];
+      snapshot.forEach(docSnap => {
+        const data = docSnap.data();
+        if (!data.read) {
+          notifs.push({
+            id: docSnap.id,
+            type: data.type || 'registration_confirmed',
+            message: data.message || '',
+            relatedId: data.relatedId || '',
+            read: !!data.read,
+            createdAt: data.createdAt
+          });
+        }
+      });
+
+      // Safe client-side sorting
+      notifs.sort((a, b) => {
+        const tA = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.createdAt || 0);
+        const tB = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.createdAt || 0);
+        return tB - tA;
+      });
+
+      setNotifications(notifs);
+    }, (error) => {
+      console.error("Error listening to notifications:", error);
+    });
+
+    return () => unsubscribe();
+  }, [user, refreshCount]);
+
   const handleLogout = async () => {
     try {
       await logout();
-      setNotifOpen(false);
-      setMobileMenuOpen(false);
-    } catch (err) {
-      console.error('Failed to log out:', err);
+    } catch (error) {
+      console.error('Failed to log out', error);
     }
   };
 
-  // Relative time formatter
-  const formatTimeAgo = (date: Date) => {
+  const formatTimeAgo = (timestamp: any) => {
+    if (!timestamp) return 'Just now';
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
     const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
+    
     if (seconds < 60) return 'Just now';
     const minutes = Math.floor(seconds / 60);
     if (minutes < 60) return `${minutes}m ago`;
@@ -95,71 +156,8 @@ export default function Navbar() {
     return `${days}d ago`;
   };
 
-  // Keyboard navigation & Escape key handler
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setNotifOpen(false);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
-
-  // Close notification dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
-        setNotifOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  // Listen to unread notifications (limit to 50, sort client-side)
-  useEffect(() => {
-    if (!user) {
-      setNotifications([]);
-      return;
-    }
-
-    const ref = collection(db, "profiles", user.uid, "notifications");
-    const q = query(ref, limit(50));
-
-    const unsub = onSnapshot(q, (snap) => {
-      const list = snap.docs.map(d => {
-        const data = d.data();
-        const rawDate = data.createdAt;
-        let created = new Date();
-        if (rawDate && typeof rawDate.toDate === 'function') {
-          created = rawDate.toDate();
-        } else if (rawDate) {
-          created = new Date(rawDate);
-        }
-        return {
-          id: d.id,
-          type: data.type,
-          message: data.message,
-          relatedId: data.relatedId,
-          read: !!data.read,
-          createdAt: created
-        } as AppNotification;
-      });
-
-      // Sort client-side newest first & filter unread
-      list.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-      const unreadList = list.filter(n => !n.read);
-      setNotifications(unreadList);
-    }, (err) => {
-      console.error("Notifications listener error:", err);
-    });
-    return () => unsub();
-  }, [user, refreshCount]);
-
   const handleMarkRead = async (notifId: string) => {
     if (!user) return;
-    // Optimistic UI removal
     setNotifications(prev => prev.filter(n => n.id !== notifId));
     try {
       const ref = doc(db, "profiles", user.uid, "notifications", notifId);
@@ -172,7 +170,6 @@ export default function Navbar() {
   const handleMarkAllRead = async () => {
     if (!user || notifications.length === 0) return;
     const targets = [...notifications];
-    // Optimistic UI clearance
     setNotifications([]);
     try {
       const batch = writeBatch(db);
@@ -198,7 +195,7 @@ export default function Navbar() {
         </div>
       )}
 
-      {/* HEADER: Glossy transparent neon navbar */}
+      {/* HEADER: Clean transparent header on home, glossy glass on inner pages */}
       <header 
         style={{
           position: 'fixed',
@@ -206,106 +203,40 @@ export default function Navbar() {
           left: 0,
           right: 0,
           zIndex: 100,
-          background: isHome 
-            ? (isScrolled ? 'rgba(4, 9, 20, 0.85)' : 'transparent')
-            : 'rgba(4, 9, 20, 0.75)',
-          backdropFilter: 'blur(20px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-          padding: isHome ? '1.25rem 3rem' : '1rem 3rem',
-          borderBottom: '1px solid rgba(0, 240, 255, 0.15)',
+          background: isHome ? 'transparent' : 'rgba(4, 9, 20, 0.75)',
+          backdropFilter: isHome ? 'none' : 'blur(20px) saturate(180%)',
+          WebkitBackdropFilter: isHome ? 'none' : 'blur(20px) saturate(180%)',
+          padding: '1.25rem 3rem',
+          borderBottom: isHome ? 'none' : '1px solid rgba(0, 240, 255, 0.15)',
           transform: navVisible ? 'translateY(0)' : 'translateY(-100%)',
           transition: 'transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), background 0.3s ease',
-          boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.5), 0 1px 0 0 rgba(176, 38, 255, 0.15)'
+          boxShadow: isHome ? 'none' : '0 8px 32px 0 rgba(0, 0, 0, 0.5), 0 1px 0 0 rgba(176, 38, 255, 0.15)'
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', maxWidth: '1920px', margin: '0 auto' }}>
           
-          {/* LEFT SIDE: SHAKTRIX Logo + Action Buttons/Dropdowns */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
-            <Link href="/" style={{ 
+          {/* LEFT SIDE: Home Icon Link + SHAKTRIX Text (Shifted slightly right, no hyperlink on SHAKTRIX text) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginLeft: '1.5rem' }}>
+            <Link href="/" aria-label="Home" style={{ color: '#ffffff', display: 'flex', alignItems: 'center', transition: 'opacity 0.2s' }} className="hover-opacity">
+              <Home size={22} />
+            </Link>
+            <div style={{ 
               fontWeight: 900, fontSize: '1.5rem', fontFamily: 'var(--font-title)', 
-              letterSpacing: '0.04em', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.15rem'
+              letterSpacing: '0.04em', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.15rem',
+              userSelect: 'none'
             }}>
               <span style={{ color: 'var(--neon-blue)', textShadow: '0 0 15px rgba(0, 240, 255, 0.75)' }}>SHAKT</span>
               <span style={{ color: 'var(--neon-purple)', textShadow: '0 0 15px rgba(176, 38, 255, 0.75)' }}>RIX</span>
-            </Link>
-
-            {/* Inner Page Interactive Dropdowns (Zentry Style) */}
-            {!isHome && (
-              <div className="desktop-nav" style={{ display: 'none', alignItems: 'center', gap: '0.75rem' }}>
-                
-                {/* Products Dropdown */}
-                <div style={{ position: 'relative' }}>
-                  <button 
-                    onClick={() => { setProductsOpen(!productsOpen); setAboutOpen(false); }}
-                    className="zentry-pill-btn"
-                  >
-                    PRODUCTS <ChevronDown size={14} className={`transform transition-transform ${productsOpen ? 'rotate-180' : ''}`} />
-                  </button>
-                  {productsOpen && (
-                    <div className="zentry-dropdown-menu">
-                      <Link href="/tournaments" onClick={() => setProductsOpen(false)} className="dropdown-item">Tournaments</Link>
-                      <Link href="/teams" onClick={() => setProductsOpen(false)} className="dropdown-item">Teams Hub</Link>
-                      <Link href="/leaderboard" onClick={() => setProductsOpen(false)} className="dropdown-item">Global Leaderboard</Link>
-                    </div>
-                  )}
-                </div>
-
-                {/* White Paper / Quick Link */}
-                <Link href="/tournaments" className="zentry-pill-btn">
-                  ARENAS
-                </Link>
-              </div>
-            )}
-
-            {/* Home Page White Pills */}
-            {isHome && (
-              <nav className="desktop-nav" style={{ display: 'none', gap: '0.75rem' }}>
-                <Link href="/tournaments" className="zentry-pill-btn">
-                  TOURNAMENTS <ChevronDown size={14} />
-                </Link>
-                <Link href="/teams" className="zentry-pill-btn">
-                  TEAMS
-                </Link>
-              </nav>
-            )}
+            </div>
           </div>
 
-          {/* RIGHT SIDE: Navigation Links / User Controls */}
+          {/* RIGHT SIDE: Arranged strictly as: Notification -> Leaderboard -> Tournaments -> Teams -> About -> Profile -> Logout */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '2.5rem' }}>
             
-            <nav className="desktop-nav" style={{ display: 'none', alignItems: 'center', gap: '2rem' }}>
+            <nav className="desktop-nav" style={{ display: 'none', alignItems: 'center', gap: '1.75rem' }}>
               
-              {/* Inner Page About Dropdown */}
-              {!isHome && (
-                <div style={{ position: 'relative' }}>
-                  <button onClick={() => { setAboutOpen(!aboutOpen); setProductsOpen(false); }} className="zentry-text-link flex items-center gap-1">
-                    ABOUT <ChevronDown size={12} />
-                  </button>
-                  {aboutOpen && (
-                    <div className="zentry-dropdown-menu right-0">
-                      <a href="#about" onClick={() => setAboutOpen(false)} className="dropdown-item">Platform Mission</a>
-                      <a href="#rules" onClick={() => setAboutOpen(false)} className="dropdown-item">Rulebook</a>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <Link href="/leaderboard" className="zentry-text-link">
-                LEADERBOARD
-              </Link>
-
-              {!user && !loading && (
-                <>
-                  <Link href="/login" className="zentry-text-link">LOGIN</Link>
-                  <Link href="/register" className="zentry-text-link">JOIN NOW</Link>
-                </>
-              )}
-            </nav>
-
-            {/* Authenticated User Controls */}
-            {user && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+              {/* 1. Notification Symbol */}
+              {user && (
                 <div ref={notifRef} style={{ position: 'relative' }}>
                   <button
                     onClick={(e) => {
@@ -443,17 +374,55 @@ export default function Navbar() {
                     </div>
                   )}
                 </div>
+              )}
 
-                <div className="desktop-actions" style={{ display: 'none', alignItems: 'center', gap: '1.5rem' }}>
-                   <Link href="/profile" className="zentry-text-link">
-                     PROFILE
-                   </Link>
-                   <button onClick={handleLogout} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', opacity: 0.7 }} className="hover-opacity">
-                     <LogOut size={18} />
-                   </button>
-                </div>
+              {/* 2. LEADERBOARD */}
+              <Link href="/leaderboard" className="zentry-text-link" style={{ color: '#ffffff' }}>
+                LEADERBOARD
+              </Link>
+
+              {/* 3. TOURNAMENTS */}
+              <Link href="/tournaments" className="zentry-text-link" style={{ color: '#ffffff' }}>
+                TOURNAMENTS
+              </Link>
+
+              {/* 4. TEAMS */}
+              <Link href="/teams" className="zentry-text-link" style={{ color: '#ffffff' }}>
+                TEAMS
+              </Link>
+
+              {/* 5. ABOUT US */}
+              <div style={{ position: 'relative' }}>
+                <button onClick={() => { setAboutOpen(!aboutOpen); setProductsOpen(false); }} className="zentry-text-link flex items-center gap-1" style={{ color: '#ffffff' }}>
+                  ABOUT <ChevronDown size={12} />
+                </button>
+                {aboutOpen && (
+                  <div className="zentry-dropdown-menu right-0">
+                    <a href="#about" onClick={() => setAboutOpen(false)} className="dropdown-item">Platform Mission</a>
+                    <a href="#rules" onClick={() => setAboutOpen(false)} className="dropdown-item">Rulebook</a>
+                  </div>
+                )}
               </div>
-            )}
+
+              {/* 6. PROFILE */}
+              <Link href="/profile" className="zentry-text-link" style={{ color: '#ffffff' }}>
+                PROFILE
+              </Link>
+
+              {/* 7. LOGOUT / AUTH */}
+              {user ? (
+                <button onClick={handleLogout} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', opacity: 0.8 }} className="hover-opacity" aria-label="Log out">
+                  <LogOut size={18} />
+                </button>
+              ) : (
+                !loading && (
+                  <>
+                    <Link href="/login" className="zentry-text-link" style={{ color: '#ffffff' }}>LOGIN</Link>
+                    <Link href="/register" className="zentry-text-link" style={{ color: '#ffffff' }}>JOIN NOW</Link>
+                  </>
+                )
+              )}
+            </nav>
 
             {/* Mobile Hamburger Menu */}
             <button 
@@ -559,8 +528,8 @@ export default function Navbar() {
           to { opacity: 1; transform: translateY(0); }
         }
         .zentry-text-link {
-          color: #fff;
-          font-size: 0.7rem;
+          color: #ffffff;
+          font-size: 0.75rem;
           font-weight: 800;
           text-transform: uppercase;
           letter-spacing: 0.15em;
@@ -568,7 +537,7 @@ export default function Navbar() {
           background: none;
           border: none;
           cursor: pointer;
-          opacity: 0.8;
+          opacity: 0.95;
           transition: opacity 0.2s;
         }
         .zentry-text-link:hover {
