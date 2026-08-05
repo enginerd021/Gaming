@@ -13,7 +13,6 @@ import StatsTicker from '@/components/ui/StatsTicker';
 import BentoGrid from '@/components/ui/BentoGrid';
 import { initScrollReveals } from '@/animations/scroll';
 import gsap from 'gsap';
-import { useGSAP } from '@gsap/react';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -146,38 +145,41 @@ export default function HomeView() {
     };
   }, [refreshCount]);
 
-  useGSAP(() => {
+  useEffect(() => {
     if (!heroWrapperRef.current || !videoFrameRef.current) return;
 
-    gsap.to(videoFrameRef.current, {
-      scrollTrigger: {
-        trigger: heroWrapperRef.current,
-        start: 'top top',
-        end: 'bottom top',
-        scrub: true,
-      },
-      clipPath: 'polygon(3% 3%, 97% 3%, 97% 97%, 3% 97%)',
-      borderRadius: '24px',
-      scale: 0.92,
-      opacity: 0.4,
-      ease: 'none',
-    });
+    const ctx = gsap.context(() => {
+      gsap.to(videoFrameRef.current, {
+        scrollTrigger: {
+          trigger: heroWrapperRef.current,
+          start: 'top top',
+          end: 'bottom top',
+          scrub: true,
+        },
+        clipPath: 'polygon(3% 3%, 97% 3%, 97% 97%, 3% 97%)',
+        borderRadius: '24px',
+        scale: 0.92,
+        opacity: 0.4,
+        ease: 'none',
+      });
 
-    gsap.to('.cockpit-hud', {
-      scrollTrigger: { trigger: heroWrapperRef.current, start: 'top top', end: 'center top', scrub: true },
-      opacity: 0, y: -40, ease: 'none',
-    });
+      gsap.to('.cockpit-hud', {
+        scrollTrigger: { trigger: heroWrapperRef.current, start: 'top top', end: 'center top', scrub: true },
+        opacity: 0, y: -40, ease: 'none',
+      });
 
-    gsap.fromTo('.zentry-reveal-text', 
-      { y: 80, opacity: 0, rotateX: -45 }, 
-      { 
-        y: 0, opacity: 1, rotateX: 0, duration: 1, stagger: 0.1, 
-        ease: 'power3.out', 
-        scrollTrigger: { trigger: sectionRef.current, start: 'top 75%' }
-      }
-    );
+      gsap.fromTo('.zentry-reveal-text', 
+        { y: 80, opacity: 0, rotateX: -45 }, 
+        { 
+          y: 0, opacity: 1, rotateX: 0, duration: 1, stagger: 0.1, 
+          ease: 'power3.out', 
+          scrollTrigger: { trigger: sectionRef.current, start: 'top 75%' }
+        }
+      );
+    }, heroWrapperRef);
 
-  }, { scope: heroWrapperRef });
+    return () => ctx.revert();
+  }, []);
 
   return (
     <main style={{ position: 'relative', overflowX: 'hidden', backgroundColor: 'var(--bg-primary)' }}>
