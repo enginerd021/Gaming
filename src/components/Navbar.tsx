@@ -231,6 +231,8 @@ export default function Navbar() {
 
       {/* HEADER: Clean transparent header on home, glossy glass on inner pages */}
       <header 
+        data-home={isHome}
+        className={isHome ? 'is-home-header' : 'is-inner-header'}
         style={{
           position: 'fixed',
           top: isOffline ? '2rem' : '0',
