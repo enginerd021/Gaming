@@ -30,8 +30,8 @@ const DEFAULT_LOUNGE_MESSAGES: GlobalMessage[] = [
     uid: 'system',
     gamertag: 'SHAKTRIX_Bot',
     displayName: 'SHAKTRIX Bot',
-    message: '⚡ Welcome to the SHAKTRIX Global Lounge! Connect & chat with online players.',
-    createdAt: new Date(Date.now() - 3600000)
+    message: '⚡ Welcome to the SHAKTRIX Global Lounge! Connect & chat live with online players across all pages.',
+    createdAt: new Date(Date.now() - 3600000).toISOString()
   },
   {
     id: 'demo-2',
@@ -39,7 +39,7 @@ const DEFAULT_LOUNGE_MESSAGES: GlobalMessage[] = [
     gamertag: 'ViperX',
     displayName: 'ViperX',
     message: 'Who is ready for tonight\'s Valorant bracket tournament? 🔥',
-    createdAt: new Date(Date.now() - 1800000)
+    createdAt: new Date(Date.now() - 1800000).toISOString()
   },
   {
     id: 'demo-3',
@@ -47,7 +47,7 @@ const DEFAULT_LOUNGE_MESSAGES: GlobalMessage[] = [
     gamertag: 'NeonBlade',
     displayName: 'NeonBlade',
     message: 'Our squad is looking for 1 entry fragger! Check out our team page 🛡️',
-    createdAt: new Date(Date.now() - 600000)
+    createdAt: new Date(Date.now() - 600000).toISOString()
   }
 ];
 
@@ -64,8 +64,67 @@ export default function GlobalChatWidget() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isFirstLoad = useRef(true);
+  const channelRef = useRef<BroadcastChannel | null>(null);
 
-  // Auto scroll chat to bottom
+  // Initialize BroadcastChannel & localStorage history on mount
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    try {
+      const saved = localStorage.getItem('shaktrix_global_chat_history');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setMessages(parsed);
+        }
+      }
+    } catch (e) {
+      console.error("Failed to load local chat history:", e);
+    }
+
+    if ('BroadcastChannel' in window) {
+      const channel = new BroadcastChannel('shaktrix_global_chat');
+      channelRef.current = channel;
+      channel.onmessage = (event) => {
+        if (event.data && event.data.type === 'NEW_MESSAGE') {
+          const incoming: GlobalMessage = event.data.message;
+          setMessages(prev => {
+            if (prev.some(m => m.id === incoming.id)) return prev;
+            const updated = [...prev, incoming];
+            try {
+              localStorage.setItem('shaktrix_global_chat_history', JSON.stringify(updated.slice(-100)));
+            } catch (e) {}
+            return updated;
+          });
+          if (!isOpen) {
+            setUnreadCount(count => count + 1);
+          }
+        }
+      };
+    }
+
+    const handleStorageEvent = (e: StorageEvent) => {
+      if (e.key === 'shaktrix_global_chat_history' && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          if (Array.isArray(parsed)) {
+            setMessages(parsed);
+          }
+        } catch (err) {}
+      }
+    };
+
+    window.addEventListener('storage', handleStorageEvent);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageEvent);
+      if (channelRef.current) {
+        channelRef.current.close();
+      }
+    };
+  }, [isOpen]);
+
+  // Auto scroll chat to bottom when message list updates
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -85,23 +144,25 @@ export default function GlobalChatWidget() {
       const list: GlobalMessage[] = [];
       snapshot.forEach(docSnap => {
         const data = docSnap.data();
+        let createdIso = new Date().toISOString();
+        if (data.createdAt?.toDate) {
+          createdIso = data.createdAt.toDate().toISOString();
+        } else if (data.createdAt) {
+          createdIso = new Date(data.createdAt).toISOString();
+        }
         list.push({
           id: docSnap.id,
           uid: data.uid || '',
           gamertag: data.gamertag || 'Player',
           displayName: data.displayName || 'Player',
           message: data.message || '',
-          createdAt: data.createdAt
+          createdAt: createdIso
         });
       });
 
       if (list.length > 0) {
         // Sort client-side by timestamp ascending (oldest to newest)
-        list.sort((a, b) => {
-          const tA = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.createdAt || 0);
-          const tB = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.createdAt || 0);
-          return tA - tB;
-        });
+        list.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
         if (!isOpen && !isFirstLoad.current) {
           setUnreadCount(prev => prev + (list.length - messages.length > 0 ? list.length - messages.length : 0));
@@ -109,16 +170,17 @@ export default function GlobalChatWidget() {
 
         isFirstLoad.current = false;
         setMessages(list);
+
+        try {
+          localStorage.setItem('shaktrix_global_chat_history', JSON.stringify(list.slice(-100)));
+        } catch (e) {}
       }
     }, (err: any) => {
-      // Gracefully handle un-deployed rules without throwing unhandled console errors
-      if (err?.code === 'permission-denied') {
-        // Keep default lounge messages in state
-      }
+      // Handled silently for un-deployed rules
     });
 
     return () => unsubscribe();
-  }, [refreshCount, isOpen, messages.length]);
+  }, [refreshCount, isOpen]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -131,17 +193,31 @@ export default function GlobalChatWidget() {
     setSending(true);
 
     const localMsg: GlobalMessage = {
-      id: `local-${Date.now()}`,
+      id: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       uid: user.uid,
       gamertag: myGamertag,
       displayName: myDisplayName,
       message: messageText,
-      createdAt: new Date()
+      createdAt: new Date().toISOString()
     };
 
-    // Optimistic UI append
-    setMessages(prev => [...prev, localMsg]);
+    // 1. Optimistic UI update
+    setMessages(prev => {
+      const updated = [...prev, localMsg];
+      try {
+        localStorage.setItem('shaktrix_global_chat_history', JSON.stringify(updated.slice(-100)));
+      } catch (err) {}
+      return updated;
+    });
 
+    // 2. Broadcast to other tabs locally
+    if (channelRef.current) {
+      try {
+        channelRef.current.postMessage({ type: 'NEW_MESSAGE', message: localMsg });
+      } catch (err) {}
+    }
+
+    // 3. Write to Cloud Firestore
     try {
       await addDoc(collection(db, "global_chat"), {
         uid: user.uid,
@@ -151,7 +227,7 @@ export default function GlobalChatWidget() {
         createdAt: serverTimestamp()
       });
     } catch (err) {
-      // Handled silently
+      console.warn("Firestore save fallback to local broadcast:", err);
     } finally {
       setSending(false);
     }
