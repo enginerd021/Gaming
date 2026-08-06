@@ -60,7 +60,9 @@ export default function PlayerPublicProfileClient({ username }: { username: stri
   useEffect(() => {
     if (!username) return;
 
-    setLoading(true);
+    if (!profile) {
+      setLoading(true);
+    }
     setError(null);
     const decodedUsername = decodeURIComponent(username).toLowerCase();
 

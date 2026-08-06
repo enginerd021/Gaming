@@ -26,7 +26,9 @@ export default function LeaderboardView() {
 
   // Real-time snapshot listener via leaderboardService
   useEffect(() => {
-    setLoading(true);
+    if (profiles.length === 0 && teams.length === 0) {
+      setLoading(true);
+    }
     
     const unsubProfiles = leaderboardService.subscribeProfiles(
       playerLimit,

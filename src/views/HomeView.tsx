@@ -128,7 +128,9 @@ export default function HomeView() {
   const sectionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    setLoading(true);
+    if (activeTournaments.length === 0) {
+      setLoading(true);
+    }
     const unsub = tournamentService.subscribeRecentTournaments(
       3,
       (list) => {
