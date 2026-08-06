@@ -38,6 +38,68 @@
   --glow-violet: 0 0 25px rgba(176, 38, 255, 0.5);
 }
 
+/* Light Theme Overrides */
+[data-theme="light"] {
+  --bg-primary: #f8fafc;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f1f5f9;
+  --bg-card: rgba(255, 255, 255, 0.9);
+
+  --neon-blue: #0284c7;
+  --neon-blue-glow: rgba(2, 132, 199, 0.3);
+  --neon-purple: #7c3aed;
+  --neon-purple-glow: rgba(124, 58, 237, 0.3);
+
+  --accent-cyan: #0284c7;
+  --accent-violet: #7c3aed;
+
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+
+  --border-color: rgba(2, 132, 199, 0.2);
+}
+
+[data-theme="light"] body {
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+
+[data-theme="light"] header {
+  background: rgba(255, 255, 255, 0.88) !important;
+  border-bottom: 1px solid rgba(2, 132, 199, 0.2) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06) !important;
+}
+
+[data-theme="light"] .glass-panel,
+[data-theme="light"] .glass-card,
+[data-theme="light"] .bento-card,
+[data-theme="light"] .podium-card {
+  background: rgba(255, 255, 255, 0.9) !important;
+  border-color: rgba(2, 132, 199, 0.25) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06) !important;
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .zentry-text-link {
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .zentry-dropdown-menu {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border: 1px solid rgba(2, 132, 199, 0.25) !important;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.12) !important;
+}
+
+[data-theme="light"] .dropdown-item {
+  color: #334155 !important;
+}
+
+[data-theme="light"] .dropdown-item:hover {
+  background: rgba(2, 132, 199, 0.1) !important;
+  color: #0284c7 !important;
+}
+
 /* Reset & Base Styles */
 * {
   box-sizing: border-box;
