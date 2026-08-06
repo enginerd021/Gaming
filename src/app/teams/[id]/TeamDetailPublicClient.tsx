@@ -71,7 +71,9 @@ export default function TeamDetailPublicClient({ id }: { id: string }) {
   useEffect(() => {
     if (!id) return;
 
-    setLoading(true);
+    if (!team) {
+      setLoading(true);
+    }
     let membersUnsub: (() => void) | null = null;
 
     // 1. Real-time subscription to team document

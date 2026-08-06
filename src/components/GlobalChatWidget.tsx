@@ -63,6 +63,7 @@ export default function GlobalChatWidget() {
   const [unreadCount, setUnreadCount] = useState(0);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
   const isFirstLoad = useRef(true);
   const channelRef = useRef<BroadcastChannel | null>(null);
 
@@ -124,14 +125,14 @@ export default function GlobalChatWidget() {
     };
   }, [isOpen]);
 
-  // Auto scroll chat to bottom when message list updates
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
+  // Scroll to bottom only if user is near bottom or opening chat
   useEffect(() => {
-    if (isOpen) {
-      scrollToBottom();
+    if (isOpen && chatScrollRef.current) {
+      const el = chatScrollRef.current;
+      const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+      if (isNearBottom || isFirstLoad.current) {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }
       setUnreadCount(0);
     }
   }, [messages, isOpen]);
@@ -358,14 +359,23 @@ export default function GlobalChatWidget() {
           </div>
 
           {/* Messages Scroll Area */}
-          <div style={{
-            flex: 1,
-            overflowY: 'auto',
-            padding: '1rem',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '0.75rem'
-          }}>
+          <div 
+            ref={chatScrollRef}
+            className="global-chat-scroll"
+            data-lenis-prevent="true"
+            onWheel={(e) => e.stopPropagation()}
+            onTouchMove={(e) => e.stopPropagation()}
+            style={{
+              flex: 1,
+              overflowY: 'auto',
+              overscrollBehavior: 'contain',
+              WebkitOverflowScrolling: 'touch',
+              padding: '1rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.75rem'
+            }}
+          >
             {messages.length === 0 ? (
               <div style={{ margin: 'auto', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
                 <Sparkles size={24} style={{ color: 'var(--neon-blue)', margin: '0 auto 0.5rem auto' }} />

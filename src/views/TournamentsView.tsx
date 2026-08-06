@@ -24,7 +24,9 @@ export default function TournamentsView() {
   const [selectedEntryType, setSelectedEntryType] = useState('All');
 
   useEffect(() => {
-    setLoading(true);
+    if (tournaments.length === 0) {
+      setLoading(true);
+    }
     const unsub = tournamentService.subscribeAllTournaments(
       (list) => {
         setTournaments(list);

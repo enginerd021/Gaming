@@ -20,6 +20,7 @@ export const SmoothScrollProvider: React.FC<{ children: React.ReactNode }> = ({ 
       smoothWheel: true,
       wheelMultiplier: 1,
       touchMultiplier: 2,
+      prevent: (node) => node.classList?.contains('global-chat-scroll') || Boolean(node.closest?.('.global-chat-scroll')),
     });
 
     lenisRef.current = lenis;
