@@ -193,14 +193,7 @@ export default function HomeView() {
           <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at center, transparent 40%, rgba(2, 9, 22, 0.9) 100%)', pointerEvents: 'none' }} />
         </div>
 
-        <div className="cockpit-hud" style={{ position: 'relative', zIndex: 10, width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '7rem 2.5rem 2.5rem 2.5rem', maxWidth: '1440px', margin: '0 auto', pointerEvents: 'none' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', pointerEvents: 'auto' }}>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'hsla(220, 40%, 8%, 0.6)', backdropFilter: 'blur(12px)', padding: '0.45rem 1.1rem', borderRadius: '9999px', border: '1px solid hsla(210, 100%, 55%, 0.3)' }}>
-              <Radio size={14} style={{ color: 'var(--accent-cyan)', animation: 'pulse 1.5s infinite' }} />
-              <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--accent-cyan)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>CO-PILOT ACTIVE</span>
-            </div>
-          </div>
-
+        <div className="cockpit-hud" style={{ position: 'relative', zIndex: 10, width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: '7rem 2.5rem 2.5rem 2.5rem', maxWidth: '1440px', margin: '0 auto', pointerEvents: 'none' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', pointerEvents: 'auto', flexWrap: 'wrap', gap: '2rem' }}>
             <div>
               <h1 style={{ fontSize: 'clamp(3.5rem, 7vw, 6rem)', lineHeight: '0.9', fontWeight: 900, letterSpacing: '0.02em', textTransform: 'uppercase', fontFamily: 'var(--font-title)' }}>

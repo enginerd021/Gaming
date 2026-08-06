@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAppStore } from '@/store/useAppStore';
-import { User, LogOut, Menu, X, Bell, ChevronDown, Home } from 'lucide-react';
+import { User, LogOut, Menu, X, Bell, ChevronDown, Home, Sun, Moon } from 'lucide-react';
 import { 
   collection, 
   query, 
@@ -43,6 +43,23 @@ export default function Navbar() {
   const [notifOpen, setNotifOpen] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
   const aboutRef = useRef<HTMLDivElement>(null);
+
+  // Theme Mode State (Dark / Light)
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const savedTheme = (localStorage.getItem('shaktrix_theme') as 'dark' | 'light') || 'dark';
+    setTheme(savedTheme);
+    document.documentElement.setAttribute('data-theme', savedTheme);
+  }, []);
+
+  const toggleTheme = () => {
+    const nextTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(nextTheme);
+    localStorage.setItem('shaktrix_theme', nextTheme);
+    document.documentElement.setAttribute('data-theme', nextTheme);
+  };
 
   // Dropdown states for the inner-page black bar
   const [productsOpen, setProductsOpen] = useState(false);
@@ -247,11 +264,33 @@ export default function Navbar() {
             </div>
           </div>
 
-          {/* RIGHT SIDE: Arranged strictly as: Notification -> Leaderboard -> Tournaments -> Teams -> About -> Profile -> Logout */}
+          {/* RIGHT SIDE: Arranged strictly as: Theme Toggle -> Notification -> Leaderboard -> Tournaments -> Teams -> About -> Profile -> Logout */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '2.5rem' }}>
             
             <nav className="desktop-nav" style={{ display: 'none', alignItems: 'center', gap: '1.75rem' }}>
               
+              {/* Theme Mode Toggle Button (Dark / Light) */}
+              <button
+                onClick={toggleTheme}
+                aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+                title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
+                style={{
+                  padding: '0.55rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: '1px solid rgba(0, 240, 255, 0.25)',
+                  borderRadius: '8px',
+                  color: theme === 'dark' ? 'var(--accent-gold)' : 'var(--neon-blue)',
+                  cursor: 'pointer',
+                  transition: 'all 0.25s ease'
+                }}
+                className="hover-scale"
+              >
+                {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+              </button>
+
               {/* 1. Notification Symbol */}
               {user && (
                 <div ref={notifRef} style={{ position: 'relative' }}>
