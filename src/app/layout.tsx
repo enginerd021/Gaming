@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import AuthProvider from "@/components/AuthProvider";
 import Navbar from "@/components/Navbar";
+import GlobalChatWidget from "@/components/GlobalChatWidget";
 import SmoothScrollProvider from "@/providers/SmoothScrollProvider";
 
 export const metadata: Metadata = {
@@ -24,6 +25,7 @@ export default function RootLayout({
               <main style={{ flex: '1 0 auto' }}>
                 {children}
               </main>
+              <GlobalChatWidget />
               <footer style={{
                 background: 'var(--bg-secondary)',
                 borderTop: '1px solid rgba(0, 240, 255, 0.15)',
