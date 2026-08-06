@@ -398,8 +398,8 @@ export default function Navbar() {
                 </button>
                 {aboutOpen && (
                   <div className="zentry-dropdown-menu right-0">
-                    <a href="#about" onClick={() => setAboutOpen(false)} className="dropdown-item">Platform Mission</a>
-                    <a href="#rules" onClick={() => setAboutOpen(false)} className="dropdown-item">Rulebook</a>
+                    <Link href="/about/mission" onClick={() => setAboutOpen(false)} className="dropdown-item">Platform Mission</Link>
+                    <Link href="/about/rulebook" onClick={() => setAboutOpen(false)} className="dropdown-item">Rulebook</Link>
                   </div>
                 )}
               </div>
