@@ -42,6 +42,7 @@ export default function Navbar() {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [notifOpen, setNotifOpen] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
+  const aboutRef = useRef<HTMLDivElement>(null);
 
   // Dropdown states for the inner-page black bar
   const [productsOpen, setProductsOpen] = useState(false);
@@ -67,6 +68,22 @@ export default function Navbar() {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [notifOpen]);
+
+  // Click outside ABOUT menu listener
+  useEffect(() => {
+    const handleClickOutsideAbout = (event: MouseEvent) => {
+      if (aboutRef.current && !aboutRef.current.contains(event.target as Node)) {
+        setAboutOpen(false);
+      }
+    };
+
+    if (aboutOpen) {
+      document.addEventListener('mousedown', handleClickOutsideAbout);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutsideAbout);
+    };
+  }, [aboutOpen]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -392,7 +409,7 @@ export default function Navbar() {
               </Link>
 
               {/* 5. ABOUT US */}
-              <div style={{ position: 'relative' }}>
+              <div ref={aboutRef} style={{ position: 'relative' }}>
                 <button onClick={() => { setAboutOpen(!aboutOpen); setProductsOpen(false); }} className="zentry-text-link flex items-center gap-1" style={{ color: '#ffffff' }}>
                   ABOUT <ChevronDown size={12} />
                 </button>
@@ -446,6 +463,8 @@ export default function Navbar() {
             <Link href="/tournaments" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>TOURNAMENTS</Link>
             <Link href="/teams" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>TEAMS</Link>
             <Link href="/leaderboard" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>LEADERBOARD</Link>
+            <Link href="/about/mission" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>PLATFORM MISSION</Link>
+            <Link href="/about/rulebook" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>RULEBOOK</Link>
             <hr style={{ borderColor: 'rgba(255,255,255,0.1)' }}/>
             {user ? (
                <>
@@ -493,35 +512,42 @@ export default function Navbar() {
           position: absolute;
           top: calc(100% + 0.75rem);
           left: 0;
-          min-width: 180px;
-          background: #111;
-          border: 1px solid rgba(255, 255, 255, 0.15);
-          border-radius: 12px;
-          padding: 0.5rem;
+          min-width: 210px;
+          background: rgba(6, 12, 26, 0.95);
+          backdrop-filter: blur(20px) saturate(180%);
+          -webkit-backdrop-filter: blur(20px) saturate(180%);
+          border: 1px solid rgba(0, 240, 255, 0.25);
+          border-radius: 14px;
+          padding: 0.6rem;
           display: flex;
           flex-direction: column;
-          gap: 0.25rem;
+          gap: 0.35rem;
           z-index: 200;
           animation: dropdownFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-          box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+          box-shadow: 0 15px 35px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 240, 255, 0.15), inset 0 0 12px rgba(176, 38, 255, 0.1);
         }
         .zentry-dropdown-menu.right-0 {
           left: auto;
           right: 0;
         }
         .dropdown-item {
-          font-size: 0.7rem;
-          font-weight: 700;
+          font-size: 0.78rem;
+          font-weight: 800;
           text-transform: uppercase;
           letter-spacing: 0.1em;
-          color: rgba(255, 255, 255, 0.7);
-          padding: 0.6rem 0.8rem;
+          color: rgba(255, 255, 255, 0.85);
+          padding: 0.75rem 1rem;
           border-radius: 8px;
-          transition: background 0.2s, color 0.2s;
+          transition: all 0.2s ease;
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
         }
         .dropdown-item:hover {
-          background: rgba(255, 255, 255, 0.1);
-          color: #fff;
+          background: rgba(0, 240, 255, 0.12);
+          color: var(--neon-blue);
+          box-shadow: inset 0 0 10px rgba(0, 240, 255, 0.1);
+          transform: translateX(4px);
         }
         @keyframes dropdownFadeIn {
           from { opacity: 0; transform: translateY(8px); }
