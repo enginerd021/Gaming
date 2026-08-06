@@ -184,17 +184,34 @@ export default function GlobalChatWidget() {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !newMessage.trim() || sending) return;
+    if (!newMessage.trim() || sending) return;
 
     const messageText = newMessage.trim();
-    const myGamertag = profile?.gamertag || user.email?.split('@')[0] || 'Player';
-    const myDisplayName = profile?.displayName || user.displayName || 'Player';
+    
+    // Determine Gamertag: User's profile gamertag or persistent guest handle
+    let myGamertag = 'Guest';
+    let myUid = 'guest';
+
+    if (user) {
+      myGamertag = profile?.gamertag || user.email?.split('@')[0] || 'Player';
+      myUid = user.uid;
+    } else {
+      let guestTag = localStorage.getItem('shaktrix_guest_tag');
+      if (!guestTag) {
+        guestTag = `Guest_${Math.floor(1000 + Math.random() * 9000)}`;
+        localStorage.setItem('shaktrix_guest_tag', guestTag);
+      }
+      myGamertag = guestTag;
+      myUid = `guest-${guestTag}`;
+    }
+
+    const myDisplayName = myGamertag;
     setNewMessage('');
     setSending(true);
 
     const localMsg: GlobalMessage = {
       id: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-      uid: user.uid,
+      uid: myUid,
       gamertag: myGamertag,
       displayName: myDisplayName,
       message: messageText,
@@ -220,7 +237,7 @@ export default function GlobalChatWidget() {
     // 3. Write to Cloud Firestore
     try {
       await addDoc(collection(db, "global_chat"), {
-        uid: user.uid,
+        uid: myUid,
         gamertag: myGamertag,
         displayName: myDisplayName,
         message: messageText,
@@ -356,7 +373,9 @@ export default function GlobalChatWidget() {
               </div>
             ) : (
               messages.map((msg) => {
-                const isMe = user?.uid === msg.uid;
+                const currentUid = user ? user.uid : (typeof window !== 'undefined' ? localStorage.getItem('shaktrix_guest_tag') : null);
+                const isMe = user ? (user.uid === msg.uid) : (msg.uid.includes(currentUid || 'guest'));
+
                 return (
                   <div
                     key={msg.id}
@@ -396,58 +415,49 @@ export default function GlobalChatWidget() {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Footer Input Area */}
+          {/* Footer Input Area - Enabled for both Logged In & Guests */}
           <div style={{
             padding: '0.75rem 1rem',
             background: 'rgba(10, 16, 36, 0.95)',
             borderTop: '1px solid rgba(0, 240, 255, 0.15)'
           }}>
-            {user ? (
-              <form onSubmit={handleSendMessage} style={{ display: 'flex', gap: '0.5rem' }}>
-                <input
-                  type="text"
-                  placeholder="Chat with SHAKTRIX players..."
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  disabled={sending}
-                  style={{
-                    flex: 1,
-                    padding: '0.6rem 0.85rem',
-                    borderRadius: '8px',
-                    background: 'rgba(4, 9, 20, 0.8)',
-                    border: '1px solid rgba(0, 240, 255, 0.2)',
-                    color: '#fff',
-                    fontSize: '0.85rem',
-                    outline: 'none'
-                  }}
-                />
-                <button
-                  type="submit"
-                  disabled={!newMessage.trim() || sending}
-                  style={{
-                    padding: '0.6rem 0.85rem',
-                    borderRadius: '8px',
-                    background: 'linear-gradient(135deg, var(--neon-blue) 0%, var(--neon-purple) 100%)',
-                    border: 'none',
-                    color: '#fff',
-                    cursor: newMessage.trim() && !sending ? 'pointer' : 'not-allowed',
-                    opacity: newMessage.trim() && !sending ? 1 : 0.5,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}
-                >
-                  <Send size={16} />
-                </button>
-              </form>
-            ) : (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                <span>Sign in to join global lounge chat</span>
-                <Link href="/login" style={{ color: 'var(--neon-blue)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                  <LogIn size={14} /> Login
-                </Link>
-              </div>
-            )}
+            <form onSubmit={handleSendMessage} style={{ display: 'flex', gap: '0.5rem' }}>
+              <input
+                type="text"
+                placeholder="Chat with SHAKTRIX players..."
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                disabled={sending}
+                style={{
+                  flex: 1,
+                  padding: '0.6rem 0.85rem',
+                  borderRadius: '8px',
+                  background: 'rgba(4, 9, 20, 0.8)',
+                  border: '1px solid rgba(0, 240, 255, 0.2)',
+                  color: '#fff',
+                  fontSize: '0.85rem',
+                  outline: 'none'
+                }}
+              />
+              <button
+                type="submit"
+                disabled={!newMessage.trim() || sending}
+                style={{
+                  padding: '0.6rem 0.85rem',
+                  borderRadius: '8px',
+                  background: 'linear-gradient(135deg, var(--neon-blue) 0%, var(--neon-purple) 100%)',
+                  border: 'none',
+                  color: '#fff',
+                  cursor: newMessage.trim() && !sending ? 'pointer' : 'not-allowed',
+                  opacity: newMessage.trim() && !sending ? 1 : 0.5,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                <Send size={16} />
+              </button>
+            </form>
           </div>
         </div>
       )}
