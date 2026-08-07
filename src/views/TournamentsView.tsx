@@ -40,7 +40,24 @@ export default function TournamentsView() {
   const getStatusBadge = (status: Tournament['status']) => {
     switch (status) {
       case 'Upcoming':
-        return <Badge variant="cyan">Upcoming</Badge>;
+        return (
+          <Badge variant="cyan">
+            Upcoming
+            <span 
+              style={{ 
+                width: '7px', 
+                height: '7px', 
+                borderRadius: '50%', 
+                backgroundColor: '#00ff88', 
+                boxShadow: '0 0 6px #00ff88',
+                display: 'inline-block',
+                marginLeft: '0.35rem',
+                verticalAlign: 'middle'
+              }} 
+              aria-hidden="true" 
+            />
+          </Badge>
+        );
       case 'Active':
         return <Badge variant="live">Live</Badge>;
       case 'Completed':
