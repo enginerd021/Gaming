@@ -34,13 +34,20 @@ export default function RegisterClient() {
       return;
     }
 
-    const cleanGamertag = gamertag.trim().toLowerCase();
-    const gamertagRegex = /^[a-zA-Z0-9_]{3,15}$/;
-    if (!gamertagRegex.test(cleanGamertag)) {
-      setError('Gamertag must be 3-15 characters and contain only alphanumeric characters and underscores.');
+    const cleanGamertag = gamertag.trim();
+    if (cleanGamertag.length < 2 || cleanGamertag.length > 24) {
+      setError('Gamertag / Game ID must be between 2 and 24 characters.');
       triggerShake();
       return;
     }
+
+    if (cleanGamertag.includes('/') || cleanGamertag.includes('\\')) {
+      setError('Gamertag / Game ID cannot contain slash characters.');
+      triggerShake();
+      return;
+    }
+
+    const docKey = encodeURIComponent(cleanGamertag.toLowerCase());
 
     if (password.length < 6) {
       setError('Password must be at least 6 characters.');
@@ -52,11 +59,11 @@ export default function RegisterClient() {
 
     try {
       // 1. Check if Gamertag is unique in Firestore using the public /gamertags collection
-      const gamertagDocRef = doc(db, "gamertags", cleanGamertag);
+      const gamertagDocRef = doc(db, "gamertags", docKey);
       const gamertagDocSnap = await getDoc(gamertagDocRef);
       
       if (gamertagDocSnap.exists()) {
-        setError('This gamertag is already taken. Please choose another one.');
+        setError('This Gamertag / Game ID is already taken. Please choose another one.');
         triggerShake();
         setLoading(false);
         return;
@@ -70,19 +77,19 @@ export default function RegisterClient() {
       await user.getIdToken(true);
 
       // 3. Sequential Write: Claim the Gamertag document first
-      const claimRef = doc(db, "gamertags", cleanGamertag);
+      const claimRef = doc(db, "gamertags", docKey);
       const claimSnap = await getDoc(claimRef);
 
       if (claimSnap.exists()) {
         const existingUid = claimSnap.data()?.uid;
         if (existingUid !== user.uid) {
-          setError('This gamertag is already claimed by another user.');
+          setError('This Gamertag / Game ID is already claimed by another user.');
           triggerShake();
           setLoading(false);
           return;
         }
       } else {
-        await setDoc(claimRef, { uid: user.uid });
+        await setDoc(claimRef, { uid: user.uid, rawGamertag: cleanGamertag });
       }
 
       // 4. Sequential Write: Create the profile document
@@ -196,14 +203,14 @@ export default function RegisterClient() {
                 type="text"
                 className="glass-input"
                 style={{ paddingLeft: '2.25rem' }}
-                placeholder="gamertag (alphanumeric & _)"
+                placeholder="e.g. Player#1234, Rioter, or [FaZe]Leader"
                 value={gamertag}
                 onChange={(e) => setGamertag(e.target.value)}
                 disabled={loading}
               />
             </div>
             <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-              Used to invite you to teams. Must be unique.
+              Your unique Game ID or handle (Riot ID, Steam, Battle.net, Clan Tags allowed).
             </p>
           </div>
 
