@@ -12,7 +12,6 @@ import {
   getDocs, 
   arrayUnion,
   getDoc,
-  arrayRemove,
   orderBy,
   limit,
   addDoc,
@@ -24,6 +23,7 @@ import { db } from '@/lib/firebase';
 import { useAppStore, Team } from '@/store/useAppStore';
 import { Trophy, Calendar, Shield, Users, Layers, Award, Loader, AlertCircle, Edit3, Save, Play, Check, X, MessageSquare, Send, Trash2, Clock, ShieldAlert, CheckCircle, Flame } from 'lucide-react';
 import Link from 'next/link';
+import Button from '@/components/ui/Button';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 import { achievementService } from '@/services/achievementService';
 import { tournamentService } from '@/services/tournamentService';
@@ -73,16 +73,14 @@ interface ChatMessage {
   senderId: string;
   senderGamertag: string;
   text: string;
-  createdAt: any;
+  createdAt: unknown;
   teamId?: string | null;
 }
 
 export default function TournamentDetailClient({ id }: { id: string }) {
-  const router = useRouter();
   const user = useAppStore((state) => state.user);
   const team = useAppStore((state) => state.team);
   const profile = useAppStore((state) => state.profile);
-  const loading = useAppStore((state) => state.loading);
   const { refreshCount } = useAutoRefresh();
 
   // Tournament state loaded from Firestore snapshot
@@ -195,13 +193,8 @@ export default function TournamentDetailClient({ id }: { id: string }) {
 
   // Subscribe to messages subcollection (latency compensation / order by createdAt)
   useEffect(() => {
-    if (!id || !isChatEligible) {
-      setMessages([]);
-      setChatLoading(false);
-      return;
-    }
+    if (!id || !isChatEligible) return;
 
-    setChatLoading(true);
     const messagesRef = collection(db, "tournaments", id, "messages");
     const q = query(
       messagesRef,
@@ -1135,14 +1128,48 @@ export default function TournamentDetailClient({ id }: { id: string }) {
 
   if (error || !tournament) {
     return (
-      <main style={{ display: 'flex', minHeight: 'calc(100vh - 4.5rem)', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}>
-        <div className="glass-panel" style={{ padding: '2.5rem', maxWidth: '480px', textAlign: 'center' }}>
-          <AlertCircle size={48} style={{ color: 'var(--accent-red)', margin: '0 auto 1.5rem auto' }} />
-          <h1 style={{ fontSize: '1.75rem', marginBottom: '0.75rem' }}>Tournament Error</h1>
-          <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>{error || 'Tournament not found.'}</p>
-          <Link href="/tournaments" className="btn btn-primary" style={{ width: '100%' }}>
-            Browse Tournaments
-          </Link>
+      <main style={{ display: 'flex', minHeight: 'calc(100vh - 4.5rem)', alignItems: 'center', justifyContent: 'center', padding: '3rem 1.5rem' }}>
+        <div className="glass-panel" style={{ 
+          padding: '3rem 2.5rem', 
+          maxWidth: '520px', 
+          textAlign: 'center',
+          border: '1px solid rgba(255, 42, 109, 0.4)',
+          background: 'radial-gradient(circle at center, rgba(255, 42, 109, 0.08) 0%, rgba(6, 12, 28, 0.95) 100%)',
+          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.6)'
+        }}>
+          <div style={{
+            width: '64px', height: '64px', borderRadius: '50%',
+            background: 'rgba(255, 42, 109, 0.15)', border: '1px solid var(--accent-red)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            margin: '0 auto 1.5rem auto', color: 'var(--accent-red)'
+          }}>
+            <AlertCircle size={36} />
+          </div>
+
+          <h1 style={{ fontSize: '1.8rem', fontWeight: 900, marginBottom: '0.75rem', textTransform: 'uppercase' }}>
+            Tournament Unavailable
+          </h1>
+
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem', lineHeight: 1.6, fontSize: '0.98rem' }}>
+            {error || `The tournament bracket ID "${id}" could not be located in our live Firestore database. It may have been archived, removed, or the link is invalid.`}
+          </p>
+
+          <div style={{ background: 'rgba(0, 0, 0, 0.4)', padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '2rem', fontFamily: 'monospace' }}>
+            Target ID: {id}
+          </div>
+
+          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+            <Link href="/tournaments" style={{ flex: '1 1 180px' }}>
+              <Button variant="primary" style={{ width: '100%', justifyContent: 'center', borderRadius: '9999px', padding: '0.8rem 1.5rem' }}>
+                Browse All Arenas
+              </Button>
+            </Link>
+            <Link href="/" style={{ flex: '1 1 140px' }}>
+              <Button variant="outline" style={{ width: '100%', justifyContent: 'center', borderRadius: '9999px', padding: '0.8rem 1.5rem' }}>
+                Return Home
+              </Button>
+            </Link>
+          </div>
         </div>
       </main>
     );
@@ -1180,6 +1207,21 @@ export default function TournamentDetailClient({ id }: { id: string }) {
                   tournament.status === 'Active' ? 'badge-violet' : 'badge-gold'
                 }`}>
                   {tournament.status}
+                  {tournament.status === 'Upcoming' && (
+                    <span 
+                      style={{ 
+                        width: '8px', 
+                        height: '8px', 
+                        borderRadius: '50%', 
+                        backgroundColor: '#00ff88', 
+                        boxShadow: '0 0 8px #00ff88',
+                        display: 'inline-block',
+                        marginLeft: '0.4rem',
+                        verticalAlign: 'middle'
+                      }} 
+                      aria-hidden="true" 
+                    />
+                  )}
                 </span>
                 <span className="badge badge-cyan">{tournament.game}</span>
                 <span className="badge badge-violet">{tournament.entryType} Entry</span>

@@ -257,13 +257,13 @@ export default function Navbar() {
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', maxWidth: '1920px', margin: '0 auto' }}>
           
-          {/* LEFT SIDE: Home Icon Link + SHAKTRIX Text (Shifted slightly right, no hyperlink on SHAKTRIX text) */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginLeft: '1.5rem' }}>
+          {/* LEFT SIDE: Home Icon Link + SHAKTRIX Text */}
+          <div className="nav-logo-container" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <Link href="/" aria-label="Home" style={{ color: '#ffffff', display: 'flex', alignItems: 'center', transition: 'opacity 0.2s' }} className="hover-opacity">
-              <Home size={22} />
+              <Home size={20} />
             </Link>
             <div style={{ 
-              fontWeight: 900, fontSize: '1.5rem', fontFamily: 'var(--font-title)', 
+              fontWeight: 900, fontSize: '1.35rem', fontFamily: 'var(--font-title)', 
               letterSpacing: '0.04em', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.15rem',
               userSelect: 'none'
             }}>
@@ -272,9 +272,31 @@ export default function Navbar() {
             </div>
           </div>
 
-          {/* RIGHT SIDE: Arranged strictly as: Theme Toggle -> Notification -> Leaderboard -> Tournaments -> Teams -> About -> Profile -> Logout */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '2.5rem' }}>
+          {/* RIGHT SIDE: Theme Toggle -> Notification -> Nav Links */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             
+            {/* Quick Mobile Theme Toggle */}
+            <button
+              onClick={toggleTheme}
+              aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+              title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
+              style={{
+                padding: '0.45rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'rgba(255, 255, 255, 0.08)',
+                border: '1px solid rgba(0, 240, 255, 0.25)',
+                borderRadius: '8px',
+                color: theme === 'dark' ? 'var(--accent-gold)' : 'var(--neon-blue)',
+                cursor: 'pointer',
+                transition: 'all 0.25s ease'
+              }}
+              className="mobile-theme-btn"
+            >
+              {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
+
             <nav className="desktop-nav" style={{ display: 'none', alignItems: 'center', gap: '1.75rem' }}>
               
               {/* ── Theme Toggle Switch (Neon vs Minimal Light) ── */}
@@ -324,7 +346,6 @@ export default function Navbar() {
                   <Sun size={11} style={{ visibility: theme === 'neon' ? 'visible' : 'hidden' }} />
                 </div>
               </button>
-
               {/* 1. Notification Symbol */}
               {user && (
                 <div ref={notifRef} style={{ position: 'relative' }}>
@@ -518,7 +539,8 @@ export default function Navbar() {
             <button 
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="mobile-toggle"
-              style={{ background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer' }}
+              aria-label="Toggle Navigation Menu"
+              style={{ background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', padding: '0.4rem' }}
             >
               {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
@@ -529,9 +551,10 @@ export default function Navbar() {
       {/* MOBILE DROPDOWN */}
       {mobileMenuOpen && (
          <nav style={{
-            position: 'fixed', top: '5rem', left: '1rem', right: '1rem', background: 'rgba(0,0,0,0.95)', 
+            position: 'fixed', top: '4.5rem', left: '1rem', right: '1rem', background: 'rgba(4, 9, 20, 0.98)', 
             backdropFilter: 'blur(20px)', borderRadius: '16px', padding: '1.5rem', zIndex: 99,
-            display: 'flex', flexDirection: 'column', gap: '1rem', border: '1px solid rgba(255,255,255,0.1)'
+            display: 'flex', flexDirection: 'column', gap: '1rem', border: '1px solid rgba(0, 240, 255, 0.2)',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.8)'
          }} className="mobile-dropdown">
             <Link href="/tournaments" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>TOURNAMENTS</Link>
             <Link href="/teams" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>TEAMS</Link>

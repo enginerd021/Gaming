@@ -7,34 +7,66 @@ export const SmoothScrollProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const lenisRef = useRef<Lenis | null>(null);
 
   useEffect(() => {
-    // Respect user's reduced motion preference
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    if (typeof window === 'undefined') return;
+
+    // Helper to check if screen is mobile or touch device
+    const checkIsMobile = () => {
+      const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      const isCoarse = window.matchMedia('(pointer: coarse)').matches;
+      const isSmallScreen = window.innerWidth < 768;
+      return isSmallScreen || (isTouch && isCoarse);
+    };
+
+    // If reduced motion is requested or user is on mobile/touch, use native hardware-accelerated smooth scrolling
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || checkIsMobile()) {
+      document.documentElement.classList.remove('lenis-active');
       return;
     }
 
+    document.documentElement.classList.add('lenis-active');
+
     const lenis = new Lenis({
-      duration: 1.2,
+      duration: 1.0,
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
       orientation: 'vertical',
       gestureOrientation: 'vertical',
       smoothWheel: true,
       wheelMultiplier: 1,
-      touchMultiplier: 2,
-      prevent: (node) => node.classList?.contains('global-chat-scroll') || Boolean(node.closest?.('.global-chat-scroll')),
+      touchMultiplier: 1,
+      prevent: (node) =>
+        node.classList?.contains('global-chat-scroll') ||
+        Boolean(node.closest?.('.global-chat-scroll')),
     });
 
     lenisRef.current = lenis;
 
+    let animationFrameId: number;
     function raf(time: number) {
       lenis.raf(time);
-      requestAnimationFrame(raf);
+      animationFrameId = requestAnimationFrame(raf);
     }
 
-    const animationFrameId = requestAnimationFrame(raf);
+    animationFrameId = requestAnimationFrame(raf);
+
+    const handleResize = () => {
+      if (checkIsMobile() && lenisRef.current) {
+        cancelAnimationFrame(animationFrameId);
+        lenisRef.current.destroy();
+        lenisRef.current = null;
+        document.documentElement.classList.remove('lenis-active');
+      }
+    };
+
+    window.addEventListener('resize', handleResize, { passive: true });
 
     return () => {
+      window.removeEventListener('resize', handleResize);
       cancelAnimationFrame(animationFrameId);
-      lenis.destroy();
+      if (lenisRef.current) {
+        lenisRef.current.destroy();
+        lenisRef.current = null;
+      }
+      document.documentElement.classList.remove('lenis-active');
     };
   }, []);
 
@@ -42,3 +74,4 @@ export const SmoothScrollProvider: React.FC<{ children: React.ReactNode }> = ({ 
 };
 
 export default SmoothScrollProvider;
+

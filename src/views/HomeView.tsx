@@ -149,33 +149,36 @@ export default function HomeView() {
 
   useEffect(() => {
     if (!heroWrapperRef.current || !videoFrameRef.current) return;
+    const isMobile = typeof window !== 'undefined' && (window.innerWidth < 768 || window.matchMedia('(pointer: coarse)').matches);
 
     const ctx = gsap.context(() => {
-      gsap.to(videoFrameRef.current, {
-        scrollTrigger: {
-          trigger: heroWrapperRef.current,
-          start: 'top top',
-          end: 'bottom top',
-          scrub: true,
-        },
-        clipPath: 'polygon(3% 3%, 97% 3%, 97% 97%, 3% 97%)',
-        borderRadius: '24px',
-        scale: 0.92,
-        opacity: 0.4,
-        ease: 'none',
-      });
+      if (!isMobile) {
+        gsap.to(videoFrameRef.current, {
+          scrollTrigger: {
+            trigger: heroWrapperRef.current,
+            start: 'top top',
+            end: 'bottom top',
+            scrub: true,
+          },
+          clipPath: 'polygon(3% 3%, 97% 3%, 97% 97%, 3% 97%)',
+          borderRadius: '24px',
+          scale: 0.92,
+          opacity: 0.4,
+          ease: 'none',
+        });
+      }
 
       gsap.to('.cockpit-hud', {
         scrollTrigger: { trigger: heroWrapperRef.current, start: 'top top', end: 'center top', scrub: true },
-        opacity: 0, y: -40, ease: 'none',
+        opacity: 0, y: -20, ease: 'none',
       });
 
       gsap.fromTo('.zentry-reveal-text', 
-        { y: 80, opacity: 0, rotateX: -45 }, 
+        { y: 30, opacity: 0 }, 
         { 
-          y: 0, opacity: 1, rotateX: 0, duration: 1, stagger: 0.1, 
-          ease: 'power3.out', 
-          scrollTrigger: { trigger: sectionRef.current, start: 'top 75%' }
+          y: 0, opacity: 1, duration: isMobile ? 0.5 : 0.8, stagger: 0.1, 
+          ease: 'power2.out', 
+          scrollTrigger: { trigger: sectionRef.current, start: 'top 85%' }
         }
       );
     }, heroWrapperRef);
@@ -195,19 +198,19 @@ export default function HomeView() {
           <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at center, transparent 40%, rgba(2, 9, 22, 0.9) 100%)', pointerEvents: 'none' }} />
         </div>
 
-        <div className="cockpit-hud" style={{ position: 'relative', zIndex: 10, width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: '7rem 2.5rem 2.5rem 2.5rem', maxWidth: '1440px', margin: '0 auto', pointerEvents: 'none' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', pointerEvents: 'auto', flexWrap: 'wrap', gap: '2rem' }}>
+        <div className="cockpit-hud" style={{ position: 'relative', zIndex: 10, width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: '4rem 1.5rem 2rem 1.5rem', maxWidth: '1440px', margin: '0 auto', pointerEvents: 'none' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', pointerEvents: 'auto', flexWrap: 'wrap', gap: '1.5rem' }}>
             <div>
-              <h1 style={{ fontSize: 'clamp(3.5rem, 7vw, 6rem)', lineHeight: '0.9', fontWeight: 900, letterSpacing: '0.02em', textTransform: 'uppercase', fontFamily: 'var(--font-title)' }}>
+              <h1 style={{ fontSize: 'clamp(2.5rem, 7vw, 6rem)', lineHeight: '0.95', fontWeight: 900, letterSpacing: '0.02em', textTransform: 'uppercase', fontFamily: 'var(--font-title)' }}>
                 <span style={{ color: 'var(--neon-blue)', textShadow: '0 0 35px rgba(0, 240, 255, 0.85)' }}>SHAKT</span>
                 <span style={{ color: 'var(--neon-purple)', textShadow: '0 0 35px rgba(176, 38, 255, 0.85)' }}>RIX</span>
               </h1>
             </div>
             <div style={{ display: 'flex', gap: '1rem' }}>
               {user ? (
-                <Link href="/tournaments" className="btn btn-primary glow-pulse" style={{ padding: '1rem 2rem', borderRadius: '12px' }}><ArrowDownRight size={18} /> Enter Arena</Link>
+                <Link href="/tournaments" className="btn btn-primary glow-pulse" style={{ padding: '0.85rem 1.75rem', borderRadius: '12px' }}><ArrowDownRight size={18} /> Enter Arena</Link>
               ) : (
-                <Link href="/register" className="btn btn-primary glow-pulse" style={{ padding: '1rem 2rem', borderRadius: '12px' }}>Join Now</Link>
+                <Link href="/register" className="btn btn-primary glow-pulse" style={{ padding: '0.85rem 1.75rem', borderRadius: '12px' }}>Join Now</Link>
               )}
             </div>
           </div>
@@ -306,10 +309,27 @@ export default function HomeView() {
               ))}
             </div>
           ) : (
-            <div style={{ textAlign: 'center', padding: '3rem 1rem', border: '1px dashed var(--border-color)', borderRadius: '8px' }}>
-              <Trophy size={32} style={{ opacity: 0.25, margin: '0 auto 0.75rem auto' }} />
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontStyle: 'italic' }}>No tournaments hosted yet.</p>
-            </div>
+            <GlassCard variant="panel" style={{ 
+              textAlign: 'center', 
+              padding: '3rem 2rem', 
+              border: '1px solid rgba(0, 240, 255, 0.25)',
+              background: 'radial-gradient(circle at center, rgba(0, 240, 255, 0.05) 0%, rgba(6, 12, 28, 0.9) 100%)' 
+            }}>
+              <Trophy size={40} style={{ color: 'var(--accent-cyan)', margin: '0 auto 1rem auto', opacity: 0.8 }} />
+              <h3 style={{ fontSize: '1.4rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.5rem' }}>
+                No Active Championship Arenas Listed
+              </h3>
+              <p style={{ color: 'var(--text-secondary)', maxWidth: '480px', margin: '0 auto 1.5rem auto', fontSize: '0.95rem' }}>
+                Tournament organizers have not scheduled live clashes for this timeslot. Create a roster or host the first tournament.
+              </p>
+              <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                <Link href="/tournaments">
+                  <Button variant="primary" style={{ borderRadius: '9999px', padding: '0.75rem 1.75rem' }}>
+                    Explore All Arenas
+                  </Button>
+                </Link>
+              </div>
+            </GlassCard>
           )}
         </div>
       </section>

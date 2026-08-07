@@ -75,30 +75,32 @@ export default function ProfileClient() {
   const [updating, setUpdating] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const [shake, setShake] = useState(false);
+  const [loadedProfileUid, setLoadedProfileUid] = useState<string | null>(null);
 
   const triggerShake = () => {
     setShake(true);
     setTimeout(() => setShake(false), 300);
   };
 
-  // Sync state with store profile once loaded
+  // Sync state with store profile when profile loads/changes
+  if (profile && profile.uid !== loadedProfileUid) {
+    setLoadedProfileUid(profile.uid);
+    setDisplayName(profile.displayName || '');
+    setSkillLevel(profile.skillLevel || 'Intermediate');
+    setSelectedGames(profile.registeredGames || []);
+    setPreferredRoles(profile.preferredRoles || []);
+    setRiotId(profile.riotId || '');
+    setLosses(profile.stats?.losses || 0);
+    setMvps(profile.stats?.mvps || 0);
+    setKda(profile.stats?.kda || '0.0');
+    setTotalTournaments(profile.stats?.totalTournaments || 0);
+  }
+
   useEffect(() => {
     if (!loading && !user) {
       router.push('/login');
-    } else if (profile) {
-      setDisplayName(profile.displayName || '');
-      setSkillLevel(profile.skillLevel || 'Intermediate');
-      setSelectedGames(profile.registeredGames || []);
-      setPreferredRoles(profile.preferredRoles || []);
-      setRiotId(profile.riotId || '');
-      
-      // Load stats
-      setLosses(profile.stats?.losses || 0);
-      setMvps(profile.stats?.mvps || 0);
-      setKda(profile.stats?.kda || '0.0');
-      setTotalTournaments(profile.stats?.totalTournaments || 0);
     }
-  }, [user, profile, loading, router]);
+  }, [user, loading, router]);
 
   // Subscribe to match history and VODs
   useEffect(() => {
@@ -195,7 +197,6 @@ export default function ProfileClient() {
       });
       
       setMessage({ type: 'success', text: 'Profile updated successfully!' });
-
       // Trigger Sheriff check if Riot ID linked
       if (riotId.trim()) {
         await achievementService.unlockAchievement(profile.uid, 'sheriff', profile.achievements || []);
@@ -203,10 +204,11 @@ export default function ProfileClient() {
     } catch (err: any) {
       console.error("Error updating profile:", err);
       triggerShake();
-      if (err.code === 'permission-denied') {
+      const pErr = err as { code?: string; message?: string };
+      if (pErr.code === 'permission-denied') {
         setMessage({ type: 'error', text: 'Action failed: You do not have permission to modify this profile.' });
       } else {
-        setMessage({ type: 'error', text: err.message || 'Failed to update profile.' });
+        setMessage({ type: 'error', text: pErr.message || 'Failed to update profile.' });
       }
     } finally {
       setUpdating(false);
@@ -231,7 +233,8 @@ export default function ProfileClient() {
     } catch (err: any) {
       console.error(err);
       triggerShake();
-      if (err.code === 'permission-denied') {
+      const pErr = err as { code?: string };
+      if (pErr.code === 'permission-denied') {
         setMessage({ type: 'error', text: "Action failed: You do not have permission to modify this profile's stats." });
       } else {
         setMessage({ type: 'error', text: 'Failed to simulate win.' });
@@ -254,7 +257,7 @@ export default function ProfileClient() {
         registeredGames: updatedGames
       });
       setMessage({ type: 'success', text: `Added ${gameName} to your registered games!` });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error adding recommended game:", err);
       triggerShake();
       setMessage({ type: 'error', text: 'Failed to add recommended game.' });

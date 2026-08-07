@@ -44,7 +44,7 @@ export const tournamentService = {
   /**
    * Real-time subscription for recent tournaments (e.g. Home Page)
    */
-  subscribeRecentTournaments(max: number = 3, onUpdate: (tournaments: Tournament[]) => void, onError?: (err: any) => void): Unsubscribe {
+  subscribeRecentTournaments(max: number = 3, onUpdate: (tournaments: Tournament[]) => void, onError?: (err: unknown) => void): Unsubscribe {
     const q = query(
       collection(db, "tournaments"),
       orderBy("createdAt", "desc"),
@@ -62,7 +62,7 @@ export const tournamentService = {
   /**
    * Real-time subscription for all tournaments (e.g. Tournaments Arena Hub)
    */
-  subscribeAllTournaments(onUpdate: (tournaments: Tournament[]) => void, onError?: (err: any) => void): Unsubscribe {
+  subscribeAllTournaments(onUpdate: (tournaments: Tournament[]) => void, onError?: (err: unknown) => void): Unsubscribe {
     const q = query(
       collection(db, "tournaments"),
       orderBy("createdAt", "desc")
@@ -79,7 +79,7 @@ export const tournamentService = {
   /**
    * Real-time subscription for single tournament document
    */
-  subscribeTournamentById(id: string, onUpdate: (tournament: Tournament | null) => void, onError?: (err: any) => void): Unsubscribe {
+  subscribeTournamentById(id: string, onUpdate: (tournament: Tournament | null) => void, onError?: (err: unknown) => void): Unsubscribe {
     const ref = doc(db, "tournaments", id);
     return onSnapshot(ref, (snap) => {
       if (snap.exists()) {

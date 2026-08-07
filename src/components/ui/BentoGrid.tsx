@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Trophy, Users, Shield, Award, Flame, ArrowUpRight, Zap, Play } from 'lucide-react';
+import { Trophy, Users, Award, ArrowUpRight, Zap, Play } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 
@@ -33,7 +33,7 @@ export function BentoGrid() {
               playsInline
               className="bento-card-bg-video"
             >
-              <source src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4" type="video/mp4" />
+              <source src="/videos/csgo.mp4" type="video/mp4" />
             </video>
             
             <div style={{ position: 'relative', zIndex: 2, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '320px' }}>
@@ -93,7 +93,7 @@ export function BentoGrid() {
               playsInline
               className="bento-card-bg-video"
             >
-              <source src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4" type="video/mp4" />
+              <source src="/videos/apex.mp4" type="video/mp4" />
             </video>
 
             <div style={{ position: 'relative', zIndex: 2, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '300px' }}>

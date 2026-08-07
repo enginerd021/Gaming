@@ -20,10 +20,10 @@ export function ZentryHero() {
   const ctaRef = useRef<HTMLDivElement>(null);
   const scrollIndicatorRef = useRef<HTMLDivElement>(null);
 
-  // High quality royalty-free game trailer video clips
+  // High quality local esports trailer video clips
   const VIDEO_SOURCES = [
-    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
-    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4'
+    '/videos/lol.mp4',
+    '/videos/overwatch.mp4'
   ];
 
   const [currentVideoIdx, setCurrentVideoIdx] = useState(0);

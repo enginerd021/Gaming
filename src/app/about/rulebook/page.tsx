@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { BookOpen, ShieldAlert, CheckCircle2, AlertTriangle, FileText, ArrowRight, Search, Sparkles } from 'lucide-react';
+import { BookOpen, ShieldAlert, CheckCircle2, AlertTriangle, FileText, ArrowRight, Search } from 'lucide-react';
 import Button from '@/components/ui/Button';
 
 export default function RulebookPage() {
@@ -123,41 +123,41 @@ export default function RulebookPage() {
   });
 
   return (
-    <main style={{ padding: '7.5rem 1.5rem 5rem 1.5rem', minHeight: '100vh', backgroundColor: 'var(--bg-primary)' }}>
-      <div className="container" style={{ maxWidth: '1100px', margin: '0 auto' }}>
+    <main style={{ padding: '6.5rem 1.25rem 4rem 1.25rem', minHeight: '100vh', backgroundColor: 'var(--bg-primary)' }}>
+      <div className="container" style={{ maxWidth: '1000px', margin: '0 auto' }}>
         
         {/* HEADER */}
-        <div className="section-title fade-in" style={{ textAlign: 'center', marginBottom: '3.5rem' }}>
+        <div className="section-title fade-in" style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
           <div style={{
             display: 'inline-flex',
             alignItems: 'center',
-            gap: '0.5rem',
-            padding: '0.4rem 1rem',
+            gap: '0.4rem',
+            padding: '0.3rem 0.85rem',
             borderRadius: '9999px',
-            background: 'rgba(176, 38, 255, 0.1)',
-            border: '1px solid rgba(176, 38, 255, 0.25)',
-            color: 'var(--neon-purple)',
-            fontSize: '0.85rem',
-            fontWeight: 800,
+            background: 'rgba(176, 38, 255, 0.08)',
+            border: '1px solid rgba(176, 38, 255, 0.2)',
+            color: 'var(--accent-violet)',
+            fontSize: '0.75rem',
+            fontWeight: 700,
             textTransform: 'uppercase',
-            letterSpacing: '0.15em',
-            marginBottom: '1rem'
+            letterSpacing: '0.1em',
+            marginBottom: '0.75rem'
           }}>
-            <BookOpen size={16} /> OFFICIAL COMPETITIVE GOVERNANCE
+            <BookOpen size={14} /> COMPETITIVE GOVERNANCE
           </div>
 
           <h1 style={{
-            fontSize: 'clamp(2.4rem, 5vw + 1rem, 4rem)',
+            fontSize: 'clamp(1.6rem, 3.5vw, 2.5rem)',
             fontWeight: 900,
             fontFamily: 'var(--font-title)',
             textTransform: 'uppercase',
-            marginBottom: '1rem'
+            marginBottom: '0.75rem'
           }}>
-            SHAKTRIX <span className="text-gradient-violet">TOURNAMENT RULEBOOK</span>
+            SHAKTRIX <span className="text-gradient-violet">RULEBOOK</span>
           </h1>
 
-          <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem', maxWidth: '720px', margin: '0 auto', lineHeight: 1.6 }}>
-            Universal rules, competitive standards, and match operation guidelines enforcing fair play across all SHAKTRIX esports events.
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.925rem', maxWidth: '640px', margin: '0 auto', lineHeight: 1.55 }}>
+            Universal rules, competitive standards, and match operation guidelines enforcing fair play across all SHAKTRIX events.
           </p>
         </div>
 
@@ -192,7 +192,7 @@ export default function RulebookPage() {
             ].map(tab => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
+                onClick={() => setActiveTab(tab.id as typeof activeTab)}
                 style={{
                   padding: '0.55rem 1.15rem',
                   borderRadius: '9999px',
@@ -228,37 +228,37 @@ export default function RulebookPage() {
                 key={idx}
                 className="glass-panel fade-in"
                 style={{
-                  padding: '2rem 2.25rem',
-                  borderRadius: '20px',
+                  padding: '1.25rem 1.5rem',
+                  borderRadius: '16px',
                   border: '1px solid rgba(0, 240, 255, 0.18)',
                   background: 'rgba(6, 12, 28, 0.85)',
                   boxShadow: '0 10px 30px rgba(0,0,0,0.5)'
                 }}
               >
                 {/* Section Header */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', borderBottom: '1px solid rgba(0, 240, 255, 0.12)', paddingBottom: '1rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1rem', borderBottom: '1px solid rgba(0, 240, 255, 0.12)', paddingBottom: '0.75rem' }}>
                   {section.icon}
-                  <h2 style={{ fontSize: '1.4rem', fontWeight: 800, textTransform: 'uppercase', color: '#fff', fontFamily: 'var(--font-title)', letterSpacing: '0.04em' }}>
+                  <h2 style={{ fontSize: '1.1rem', fontWeight: 800, textTransform: 'uppercase', color: '#fff', fontFamily: 'var(--font-title)', letterSpacing: '0.04em' }}>
                     {section.categoryTitle}
                   </h2>
                 </div>
 
                 {/* Rules List */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
                   {section.rules.map((rule, rIdx) => (
                     <div
                       key={rIdx}
                       style={{
-                        padding: '1.25rem',
-                        borderRadius: '12px',
+                        padding: '0.85rem 1rem',
+                        borderRadius: '10px',
                         background: 'rgba(10, 18, 40, 0.6)',
                         border: '1px solid rgba(255, 255, 255, 0.08)'
                       }}
                     >
-                      <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--neon-blue)', marginBottom: '0.4rem' }}>
+                      <h3 style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--accent-cyan)', marginBottom: '0.3rem' }}>
                         {rule.title}
                       </h3>
-                      <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: 1.55, margin: 0 }}>
+                      <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: 1.5, margin: 0 }}>
                         {rule.content}
                       </p>
                     </div>
