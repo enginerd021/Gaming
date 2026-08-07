@@ -699,6 +699,21 @@ export default function TournamentDetailClient({ id }: { id: string }) {
                   tournament.status === 'Active' ? 'badge-violet' : 'badge-gold'
                 }`}>
                   {tournament.status}
+                  {tournament.status === 'Upcoming' && (
+                    <span 
+                      style={{ 
+                        width: '8px', 
+                        height: '8px', 
+                        borderRadius: '50%', 
+                        backgroundColor: '#00ff88', 
+                        boxShadow: '0 0 8px #00ff88',
+                        display: 'inline-block',
+                        marginLeft: '0.4rem',
+                        verticalAlign: 'middle'
+                      }} 
+                      aria-hidden="true" 
+                    />
+                  )}
                 </span>
                 <span className="badge badge-cyan">{tournament.game}</span>
                 <span className="badge badge-violet">{tournament.entryType} Entry</span>
