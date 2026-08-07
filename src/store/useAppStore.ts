@@ -47,6 +47,7 @@ interface AppState {
   loading: boolean;
   initialized: boolean;
   isOffline: boolean;
+  connectionStatus: 'online' | 'reconnecting' | 'offline';
   
   // Actions
   setUser: (user: User | null) => void;
@@ -55,6 +56,7 @@ interface AppState {
   setLoading: (loading: boolean) => void;
   setInitialized: (initialized: boolean) => void;
   setIsOffline: (isOffline: boolean) => void;
+  setConnectionStatus: (status: 'online' | 'reconnecting' | 'offline') => void;
   logout: () => Promise<void>;
 }
 
@@ -70,6 +72,7 @@ export const useAppStore = create<AppState>((set) => ({
   loading: true,
   initialized: false,
   isOffline: false,
+  connectionStatus: 'online',
 
   setUser: (user) => set({ user }),
   setProfile: (profile) => set({ profile }),
@@ -77,6 +80,7 @@ export const useAppStore = create<AppState>((set) => ({
   setLoading: (loading) => set({ loading }),
   setInitialized: (initialized) => set({ initialized }),
   setIsOffline: (isOffline) => set({ isOffline }),
+  setConnectionStatus: (connectionStatus) => set({ connectionStatus }),
   
   logout: async () => {
     stopUserListeners();

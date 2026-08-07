@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAppStore } from '@/store/useAppStore';
-import { User, LogOut, Menu, X, Bell, ChevronDown, Home, Palette, Check, Sun, Moon } from 'lucide-react';
+import { User, LogOut, Menu, X, Bell, ChevronDown, Home, Palette, Check, Sun, Moon, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { 
   collection, 
   query, 
@@ -34,6 +34,7 @@ export default function Navbar() {
   const logout = useAppStore((state) => state.logout);
   const loading = useAppStore((state) => state.loading);
   const isOffline = useAppStore((state) => state.isOffline);
+  const connectionStatus = useAppStore((state) => state.connectionStatus);
   const pathname = usePathname();
   const isHome = pathname === '/';
   const { refreshCount } = useAutoRefresh();
@@ -41,9 +42,25 @@ export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [welcomeToast, setWelcomeToast] = useState<string | null>(null);
   const notifRef = useRef<HTMLDivElement>(null);
   const aboutRef = useRef<HTMLDivElement>(null);
   const themeRef = useRef<HTMLDivElement>(null);
+
+  // Check for session welcome message trigger
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const storedMsg = sessionStorage.getItem('shaktrix_welcome_msg');
+    if (storedMsg) {
+      setWelcomeToast(storedMsg);
+      sessionStorage.removeItem('shaktrix_welcome_msg');
+      const timer = setTimeout(() => {
+        setWelcomeToast(null);
+      }, 4500);
+      return () => clearTimeout(timer);
+    }
+  }, [user, pathname]);
 
   // 2-Theme System (Neon and Light only)
   type ThemeId = 'neon' | 'light';
@@ -174,7 +191,13 @@ export default function Navbar() {
     return () => unsubscribe();
   }, [user, refreshCount]);
 
-  const handleLogout = async () => {
+  const promptLogout = () => {
+    setShowLogoutConfirm(true);
+  };
+
+  const confirmLogout = async () => {
+    setShowLogoutConfirm(false);
+    setMobileMenuOpen(false);
     try {
       await logout();
     } catch (error) {
@@ -223,13 +246,34 @@ export default function Navbar() {
     }
   };
 
+  const showBanner = connectionStatus === 'reconnecting' || connectionStatus === 'offline' || isOffline;
+
   return (
     <>
-      {isOffline && (
+      {connectionStatus === 'reconnecting' && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, zIndex: 110,
+          background: 'linear-gradient(90deg, #ffaa00 0%, #ff6600 100%)', 
+          color: '#fff', textAlign: 'center',
+          fontSize: '0.78rem', fontWeight: 800, padding: '0.4rem', letterSpacing: '0.1em',
+          boxShadow: '0 0 15px rgba(255, 170, 0, 0.4)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem'
+        }}>
+          <div style={{
+            width: '12px', height: '12px', borderRadius: '50%',
+            border: '2px solid #fff', borderTopColor: 'transparent',
+            animation: 'spin 0.8s linear infinite'
+          }} />
+          RECONNECTING... ATTEMPTING TO RESTORE CONNECTION (5S)
+        </div>
+      )}
+
+      {(connectionStatus === 'offline' || (isOffline && connectionStatus !== 'reconnecting')) && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, zIndex: 110,
           background: 'var(--accent-red)', color: '#fff', textAlign: 'center',
-          fontSize: '0.75rem', fontWeight: 800, padding: '0.4rem', letterSpacing: '0.1em',
+          fontSize: '0.78rem', fontWeight: 800, padding: '0.4rem', letterSpacing: '0.1em',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem'
         }}>
           OFFLINE MODE — DISPLAYING CACHED DATA
         </div>
@@ -241,7 +285,7 @@ export default function Navbar() {
         className={isHome ? 'is-home-header' : 'is-inner-header'}
         style={{
           position: 'fixed',
-          top: isOffline ? '2rem' : '0',
+          top: showBanner ? '2.2rem' : '0',
           left: 0,
           right: 0,
           zIndex: 100,
@@ -522,7 +566,7 @@ export default function Navbar() {
 
               {/* 7. LOGOUT / AUTH */}
               {user ? (
-                <button onClick={handleLogout} style={{ background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', opacity: 0.8 }} className="hover-opacity" aria-label="Log out">
+                <button onClick={promptLogout} style={{ background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', opacity: 0.8 }} className="hover-opacity" aria-label="Log out">
                   <LogOut size={18} />
                 </button>
               ) : (
@@ -565,7 +609,7 @@ export default function Navbar() {
             {user ? (
                <>
                   <Link href="/profile" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700 }}>PROFILE</Link>
-                  <button onClick={handleLogout} style={{ background: 'none', border: 'none', color: 'var(--accent-red)', fontWeight: 700, textAlign: 'left', padding: 0 }}>SIGN OUT</button>
+                  <button onClick={promptLogout} style={{ background: 'none', border: 'none', color: 'var(--accent-red)', fontWeight: 700, textAlign: 'left', padding: 0 }}>SIGN OUT</button>
                </>
             ) : (
                <>
@@ -682,6 +726,128 @@ export default function Navbar() {
           opacity: 1 !important;
         }
       `}</style>
+
+      {/* TOP FLOATING WELCOME TOAST */}
+      {welcomeToast && (
+        <div style={{
+          position: 'fixed',
+          top: isOffline ? '4.5rem' : '2.5rem',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 1100,
+          background: 'rgba(4, 16, 32, 0.95)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          border: '1px solid var(--accent-cyan)',
+          boxShadow: '0 10px 30px rgba(0, 240, 255, 0.35)',
+          borderRadius: '12px',
+          padding: '0.85rem 1.75rem',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.75rem',
+          color: '#ffffff',
+          fontSize: '0.95rem',
+          fontWeight: 700,
+          animation: 'dropdownFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards'
+        }}>
+          <CheckCircle2 size={22} style={{ color: 'var(--accent-cyan)' }} />
+          <span>{welcomeToast}</span>
+        </div>
+      )}
+
+      {/* LOGOUT CONFIRMATION PERMISSION MODAL */}
+      {showLogoutConfirm && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 1000,
+          background: 'rgba(2, 6, 16, 0.85)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '1.5rem',
+          animation: 'dropdownFadeIn 0.2s ease forwards'
+        }}>
+          <div style={{
+            width: '100%',
+            maxWidth: '420px',
+            background: 'rgba(6, 12, 26, 0.95)',
+            border: '1px solid rgba(255, 60, 60, 0.4)',
+            boxShadow: '0 20px 50px rgba(0, 0, 0, 0.8), 0 0 30px rgba(255, 60, 60, 0.2)',
+            borderRadius: '16px',
+            padding: '2rem',
+            textAlign: 'center',
+            position: 'relative'
+          }}>
+            <div style={{
+              width: '56px',
+              height: '56px',
+              borderRadius: '50%',
+              background: 'rgba(255, 60, 60, 0.15)',
+              border: '1px solid rgba(255, 60, 60, 0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 1.25rem auto',
+              color: 'var(--accent-red)'
+            }}>
+              <AlertTriangle size={28} />
+            </div>
+
+            <h3 style={{ fontSize: '1.35rem', fontWeight: 800, marginBottom: '0.5rem', color: '#ffffff' }}>
+              Confirm Logout
+            </h3>
+
+            <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '1.75rem', lineHeight: 1.5 }}>
+              Are you sure you want to log out of your SHAKTRIX account?
+            </p>
+
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+              <button
+                onClick={() => setShowLogoutConfirm(false)}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem 1.25rem',
+                  borderRadius: '8px',
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  color: '#ffffff',
+                  fontWeight: 700,
+                  fontSize: '0.9rem',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={confirmLogout}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem 1.25rem',
+                  borderRadius: '8px',
+                  background: 'linear-gradient(135deg, #ff3c3c 0%, #aa0000 100%)',
+                  border: 'none',
+                  color: '#ffffff',
+                  fontWeight: 700,
+                  fontSize: '0.9rem',
+                  cursor: 'pointer',
+                  boxShadow: '0 0 15px rgba(255, 60, 60, 0.4)',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                Yes, Log Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

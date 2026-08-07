@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useAppStore, startUserListeners, stopUserListeners } from '@/store/useAppStore';
@@ -9,22 +10,53 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
   const setUser = useAppStore((state) => state.setUser);
   const setInitialized = useAppStore((state) => state.setInitialized);
   const setIsOffline = useAppStore((state) => state.setIsOffline);
+  const setConnectionStatus = useAppStore((state) => state.setConnectionStatus);
+  const router = useRouter();
+  const reconnectTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    // Initial status
-    setIsOffline(!navigator.onLine);
+    // Initial status check
+    const isInitiallyOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+    setIsOffline(isInitiallyOffline);
+    setConnectionStatus(isInitiallyOffline ? 'offline' : 'online');
 
-    const handleOnline = () => setIsOffline(false);
-    const handleOffline = () => setIsOffline(true);
+    const handleOnline = () => {
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
+      setIsOffline(false);
+      setConnectionStatus('online');
+    };
+
+    const handleOffline = () => {
+      // 1. Show 'reconnecting' for 5 seconds
+      setConnectionStatus('reconnecting');
+      setIsOffline(false);
+
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+      }
+
+      reconnectTimerRef.current = setTimeout(() => {
+        // 2. After 5 seconds, set status to 'offline' & navigate to /leaderboard
+        setConnectionStatus('offline');
+        setIsOffline(true);
+        router.push('/leaderboard');
+      }, 5000);
+    };
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
     return () => {
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+      }
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [setIsOffline]);
+  }, [setIsOffline, setConnectionStatus, router]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
