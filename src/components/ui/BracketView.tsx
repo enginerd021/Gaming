@@ -244,9 +244,9 @@ export default function BracketView({
                   <article 
                     key={m.id} 
                     style={{ 
-                      background: 'hsla(223, 20%, 8%, 0.85)',
+                      background: 'var(--bg-card)',
                       borderRadius: '12px', 
-                      border: m.status === 'live' ? '1px solid var(--accent-cyan)' : '1px solid rgba(255, 255, 255, 0.05)',
+                      border: m.status === 'live' ? '1px solid var(--accent-cyan)' : '1px solid var(--border-color)',
                       boxShadow: m.status === 'live' ? 'var(--border-glow)' : 'none',
                       padding: '1rem',
                       position: 'relative',

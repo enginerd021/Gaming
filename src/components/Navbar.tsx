@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAppStore } from '@/store/useAppStore';
-import { User, LogOut, Menu, X, Bell, ChevronDown, Home, Palette, Check } from 'lucide-react';
+import { User, LogOut, Menu, X, Bell, ChevronDown, Home, Palette, Check, Sun, Moon } from 'lucide-react';
 import { 
   collection, 
   query, 
@@ -45,18 +45,14 @@ export default function Navbar() {
   const aboutRef = useRef<HTMLDivElement>(null);
   const themeRef = useRef<HTMLDivElement>(null);
 
-  // 5-Theme System
-  type ThemeId = 'neon' | 'tactical' | 'pink' | 'light' | 'coffee';
+  // 2-Theme System (Neon and Light only)
+  type ThemeId = 'neon' | 'light';
   const THEMES: { id: ThemeId; label: string; desc: string; accentColor: string; swatches: string[] }[] = [
     { id: 'neon',     label: 'Neon Esports',       desc: 'Deep space · electric cyan',       accentColor: '#00E5FF', swatches: ['#02040a', '#00E5FF', '#D946EF', '#0c1020'] },
-    { id: 'tactical', label: 'Tactical HUD',        desc: 'Slate black · amber gold',         accentColor: '#F59E0B', swatches: ['#0b0f19', '#F59E0B', '#10B981', '#1e293b'] },
-    { id: 'pink',     label: 'Cyber Pink',         desc: 'Soft off-white · pastel pink',     accentColor: '#FFB7C5', swatches: ['#FAFAFA', '#FFB7C5', '#E2D5F3', '#FFFFFF'] },
     { id: 'light',    label: 'Minimal Light',       desc: 'Clean white · deep indigo',        accentColor: '#4F46E5', swatches: ['#F8FAFC', '#4F46E5', '#0EA5E9', '#E2E8F0'] },
-    { id: 'coffee',   label: 'Coffee & Cream',     desc: 'Warm cream · roasted espresso',    accentColor: '#7F5539', swatches: ['#F8F5F0', '#7F5539', '#DDB892', '#EDE0D4'] },
   ];
 
   const [theme, setTheme] = useState<ThemeId>('neon');
-  const [themeOpen, setThemeOpen] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -67,19 +63,9 @@ export default function Navbar() {
 
   const selectTheme = (id: ThemeId) => {
     setTheme(id);
-    setThemeOpen(false);
     localStorage.setItem('shaktrix_theme', id);
     document.documentElement.setAttribute('data-theme', id);
   };
-
-  // Close theme picker on outside click
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (themeRef.current && !themeRef.current.contains(e.target as Node)) setThemeOpen(false);
-    };
-    if (themeOpen) document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [themeOpen]);
 
   // Dropdown states for the inner-page black bar
   const [productsOpen, setProductsOpen] = useState(false);
@@ -291,93 +277,53 @@ export default function Navbar() {
             
             <nav className="desktop-nav" style={{ display: 'none', alignItems: 'center', gap: '1.75rem' }}>
               
-              {/* ── 4-Theme Picker Dropdown ── */}
-              <div ref={themeRef} style={{ position: 'relative' }}>
-                <button
-                  onClick={() => setThemeOpen(v => !v)}
-                  aria-label="Change visual theme"
-                  title="Visual Theme"
+              {/* ── Theme Toggle Switch (Neon vs Minimal Light) ── */}
+              <button
+                onClick={() => selectTheme(theme === 'neon' ? 'light' : 'neon')}
+                aria-label="Toggle visual theme between Dark and Light"
+                title={`Switch to ${theme === 'neon' ? 'Light Theme' : 'Neon Esports'}`}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '20px',
+                  width: '56px',
+                  height: '28px',
+                  position: 'relative',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '2px',
+                  transition: 'all 0.3s ease',
+                  boxShadow: theme === 'neon' ? 'none' : 'inset 0 2px 5px rgba(0,0,0,0.05)'
+                }}
+              >
+                <div
                   style={{
-                    padding: '0.5rem 0.9rem',
+                    width: '22px',
+                    height: '22px',
+                    borderRadius: '50%',
+                    background: theme === 'neon' ? 'var(--accent-cyan)' : 'var(--neon-blue)',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '0.5rem',
-                    background: themeOpen ? 'rgba(var(--accent-cyan-rgb), 0.14)' : 'rgba(255,255,255,0.07)',
-                    border: `1px solid ${themeOpen ? 'var(--accent-cyan)' : 'var(--border-color)'}`,
-                    borderRadius: '8px',
-                    color: 'var(--accent-cyan)',
-                    cursor: 'pointer',
-                    fontSize: '0.78rem',
-                    fontWeight: 700,
-                    letterSpacing: '0.05em',
-                    textTransform: 'uppercase',
-                    transition: 'all 0.2s ease',
-                    whiteSpace: 'nowrap',
+                    justifyContent: 'center',
+                    position: 'absolute',
+                    left: theme === 'neon' ? '4px' : '28px',
+                    transition: 'left 0.25s cubic-bezier(0.23, 1, 0.32, 1), background-color 0.25s ease',
+                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)'
                   }}
                 >
-                  <Palette size={14} />
-                  <span>{THEMES.find(t => t.id === theme)?.label ?? 'Theme'}</span>
-                </button>
-
-                {themeOpen && (
-                  <div
-                    className="glass-panel fade-in"
-                    style={{
-                      position: 'absolute',
-                      top: 'calc(100% + 10px)',
-                      right: 0,
-                      width: '230px',
-                      padding: '0.6rem',
-                      zIndex: 200,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '0.3rem',
-                      background: 'var(--bg-secondary)',
-                      border: '1px solid var(--border-color)',
-                      borderRadius: '12px',
-                      boxShadow: '0 20px 48px rgba(0,0,0,0.55)',
-                    }}
-                  >
-                    <p style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.14em', color: 'var(--text-muted)', padding: '0.3rem 0.6rem 0.2rem', margin: 0 }}>Visual Theme</p>
-                    {THEMES.map(t => {
-                      const isActive = theme === t.id;
-                      return (
-                        <button
-                          key={t.id}
-                          onClick={() => selectTheme(t.id)}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.65rem',
-                            padding: '0.55rem 0.7rem',
-                            borderRadius: '8px',
-                            border: isActive ? '1px solid rgba(var(--accent-cyan-rgb), 0.5)' : '1px solid transparent',
-                            background: isActive ? 'rgba(var(--accent-cyan-rgb), 0.1)' : 'transparent',
-                            cursor: 'pointer',
-                            textAlign: 'left',
-                            width: '100%',
-                            transition: 'all 0.15s ease',
-                          }}
-                          onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.06)'; }}
-                          onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
-                        >
-                          {/* Accent dot */}
-                          <span style={{
-                            width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
-                            background: t.accentColor,
-                            boxShadow: isActive ? `0 0 8px ${t.accentColor}` : 'none',
-                          }} />
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontSize: '0.84rem', fontWeight: isActive ? 700 : 500, color: isActive ? 'var(--accent-cyan)' : 'var(--text-primary)', lineHeight: 1.25 }}>{t.label}</div>
-                            <div style={{ fontSize: '0.67rem', color: 'var(--text-muted)', lineHeight: 1.3, marginTop: '0.1rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.desc}</div>
-                          </div>
-                          {isActive && <Check size={13} style={{ color: 'var(--accent-cyan)', flexShrink: 0 }} />}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+                  {theme === 'neon' ? (
+                    <Moon size={12} color="#02040a" />
+                  ) : (
+                    <Sun size={12} color="#ffffff" />
+                  )}
+                </div>
+                {/* Secondary static icons inside path */}
+                <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', padding: '0 6px', opacity: 0.3 }}>
+                  <Moon size={11} style={{ visibility: theme === 'neon' ? 'hidden' : 'visible' }} />
+                  <Sun size={11} style={{ visibility: theme === 'neon' ? 'visible' : 'hidden' }} />
+                </div>
+              </button>
 
               {/* 1. Notification Symbol */}
               {user && (
@@ -521,23 +467,23 @@ export default function Navbar() {
               )}
 
               {/* 2. LEADERBOARD */}
-              <Link href="/leaderboard" className="zentry-text-link" style={{ color: '#ffffff' }}>
+              <Link href="/leaderboard" className="zentry-text-link">
                 LEADERBOARD
               </Link>
 
               {/* 3. TOURNAMENTS */}
-              <Link href="/tournaments" className="zentry-text-link" style={{ color: '#ffffff' }}>
+              <Link href="/tournaments" className="zentry-text-link">
                 TOURNAMENTS
               </Link>
 
               {/* 4. TEAMS */}
-              <Link href="/teams" className="zentry-text-link" style={{ color: '#ffffff' }}>
+              <Link href="/teams" className="zentry-text-link">
                 TEAMS
               </Link>
 
               {/* 5. ABOUT US */}
               <div ref={aboutRef} style={{ position: 'relative' }}>
-                <button onClick={() => { setAboutOpen(!aboutOpen); setProductsOpen(false); }} className="zentry-text-link flex items-center gap-1" style={{ color: '#ffffff' }}>
+                <button onClick={() => { setAboutOpen(!aboutOpen); setProductsOpen(false); }} className="zentry-text-link flex items-center gap-1">
                   ABOUT <ChevronDown size={12} />
                 </button>
                 {aboutOpen && (
@@ -549,20 +495,20 @@ export default function Navbar() {
               </div>
 
               {/* 6. PROFILE */}
-              <Link href="/profile" className="zentry-text-link" style={{ color: '#ffffff' }}>
+              <Link href="/profile" className="zentry-text-link">
                 PROFILE
               </Link>
 
               {/* 7. LOGOUT / AUTH */}
               {user ? (
-                <button onClick={handleLogout} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', opacity: 0.8 }} className="hover-opacity" aria-label="Log out">
+                <button onClick={handleLogout} style={{ background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', opacity: 0.8 }} className="hover-opacity" aria-label="Log out">
                   <LogOut size={18} />
                 </button>
               ) : (
                 !loading && (
                   <>
-                    <Link href="/login" className="zentry-text-link" style={{ color: '#ffffff' }}>LOGIN</Link>
-                    <Link href="/register" className="zentry-text-link" style={{ color: '#ffffff' }}>JOIN NOW</Link>
+                    <Link href="/login" className="zentry-text-link">LOGIN</Link>
+                    <Link href="/register" className="zentry-text-link">JOIN NOW</Link>
                   </>
                 )
               )}
@@ -572,7 +518,7 @@ export default function Navbar() {
             <button 
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="mobile-toggle"
-              style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer' }}
+              style={{ background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer' }}
             >
               {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
@@ -681,7 +627,7 @@ export default function Navbar() {
           to { opacity: 1; transform: translateY(0); }
         }
         .zentry-text-link {
-          color: #ffffff;
+          color: var(--text-primary);
           font-size: 0.75rem;
           font-weight: 800;
           text-transform: uppercase;
@@ -703,7 +649,7 @@ export default function Navbar() {
           left: 0;
           width: 0%;
           height: 1px;
-          background: #fff;
+          background: var(--text-primary);
           transition: width 0.3s ease;
         }
         .zentry-text-link:hover::after {

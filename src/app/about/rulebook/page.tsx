@@ -172,16 +172,10 @@ export default function RulebookPage() {
               placeholder="Search rulebook (e.g. check-in, disconnect, substitute, anti-cheat)..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              className="glass-input"
               style={{
-                width: '100%',
-                padding: '0.9rem 1.25rem 0.9rem 3.2rem',
                 borderRadius: '9999px',
-                background: 'rgba(6, 12, 28, 0.85)',
-                border: '1px solid rgba(0, 240, 255, 0.25)',
-                color: '#fff',
-                fontSize: '0.95rem',
-                outline: 'none',
-                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.4)'
+                paddingLeft: '3.2rem'
               }}
             />
           </div>

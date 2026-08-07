@@ -1352,7 +1352,7 @@ export default function TournamentDetailClient({ id }: { id: string }) {
             width: '48px',
             borderRadius: '8px 0 0 8px',
             borderRight: 'none',
-            borderColor: 'hsla(186, 100%, 48%, 0.15)',
+            borderColor: 'var(--border-color)',
             background: 'var(--bg-primary)',
             color: 'var(--accent-cyan)',
             display: 'flex',

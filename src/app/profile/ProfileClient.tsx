@@ -703,8 +703,8 @@ export default function ProfileClient() {
                   <div 
                     key={ach.id} 
                     style={{
-                      background: unlocked ? 'hsla(223, 20%, 8%, 0.9)' : 'hsla(223, 20%, 5%, 0.4)',
-                      border: unlocked ? `1px solid ${ach.color}` : '1px solid rgba(255, 255, 255, 0.05)',
+                      background: unlocked ? 'var(--bg-secondary)' : 'var(--bg-tertiary)',
+                      border: unlocked ? `1px solid ${ach.color}` : '1px solid var(--border-color)',
                       borderRadius: '12px',
                       padding: '1.5rem',
                       textAlign: 'center',
@@ -739,7 +739,7 @@ export default function ProfileClient() {
                     </div>
                     
                     <div>
-                      <h3 style={{ fontSize: '1.1rem', fontWeight: 800, margin: '0 0 0.25rem 0', color: unlocked ? '#fff' : 'var(--text-muted)' }}>
+                      <h3 style={{ fontSize: '1.1rem', fontWeight: 800, margin: '0 0 0.25rem 0', color: unlocked ? 'var(--text-primary)' : 'var(--text-muted)' }}>
                         {ach.title}
                       </h3>
                       <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', margin: 0, lineHeight: 1.4 }}>
@@ -752,7 +752,7 @@ export default function ProfileClient() {
                         Unlocked
                       </span>
                     ) : (
-                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '4px', padding: '0.1rem 0.4rem' }}>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', border: '1px solid var(--border-color)', borderRadius: '4px', padding: '0.1rem 0.4rem' }}>
                         Locked
                       </span>
                     )}

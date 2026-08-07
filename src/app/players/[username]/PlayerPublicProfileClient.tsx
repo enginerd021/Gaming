@@ -555,8 +555,8 @@ export default function PlayerPublicProfileClient({ username }: { username: stri
                 <div 
                   key={ach.id} 
                   style={{
-                    background: unlocked ? 'hsla(223, 20%, 8%, 0.9)' : 'hsla(223, 20%, 5%, 0.4)',
-                    border: unlocked ? `1px solid ${ach.color}` : '1px solid rgba(255, 255, 255, 0.05)',
+                    background: unlocked ? 'var(--bg-secondary)' : 'var(--bg-tertiary)',
+                    border: unlocked ? `1px solid ${ach.color}` : '1px solid var(--border-color)',
                     borderRadius: '12px',
                     padding: '1.25rem 1rem',
                     textAlign: 'center',
@@ -590,7 +590,7 @@ export default function PlayerPublicProfileClient({ username }: { username: stri
                   </div>
                   
                   <div>
-                    <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: '0 0 0.15rem 0', color: unlocked ? '#fff' : 'var(--text-muted)' }}>
+                    <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: '0 0 0.15rem 0', color: unlocked ? 'var(--text-primary)' : 'var(--text-muted)' }}>
                       {ach.title}
                     </h3>
                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', margin: 0, lineHeight: 1.3 }}>
@@ -753,8 +753,8 @@ export default function PlayerPublicProfileClient({ username }: { username: stri
           <div style={{
             width: '100%',
             maxWidth: '800px',
-            background: 'var(--bg-primary)',
-            border: '1px solid var(--border-color)',
+            background: '#040914',
+            border: '1px solid rgba(0, 240, 255, 0.2)',
             borderRadius: '12px',
             padding: '1rem',
             position: 'relative'
