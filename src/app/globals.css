@@ -157,6 +157,11 @@ header[data-home="true"] {
   margin: 0;
 }
 
+html {
+  scroll-behavior: auto;
+  -webkit-text-size-adjust: 100%;
+}
+
 html, body {
   width: 100%;
   min-height: 100vh;
@@ -166,7 +171,10 @@ html, body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
-  scroll-behavior: smooth;
+}
+
+html.lenis-active, html.lenis-active body {
+  height: auto;
 }
 
 /* Typography */
@@ -645,7 +653,7 @@ h3 {
 
 /* Scroll-Driven Smooth Reveal Utilities */
 [data-scroll-section], .bento-card, .glass-card, .glass-panel, .podium-card {
-  will-change: transform, opacity, filter;
+  will-change: transform, opacity;
   transition: transform 0.35s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.35s ease, border-color 0.35s ease;
 }
 
@@ -1039,3 +1047,40 @@ h3 {
   opacity: 0.45;
   transform: scale(1.04);
 }
+
+/* Mobile Responsiveness & Hardware Performance Overrides */
+@media (max-width: 768px) {
+  /* Release hardware layer locks on mobile for smooth scrolling */
+  [data-scroll-section], .bento-card, .glass-card, .glass-panel, .podium-card {
+    will-change: auto !important;
+  }
+
+  .container {
+    padding: 0 1rem;
+  }
+
+  .section-padding {
+    padding: 2.5rem 0;
+  }
+
+  header.is-home-header,
+  header.is-inner-header {
+    padding: 0.75rem 1rem !important;
+  }
+
+  .bento-card {
+    padding: 1.5rem;
+  }
+
+  .zentry-bento-roles {
+    opacity: 1 !important;
+    transform: translateY(0) !important;
+  }
+
+  /* Video background opacity fix for low-power mobile GPUs */
+  .bento-card-bg-video,
+  .zentry-video {
+    opacity: 0.25 !important;
+  }
+}
+
