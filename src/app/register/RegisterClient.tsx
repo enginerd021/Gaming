@@ -23,6 +23,7 @@ export default function RegisterClient() {
   const [acceptedTerms, setAcceptedTerms] = useState(true);
   const [error, setError] = useState('');
   const [infoMsg, setInfoMsg] = useState('');
+  const [welcomeMsg, setWelcomeMsg] = useState('');
   const [loading, setLoading] = useState(false);
   const [shake, setShake] = useState(false);
   const router = useRouter();
@@ -84,7 +85,14 @@ export default function RegisterClient() {
         });
       }
 
-      router.push('/profile');
+      const welcomeStr = `Welcome to SHAKTRIX, ${user.displayName || 'Gamer'}!`;
+      setWelcomeMsg(welcomeStr);
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('shaktrix_welcome_msg', welcomeStr);
+      }
+      setTimeout(() => {
+        router.push('/profile');
+      }, 1000);
     } catch (err: unknown) {
       console.error('Google Sign Up error:', err);
       triggerShake();
@@ -204,6 +212,12 @@ export default function RegisterClient() {
         createdAt: Date.now()
       });
 
+      const welcomeStr = `Welcome to SHAKTRIX, ${cleanGamertag}! Your account was created successfully.`;
+      setWelcomeMsg(welcomeStr);
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('shaktrix_welcome_msg', welcomeStr);
+      }
+
       // Redirect to profile setup after a brief moment
       setTimeout(() => {
         router.push('/profile');
@@ -252,6 +266,26 @@ export default function RegisterClient() {
 
         {/* Assertive live region for validation error and info announcers */}
         <div aria-live="assertive">
+          {welcomeMsg && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+              background: 'rgba(0, 240, 255, 0.15)',
+              border: '1px solid var(--accent-cyan)',
+              borderRadius: '8px',
+              padding: '0.75rem 1rem',
+              marginBottom: '1.5rem',
+              color: 'var(--accent-cyan)',
+              fontSize: '0.95rem',
+              fontWeight: 700,
+              boxShadow: '0 0 15px rgba(0, 240, 255, 0.3)'
+            }}>
+              <CheckCircle2 size={20} style={{ flexShrink: 0 }} />
+              <span>{welcomeMsg}</span>
+            </div>
+          )}
+
           {infoMsg && (
             <div style={{
               display: 'flex',

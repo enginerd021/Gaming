@@ -3,10 +3,16 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, signInWithRedirect } from 'firebase/auth';
+import { 
+  signInWithEmailAndPassword, 
+  sendPasswordResetEmail,
+  GoogleAuthProvider, 
+  signInWithPopup, 
+  signInWithRedirect 
+} from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
-import { Gamepad2, Mail, Lock, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { Gamepad2, Mail, Lock, AlertCircle, CheckCircle2, Eye, EyeOff, KeyRound } from 'lucide-react';
 
 export default function LoginClient() {
   const [email, setEmail] = useState('');
@@ -14,6 +20,8 @@ export default function LoginClient() {
   const [showPassword, setShowPassword] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(true);
   const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+  const [welcomeMsg, setWelcomeMsg] = useState('');
   const [loading, setLoading] = useState(false);
   const [shake, setShake] = useState(false);
   const router = useRouter();
@@ -23,8 +31,31 @@ export default function LoginClient() {
     setTimeout(() => setShake(false), 300);
   };
 
+  const handleForgotPassword = async () => {
+    setError('');
+    setSuccessMsg('');
+    if (!email.trim()) {
+      setError('Please enter your email address above to reset your password.');
+      triggerShake();
+      return;
+    }
+    setLoading(true);
+    try {
+      await sendPasswordResetEmail(auth, email.trim());
+      setSuccessMsg(`Password reset email sent to ${email.trim()}. Please check your inbox!`);
+    } catch (err: unknown) {
+      console.error('Password reset error:', err);
+      triggerShake();
+      const authErr = err as { code?: string; message?: string };
+      setError(authErr.message || 'Failed to send password reset email.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleGoogleLogin = async () => {
     setError('');
+    setSuccessMsg('');
     setLoading(true);
 
     try {
@@ -48,8 +79,9 @@ export default function LoginClient() {
       const profileRef = doc(db, "profiles", user.uid);
       const profileSnap = await getDoc(profileRef);
 
+      const rawName = user.displayName || user.email?.split('@')[0] || 'Gamer';
+
       if (!profileSnap.exists()) {
-        const rawName = user.displayName || user.email?.split('@')[0] || 'Gamer';
         const baseTag = rawName.replace(/[^a-zA-Z0-9_]/g, '') || 'Gamer';
         const cleanGamertag = `${baseTag.toLowerCase()}_${Math.floor(1000 + Math.random() * 9000)}`;
 
@@ -72,7 +104,14 @@ export default function LoginClient() {
         });
       }
 
-      router.push('/');
+      const welcomeStr = `Welcome back, ${rawName}!`;
+      setWelcomeMsg(welcomeStr);
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('shaktrix_welcome_msg', welcomeStr);
+      }
+      setTimeout(() => {
+        router.push('/');
+      }, 1000);
     } catch (err: unknown) {
       console.error('Google Sign In error:', err);
       triggerShake();
@@ -94,6 +133,7 @@ export default function LoginClient() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setSuccessMsg('');
 
     if (!email.trim() || !password.trim()) {
       setError('Both email and password are required.');
@@ -110,14 +150,22 @@ export default function LoginClient() {
     setLoading(true);
 
     try {
-      await signInWithEmailAndPassword(auth, email.trim(), password);
-      router.push('/');
+      const userCredential = await signInWithEmailAndPassword(auth, email.trim(), password);
+      const user = userCredential.user;
+      const welcomeStr = `Welcome back, ${user.displayName || email.split('@')[0]}!`;
+      setWelcomeMsg(welcomeStr);
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('shaktrix_welcome_msg', welcomeStr);
+      }
+      setTimeout(() => {
+        router.push('/');
+      }, 1000);
     } catch (err: unknown) {
       console.error('Login error:', err);
       triggerShake();
       const authErr = err as { code?: string; message?: string };
       if (authErr.code === 'auth/user-not-found' || authErr.code === 'auth/wrong-password' || authErr.code === 'auth/invalid-credential') {
-        setError('Invalid email or password.');
+        setError('Password does not match or email is not found. Please click "Forgot Password?" below to reset.');
       } else {
         setError(authErr.message || 'An error occurred during sign-in.');
       }
@@ -156,6 +204,44 @@ export default function LoginClient() {
 
         {/* Assertive live region for validation error announcer */}
         <div aria-live="assertive">
+          {welcomeMsg && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+              background: 'rgba(0, 240, 255, 0.15)',
+              border: '1px solid var(--accent-cyan)',
+              borderRadius: '8px',
+              padding: '0.75rem 1rem',
+              marginBottom: '1.5rem',
+              color: 'var(--accent-cyan)',
+              fontSize: '0.95rem',
+              fontWeight: 700,
+              boxShadow: '0 0 15px rgba(0, 240, 255, 0.3)'
+            }}>
+              <CheckCircle2 size={20} style={{ flexShrink: 0 }} />
+              <span>{welcomeMsg}</span>
+            </div>
+          )}
+
+          {successMsg && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+              background: 'rgba(0, 255, 170, 0.12)',
+              border: '1px solid #00ffaa',
+              borderRadius: '8px',
+              padding: '0.75rem 1rem',
+              marginBottom: '1.5rem',
+              color: '#00ffaa',
+              fontSize: '0.9rem'
+            }}>
+              <CheckCircle2 size={18} style={{ flexShrink: 0 }} />
+              <span>{successMsg}</span>
+            </div>
+          )}
+
           {error && (
             <div style={{
               display: 'flex',
@@ -235,8 +321,30 @@ export default function LoginClient() {
             </div>
           </div>
 
+          {/* FORGOT PASSWORD LINK - Bottom Left Section before Terms & Conditions */}
+          <div style={{ display: 'flex', justifyContent: 'flex-start', marginTop: '0.5rem', marginBottom: '0.75rem' }}>
+            <Link
+              href="/forgot-password"
+              style={{
+                color: 'var(--accent-cyan)',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                padding: 0,
+                textDecoration: 'underline',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                transition: 'opacity 0.2s ease'
+              }}
+              className="hover-opacity"
+            >
+              <KeyRound size={14} />
+              Forgot Password?
+            </Link>
+          </div>
+
           {/* Terms & Conditions Checkbox */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginTop: '1.25rem', marginBottom: '0.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginTop: '0.75rem', marginBottom: '0.5rem' }}>
             <label style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer', gap: '0.6rem', fontSize: '0.85rem', color: 'var(--text-secondary)', userSelect: 'none' }}>
               <input
                 type="checkbox"
