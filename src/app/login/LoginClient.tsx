@@ -35,13 +35,14 @@ export default function LoginClient() {
     try {
       await signInWithEmailAndPassword(auth, email.trim(), password);
       router.push('/');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Login error:', err);
       triggerShake();
-      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+      const authErr = err as { code?: string; message?: string };
+      if (authErr.code === 'auth/user-not-found' || authErr.code === 'auth/wrong-password' || authErr.code === 'auth/invalid-credential') {
         setError('Invalid email or password.');
       } else {
-        setError(err.message || 'An error occurred during sign-in.');
+        setError(authErr.message || 'An error occurred during sign-in.');
       }
     } finally {
       setLoading(false);

@@ -24,9 +24,6 @@ export default function TournamentsView() {
   const [selectedEntryType, setSelectedEntryType] = useState('All');
 
   useEffect(() => {
-    if (tournaments.length === 0) {
-      setLoading(true);
-    }
     const unsub = tournamentService.subscribeAllTournaments(
       (list) => {
         setTournaments(list);
@@ -164,10 +161,68 @@ export default function TournamentsView() {
             ))}
           </div>
         ) : filteredTournaments.length === 0 ? (
-          <GlassCard variant="panel" style={{ textAlign: 'center', padding: '4rem 1.5rem' }}>
-            <Trophy size={48} style={{ color: 'var(--text-muted)', margin: '0 auto 1rem auto', opacity: 0.5 }} />
-            <h3 style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>No Tournaments Found</h3>
-            <p style={{ color: 'var(--text-secondary)' }}>Try broadening your search or filter settings.</p>
+          <GlassCard variant="panel" style={{ 
+            textAlign: 'center', 
+            padding: '3.5rem 2rem', 
+            border: '1px solid rgba(255, 42, 109, 0.3)',
+            background: 'radial-gradient(circle at center, rgba(255, 42, 109, 0.08) 0%, rgba(6, 12, 28, 0.95) 100%)',
+            boxShadow: '0 15px 40px rgba(0, 0, 0, 0.5)'
+          }}>
+            <div style={{
+              width: '64px', height: '64px', borderRadius: '50%',
+              background: 'rgba(255, 42, 109, 0.15)', border: '1px solid var(--accent-red)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              margin: '0 auto 1.5rem auto', color: 'var(--accent-red)'
+            }}>
+              <Trophy size={32} />
+            </div>
+            
+            <h3 style={{ fontSize: '1.6rem', fontWeight: 900, marginBottom: '0.75rem', textTransform: 'uppercase' }}>
+              No Tournaments Available
+            </h3>
+            
+            <p style={{ color: 'var(--text-secondary)', maxWidth: '540px', margin: '0 auto 1.5rem auto', lineHeight: 1.6, fontSize: '0.98rem' }}>
+              {searchTerm || selectedGame !== 'All' || selectedStatus !== 'All' || selectedEntryType !== 'All' ? (
+                <>No competitive brackets matched your selected filter criteria. Try adjusting your filters or resetting search parameters.</>
+              ) : (
+                <>There are currently no live or upcoming tournaments listed in the platform directory.</>
+              )}
+            </p>
+
+            {/* Active Filter Tags */}
+            {(searchTerm || selectedGame !== 'All' || selectedStatus !== 'All' || selectedEntryType !== 'All') && (
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '2rem' }}>
+                {searchTerm && <Badge variant="red">Search: &quot;{searchTerm}&quot;</Badge>}
+                {selectedGame !== 'All' && <Badge variant="cyan">Game: {selectedGame}</Badge>}
+                {selectedStatus !== 'All' && <Badge variant="gold">Status: {selectedStatus}</Badge>}
+                {selectedEntryType !== 'All' && <Badge variant="violet">Entry: {selectedEntryType}</Badge>}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+              {(searchTerm || selectedGame !== 'All' || selectedStatus !== 'All' || selectedEntryType !== 'All') && (
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setSearchTerm('');
+                    setSelectedGame('All');
+                    setSelectedStatus('All');
+                    setSelectedEntryType('All');
+                  }}
+                  style={{ borderRadius: '9999px', padding: '0.75rem 1.75rem' }}
+                >
+                  Clear All Filters
+                </Button>
+              )}
+
+              {user && (
+                <Link href="/tournaments/create">
+                  <Button variant="primary" style={{ borderRadius: '9999px', padding: '0.75rem 1.75rem' }}>
+                    <PlusCircle size={16} /> Host First Tournament
+                  </Button>
+                </Link>
+              )}
+            </div>
           </GlassCard>
         ) : (
           <div className="grid-responsive">

@@ -31,7 +31,7 @@ export function recommendGames(
     }
 
     let score = 0;
-    let explanationParts: string[] = [];
+    const explanationParts: string[] = [];
 
     // Check genre overlap
     if (playerGenres[candidate.genre]) {

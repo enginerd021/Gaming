@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, collection, query, where, getDocs, setDoc, getDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { Gamepad2, User, Mail, Lock, AlertCircle } from 'lucide-react';
 
@@ -104,13 +104,14 @@ export default function RegisterClient() {
 
       // Redirect to profile setup
       router.push('/profile');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Registration error:', err);
       triggerShake();
-      if (err.code === 'auth/email-already-in-use') {
+      const rErr = err as { code?: string; message?: string };
+      if (rErr.code === 'auth/email-already-in-use') {
         setError('This email is already registered.');
       } else {
-        setError(err.message || 'An error occurred during registration.');
+        setError(rErr.message || 'An error occurred during registration.');
       }
     } finally {
       setLoading(false);

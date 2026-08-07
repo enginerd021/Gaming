@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/store/useAppStore';
-import { Gamepad2, Award, User, Settings, Save, Loader, AlertCircle, CheckCircle, Plus, Check } from 'lucide-react';
+import { Gamepad2, Award, User, Settings, Save, AlertCircle, CheckCircle, Plus } from 'lucide-react';
 import { recommendGames } from '@/lib/recommendGames';
 
 const AVAILABLE_GAMES = ["Valorant", "League of Legends", "CS:GO", "Apex Legends", "Rocket League", "Overwatch 2"];
@@ -27,24 +27,28 @@ export default function ProfileClient() {
   const [updating, setUpdating] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const [shake, setShake] = useState(false);
+  const [loadedProfileUid, setLoadedProfileUid] = useState<string | null>(null);
 
   const triggerShake = () => {
     setShake(true);
     setTimeout(() => setShake(false), 300);
   };
 
-  // Sync state with store profile once loaded
+  // Sync state with store profile when profile loads/changes
+  if (profile && profile.uid !== loadedProfileUid) {
+    setLoadedProfileUid(profile.uid);
+    setDisplayName(profile.displayName || '');
+    setSkillLevel(profile.skillLevel || 'Intermediate');
+    setSelectedGames(profile.registeredGames || []);
+    setPreferredRoles(profile.preferredRoles || []);
+    setRiotId(profile.riotId || '');
+  }
+
   useEffect(() => {
     if (!loading && !user) {
       router.push('/login');
-    } else if (profile) {
-      setDisplayName(profile.displayName || '');
-      setSkillLevel(profile.skillLevel || 'Intermediate');
-      setSelectedGames(profile.registeredGames || []);
-      setPreferredRoles(profile.preferredRoles || []);
-      setRiotId(profile.riotId || '');
     }
-  }, [user, profile, loading, router]);
+  }, [user, loading, router]);
 
   const handleGameToggle = (game: string) => {
     if (selectedGames.includes(game)) {
@@ -94,13 +98,14 @@ export default function ProfileClient() {
         riotId: riotId.trim()
       });
       setMessage({ type: 'success', text: 'Profile updated successfully!' });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error updating profile:", err);
       triggerShake();
-      if (err.code === 'permission-denied') {
+      const pErr = err as { code?: string; message?: string };
+      if (pErr.code === 'permission-denied') {
         setMessage({ type: 'error', text: 'Action failed: You do not have permission to modify this profile.' });
       } else {
-        setMessage({ type: 'error', text: err.message || 'Failed to update profile.' });
+        setMessage({ type: 'error', text: pErr.message || 'Failed to update profile.' });
       }
     } finally {
       setUpdating(false);
@@ -119,10 +124,11 @@ export default function ProfileClient() {
         "stats.points": currentPoints + 150
       });
       setMessage({ type: 'success', text: 'Victory simulated! +150 Points added.' });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
       triggerShake();
-      if (err.code === 'permission-denied') {
+      const pErr = err as { code?: string };
+      if (pErr.code === 'permission-denied') {
         setMessage({ type: 'error', text: "Action failed: You do not have permission to modify this profile's stats." });
       } else {
         setMessage({ type: 'error', text: 'Failed to simulate win.' });
@@ -145,7 +151,7 @@ export default function ProfileClient() {
         registeredGames: updatedGames
       });
       setMessage({ type: 'success', text: `Added ${gameName} to your registered games!` });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error adding recommended game:", err);
       triggerShake();
       setMessage({ type: 'error', text: 'Failed to add recommended game.' });
@@ -264,7 +270,7 @@ export default function ProfileClient() {
                 id="prof-skilllevel"
                 className="glass-input glass-select"
                 value={skillLevel}
-                onChange={(e) => setSkillLevel(e.target.value as any)}
+                onChange={(e) => setSkillLevel(e.target.value as typeof skillLevel)}
                 disabled={updating}
               >
                 <option value="Beginner">Beginner / Casual</option>

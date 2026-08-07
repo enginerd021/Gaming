@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Zap, Shield, Trophy, Users, Target, ArrowRight, Award, Cpu, Sparkles } from 'lucide-react';
+import { Shield, Trophy, ArrowRight, Cpu, Sparkles } from 'lucide-react';
 import Button from '@/components/ui/Button';
 
 export default function PlatformMissionPage() {

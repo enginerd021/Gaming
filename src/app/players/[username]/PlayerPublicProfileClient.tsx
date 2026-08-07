@@ -38,8 +38,6 @@ interface MatchRecord {
 }
 
 export default function PlayerPublicProfileClient({ username }: { username: string }) {
-  const router = useRouter();
-  
   const [profile, setProfile] = useState<Profile | null>(null);
   const [team, setTeam] = useState<Team | null>(null);
   
@@ -49,7 +47,7 @@ export default function PlayerPublicProfileClient({ username }: { username: stri
   const [totalWinsCount, setTotalWinsCount] = useState(0);
   const [totalLossesCount, setTotalLossesCount] = useState(0);
   
-  const [riotStats, setRiotStats] = useState<any>(null);
+  const [riotStats, setRiotStats] = useState<Record<string, any> | null>(null);
   const [loadingRiot, setLoadingRiot] = useState(false);
   const [riotError, setRiotError] = useState<string | null>(null);
   
@@ -60,9 +58,6 @@ export default function PlayerPublicProfileClient({ username }: { username: stri
   useEffect(() => {
     if (!username) return;
 
-    if (!profile) {
-      setLoading(true);
-    }
     setError(null);
     const decodedUsername = decodeURIComponent(username).toLowerCase();
 
@@ -161,17 +156,15 @@ export default function PlayerPublicProfileClient({ username }: { username: stri
 
   useEffect(() => {
     const rId = profile?.riotId;
-    if (!rId) {
-      setRiotStats(null);
-      setRiotError(null);
-      return;
-    }
+    if (!rId) return;
 
+    let isMounted = true;
     const fetchLiveStats = async () => {
       setLoadingRiot(true);
       setRiotError(null);
       try {
         const res = await fetch(`/api/game-stats?riotId=${encodeURIComponent(rId)}`);
+        if (!isMounted) return;
         if (!res.ok) {
           const errData = await res.json();
           setRiotError(errData.error || `Riot API returned status ${res.status}`);
@@ -183,15 +176,18 @@ export default function PlayerPublicProfileClient({ username }: { username: stri
           setRiotStats(stats);
         }
       } catch (err) {
-        console.error("Error loading live Riot stats:", err);
-        setRiotError("Connection failed: Riot API is currently unreachable.");
+        if (isMounted) setRiotError("Failed to connect to Riot Stats service.");
       } finally {
-        setLoadingRiot(false);
+        if (isMounted) setLoadingRiot(false);
       }
     };
 
     fetchLiveStats();
-  }, [profile]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [profile?.riotId]);
 
   const loadMoreMatches = async () => {
     if (!lastDoc || !profile) return;
