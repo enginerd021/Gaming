@@ -15,7 +15,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const usernameParam = resolvedParams?.username;
   if (!usernameParam) {
     return {
-      title: 'Player Public Profile — Shakti Gaming',
+      title: 'Player Public Profile — SHAKTRIX',
       description: 'View player stats, preferred games, and role choices.',
     };
   }
@@ -26,8 +26,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const snap = await getDocs(q);
     if (!snap.empty) {
       const pData = snap.docs[0].data();
-      const title = `${pData.displayName} (@${pData.gamertag}) — Player Profile | Shakti Gaming`;
-      const description = `Check out combat statistics, XP rating (${pData.stats?.points || 1000} XP), match wins (${pData.stats?.wins || 0} wins), preferred games, and roles for ${pData.displayName} on Shakti Gaming.`;
+      const title = `${pData.displayName} (@${pData.gamertag}) — Player Profile | SHAKTRIX`;
+      const description = `Check out combat statistics, XP rating (${pData.stats?.points || 1000} XP), match wins (${pData.stats?.wins || 0} wins), preferred games, and roles for ${pData.displayName} on SHAKTRIX.`;
       return {
         title,
         description,
@@ -35,7 +35,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
           title,
           description,
           type: 'profile',
-          url: `https://shakti-gaming.web.app/players/${pData.gamertag}`,
+          url: `https://shakti-gaming-esports.vercel.app/players/${pData.gamertag}`,
         },
       };
     }
@@ -43,7 +43,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     console.error("Error generating player profile metadata:", e);
   }
   return {
-    title: 'Player Public Profile — Shakti Gaming',
+    title: 'Player Public Profile — SHAKTRIX',
     description: 'View player stats, preferred games, and role choices.',
   };
 }

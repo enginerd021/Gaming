@@ -23,7 +23,11 @@ export interface Profile {
     wins: number;
     losses: number;
     points: number;
+    mvps?: number;
+    kda?: string;
+    totalTournaments?: number;
   };
+  achievements?: string[];
   createdAt: number;
 }
 

@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAppStore } from '@/store/useAppStore';
-import { User, LogOut, Menu, X, Bell, ChevronDown, Home, Sun, Moon } from 'lucide-react';
+import { User, LogOut, Menu, X, Bell, ChevronDown, Home, Palette, Check } from 'lucide-react';
 import { 
   collection, 
   query, 
@@ -43,23 +43,43 @@ export default function Navbar() {
   const [notifOpen, setNotifOpen] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
   const aboutRef = useRef<HTMLDivElement>(null);
+  const themeRef = useRef<HTMLDivElement>(null);
 
-  // Theme Mode State (Dark / Light)
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  // 5-Theme System
+  type ThemeId = 'neon' | 'tactical' | 'pink' | 'light' | 'coffee';
+  const THEMES: { id: ThemeId; label: string; desc: string; accentColor: string; swatches: string[] }[] = [
+    { id: 'neon',     label: 'Neon Esports',       desc: 'Deep space · electric cyan',       accentColor: '#00E5FF', swatches: ['#02040a', '#00E5FF', '#D946EF', '#0c1020'] },
+    { id: 'tactical', label: 'Tactical HUD',        desc: 'Slate black · amber gold',         accentColor: '#F59E0B', swatches: ['#0b0f19', '#F59E0B', '#10B981', '#1e293b'] },
+    { id: 'pink',     label: 'Cyber Pink',         desc: 'Soft off-white · pastel pink',     accentColor: '#FFB7C5', swatches: ['#FAFAFA', '#FFB7C5', '#E2D5F3', '#FFFFFF'] },
+    { id: 'light',    label: 'Minimal Light',       desc: 'Clean white · deep indigo',        accentColor: '#4F46E5', swatches: ['#F8FAFC', '#4F46E5', '#0EA5E9', '#E2E8F0'] },
+    { id: 'coffee',   label: 'Coffee & Cream',     desc: 'Warm cream · roasted espresso',    accentColor: '#7F5539', swatches: ['#F8F5F0', '#7F5539', '#DDB892', '#EDE0D4'] },
+  ];
+
+  const [theme, setTheme] = useState<ThemeId>('neon');
+  const [themeOpen, setThemeOpen] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const savedTheme = (localStorage.getItem('shaktrix_theme') as 'dark' | 'light') || 'dark';
-    setTheme(savedTheme);
-    document.documentElement.setAttribute('data-theme', savedTheme);
+    const saved = (localStorage.getItem('shaktrix_theme') as ThemeId) || 'neon';
+    setTheme(saved);
+    document.documentElement.setAttribute('data-theme', saved);
   }, []);
 
-  const toggleTheme = () => {
-    const nextTheme = theme === 'dark' ? 'light' : 'dark';
-    setTheme(nextTheme);
-    localStorage.setItem('shaktrix_theme', nextTheme);
-    document.documentElement.setAttribute('data-theme', nextTheme);
+  const selectTheme = (id: ThemeId) => {
+    setTheme(id);
+    setThemeOpen(false);
+    localStorage.setItem('shaktrix_theme', id);
+    document.documentElement.setAttribute('data-theme', id);
   };
+
+  // Close theme picker on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (themeRef.current && !themeRef.current.contains(e.target as Node)) setThemeOpen(false);
+    };
+    if (themeOpen) document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [themeOpen]);
 
   // Dropdown states for the inner-page black bar
   const [productsOpen, setProductsOpen] = useState(false);
@@ -261,8 +281,8 @@ export default function Navbar() {
               letterSpacing: '0.04em', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.15rem',
               userSelect: 'none'
             }}>
-              <span style={{ color: 'var(--neon-blue)', textShadow: '0 0 15px rgba(0, 240, 255, 0.75)' }}>SHAKT</span>
-              <span style={{ color: 'var(--neon-purple)', textShadow: '0 0 15px rgba(176, 38, 255, 0.75)' }}>RIX</span>
+              <span className="logo-shakt" style={{ color: 'var(--neon-blue)', textShadow: '0 0 15px rgba(0, 240, 255, 0.75)' }}>SHAKT</span>
+              <span className="logo-rix" style={{ color: 'var(--neon-purple)', textShadow: '0 0 15px rgba(176, 38, 255, 0.75)' }}>RIX</span>
             </div>
           </div>
 
@@ -271,27 +291,93 @@ export default function Navbar() {
             
             <nav className="desktop-nav" style={{ display: 'none', alignItems: 'center', gap: '1.75rem' }}>
               
-              {/* Theme Mode Toggle Button (Dark / Light) */}
-              <button
-                onClick={toggleTheme}
-                aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-                title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
-                style={{
-                  padding: '0.55rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  background: 'rgba(255, 255, 255, 0.08)',
-                  border: '1px solid rgba(0, 240, 255, 0.25)',
-                  borderRadius: '8px',
-                  color: theme === 'dark' ? 'var(--accent-gold)' : 'var(--neon-blue)',
-                  cursor: 'pointer',
-                  transition: 'all 0.25s ease'
-                }}
-                className="hover-scale"
-              >
-                {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-              </button>
+              {/* ── 4-Theme Picker Dropdown ── */}
+              <div ref={themeRef} style={{ position: 'relative' }}>
+                <button
+                  onClick={() => setThemeOpen(v => !v)}
+                  aria-label="Change visual theme"
+                  title="Visual Theme"
+                  style={{
+                    padding: '0.5rem 0.9rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    background: themeOpen ? 'rgba(var(--accent-cyan-rgb), 0.14)' : 'rgba(255,255,255,0.07)',
+                    border: `1px solid ${themeOpen ? 'var(--accent-cyan)' : 'var(--border-color)'}`,
+                    borderRadius: '8px',
+                    color: 'var(--accent-cyan)',
+                    cursor: 'pointer',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    letterSpacing: '0.05em',
+                    textTransform: 'uppercase',
+                    transition: 'all 0.2s ease',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  <Palette size={14} />
+                  <span>{THEMES.find(t => t.id === theme)?.label ?? 'Theme'}</span>
+                </button>
+
+                {themeOpen && (
+                  <div
+                    className="glass-panel fade-in"
+                    style={{
+                      position: 'absolute',
+                      top: 'calc(100% + 10px)',
+                      right: 0,
+                      width: '230px',
+                      padding: '0.6rem',
+                      zIndex: 200,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.3rem',
+                      background: 'var(--bg-secondary)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '12px',
+                      boxShadow: '0 20px 48px rgba(0,0,0,0.55)',
+                    }}
+                  >
+                    <p style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.14em', color: 'var(--text-muted)', padding: '0.3rem 0.6rem 0.2rem', margin: 0 }}>Visual Theme</p>
+                    {THEMES.map(t => {
+                      const isActive = theme === t.id;
+                      return (
+                        <button
+                          key={t.id}
+                          onClick={() => selectTheme(t.id)}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.65rem',
+                            padding: '0.55rem 0.7rem',
+                            borderRadius: '8px',
+                            border: isActive ? '1px solid rgba(var(--accent-cyan-rgb), 0.5)' : '1px solid transparent',
+                            background: isActive ? 'rgba(var(--accent-cyan-rgb), 0.1)' : 'transparent',
+                            cursor: 'pointer',
+                            textAlign: 'left',
+                            width: '100%',
+                            transition: 'all 0.15s ease',
+                          }}
+                          onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.06)'; }}
+                          onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+                        >
+                          {/* Accent dot */}
+                          <span style={{
+                            width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
+                            background: t.accentColor,
+                            boxShadow: isActive ? `0 0 8px ${t.accentColor}` : 'none',
+                          }} />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: '0.84rem', fontWeight: isActive ? 700 : 500, color: isActive ? 'var(--accent-cyan)' : 'var(--text-primary)', lineHeight: 1.25 }}>{t.label}</div>
+                            <div style={{ fontSize: '0.67rem', color: 'var(--text-muted)', lineHeight: 1.3, marginTop: '0.1rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.desc}</div>
+                          </div>
+                          {isActive && <Check size={13} style={{ color: 'var(--accent-cyan)', flexShrink: 0 }} />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
 
               {/* 1. Notification Symbol */}
               {user && (
