@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { tournamentService, Tournament } from '@/services/tournamentService';
 import { useAppStore } from '@/store/useAppStore';
-import { Trophy, Search, Gamepad2, PlusCircle } from 'lucide-react';
+import { Trophy, Search, Gamepad2, PlusCircle, X } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import GlassCard from '@/components/ui/GlassCard';
@@ -45,48 +45,58 @@ export default function TournamentsView() {
         return <Badge variant="live">Live</Badge>;
       case 'Completed':
         return <Badge variant="gold">Completed</Badge>;
+      default:
+        return <Badge variant="cyan">{status}</Badge>;
     }
   };
 
-  const filteredTournaments = tournaments.filter((tournament) => {
-    const matchesSearch = tournament.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesGame = selectedGame === 'All' || tournament.game === selectedGame;
-    const matchesStatus = selectedStatus === 'All' || tournament.status === selectedStatus;
-    const matchesEntryType = selectedEntryType === 'All' || tournament.entryType === selectedEntryType;
+  // Derive games list
+  const uniqueGames = Array.from(new Set(tournaments.map(t => t.game).filter(Boolean)));
 
-    return matchesSearch && matchesGame && matchesStatus && matchesEntryType;
+  // Filter tournaments
+  const filteredTournaments = tournaments.filter(t => {
+    const matchesSearch = !searchTerm.trim() || 
+      t.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      t.game.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesGame = selectedGame === 'All' || t.game.toLowerCase() === selectedGame.toLowerCase();
+    const matchesStatus = selectedStatus === 'All' || t.status === selectedStatus;
+    const matchesEntry = selectedEntryType === 'All' || (t.entryType || 'Free') === selectedEntryType;
+
+    return matchesSearch && matchesGame && matchesStatus && matchesEntry;
   });
-
-  const uniqueGames = ["Valorant", "League of Legends", "CS:GO", "Apex Legends", "Rocket League", "Overwatch 2"];
 
   return (
     <main style={{ position: 'relative', minHeight: 'calc(100vh - 4.5rem)', padding: '7.5rem 1.5rem 4rem 1.5rem' }}>
+      {/* Background Decorative Glows */}
       <div className="hero-glow hero-glow-1" />
+      <div className="hero-glow hero-glow-2" />
       
       <div className="container" style={{ position: 'relative', zIndex: 1 }}>
         
-        {/* Header section */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1.5rem', marginBottom: '2.5rem' }}>
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.5rem', marginBottom: '2.5rem' }}>
           <div>
-            <h1 style={{ fontSize: '2.25rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <Trophy size={32} style={{ color: 'var(--accent-gold)' }} />
-              Championship Tournaments
-            </h1>
-            <p style={{ color: 'var(--text-secondary)', marginTop: '0.4rem' }}>
-              Browse live and upcoming bracket tournaments. Assemble your roster and compete.
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
+              <Trophy size={32} style={{ color: 'var(--accent-cyan)' }} />
+              <h1 style={{ fontSize: '2.25rem' }}>Tournaments Hub</h1>
+            </div>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '1rem' }}>
+              Compete in official brackets, track live match progression, and claim championship points.
             </p>
           </div>
+
           {user && (
             <Link href="/tournaments/create">
-              <Button variant="primary">
+              <Button variant="primary" style={{ borderRadius: '9999px', padding: '0.75rem 1.5rem' }}>
                 <PlusCircle size={18} />
-                Host Tournament
+                Create Tournament
               </Button>
             </Link>
           )}
         </div>
 
-        {/* Filters Section */}
+        {/* Filters Panel */}
         <div className="glass-panel filters-layout" style={{ padding: '1.5rem', marginBottom: '2rem' }}>
           
           {/* Search */}
@@ -97,11 +107,31 @@ export default function TournamentsView() {
               id="search-input"
               type="text"
               className="glass-input"
-              style={{ paddingLeft: '2.5rem' }}
+              style={{ paddingLeft: '2.5rem', paddingRight: searchTerm ? '2.5rem' : '1rem' }}
               placeholder="Search tournaments..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm('')}
+                aria-label="Clear search query"
+                style={{
+                  position: 'absolute',
+                  right: '0.75rem',
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                  padding: '0.25rem',
+                  display: 'flex',
+                  alignItems: 'center'
+                }}
+              >
+                <X size={16} />
+              </button>
+            )}
           </div>
 
           {/* Game filter */}

@@ -12,13 +12,14 @@ import {
 } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
-import { Gamepad2, User, Mail, Lock, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Gamepad2, User, Mail, Lock, AlertCircle, CheckCircle2, Eye, EyeOff } from 'lucide-react';
 
 export default function RegisterClient() {
   const [displayName, setDisplayName] = useState('');
   const [gamertag, setGamertag] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [infoMsg, setInfoMsg] = useState('');
   const [loading, setLoading] = useState(false);
@@ -290,6 +291,7 @@ export default function RegisterClient() {
               <input
                 id="reg-displayname"
                 type="text"
+                autoComplete="name"
                 className="glass-input"
                 style={{ paddingLeft: '2.75rem' }}
                 placeholder="e.g. John Doe"
@@ -308,6 +310,7 @@ export default function RegisterClient() {
               <input
                 id="reg-gamertag"
                 type="text"
+                autoComplete="username"
                 className="glass-input"
                 style={{ paddingLeft: '2.25rem' }}
                 placeholder="e.g. Player#1234, Rioter, or [FaZe]Leader"
@@ -329,6 +332,7 @@ export default function RegisterClient() {
               <input
                 id="reg-email"
                 type="email"
+                autoComplete="email"
                 className="glass-input"
                 style={{ paddingLeft: '2.75rem' }}
                 placeholder="you@example.com"
@@ -342,18 +346,40 @@ export default function RegisterClient() {
           {/* Password */}
           <div className="form-group text-glow">
             <label htmlFor="reg-password" className="form-label">Password</label>
-            <div className="input-glow-wrapper">
-              <Lock size={18} style={{ position: 'absolute', left: '1rem', color: 'var(--text-muted)' }} />
+            <div className="input-glow-wrapper" style={{ position: 'relative' }}>
+              <Lock size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
               <input
                 id="reg-password"
-                type="password"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="new-password"
                 className="glass-input"
-                style={{ paddingLeft: '2.75rem' }}
+                style={{ paddingLeft: '2.75rem', paddingRight: '2.75rem' }}
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={loading}
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                tabIndex={-1}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                style={{
+                  position: 'absolute',
+                  right: '0.75rem',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                  padding: '0.25rem',
+                  display: 'flex',
+                  alignItems: 'center'
+                }}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
             </div>
           </div>
 

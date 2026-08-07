@@ -799,8 +799,14 @@ export default function TournamentDetailClient({ id }: { id: string }) {
               </div>
             </div>
           ) : (
-            /* BRACKET LAYOUT (Rounds Side-by-Side) */
-            <div style={{ display: 'flex', gap: '2.5rem', minWidth: '800px', padding: '1rem 0' }}>
+            <>
+              {/* Horizontal Scroll Hint for Mobile/Tablet Screens */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', color: 'var(--accent-cyan)', background: 'rgba(0, 240, 255, 0.08)', border: '1px solid rgba(0, 240, 255, 0.2)', padding: '0.4rem 0.8rem', borderRadius: '6px', marginBottom: '1rem', width: 'fit-content' }}>
+                <span>↔ Scroll or swipe horizontally to view full playoff bracket</span>
+              </div>
+
+              {/* BRACKET LAYOUT (Rounds Side-by-Side) */}
+              <div style={{ display: 'flex', gap: '2.5rem', minWidth: '800px', padding: '1rem 0' }}>
               {roundsArray.map((rNum) => {
                 const roundMatches = matchesByRound[rNum] || [];
                 const roundTitle = rNum === roundsCount ? "Championship Finals" : 
@@ -955,8 +961,9 @@ export default function TournamentDetailClient({ id }: { id: string }) {
                 );
               })}
             </div>
-          )}
-        </div>
+          </>
+        )}
+      </div>
 
       </div>
 
