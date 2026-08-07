@@ -15,9 +15,11 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Profile, Team } from '@/store/useAppStore';
-import { Trophy, Gamepad2, Award, Users, Calendar, AlertCircle, Loader } from 'lucide-react';
+import { Trophy, Gamepad2, Award, Users, Calendar, AlertCircle, Loader, Video, ExternalLink, X } from 'lucide-react';
 import Link from 'next/link';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
+import { ACHIEVEMENTS } from '@/lib/achievements';
+import ShareButton from '@/components/ui/ShareButton';
 
 interface MatchRecord {
   id: string;
@@ -46,6 +48,11 @@ export default function PlayerPublicProfileClient({ username }: { username: stri
   const [hasMore, setHasMore] = useState(false);
   const [totalWinsCount, setTotalWinsCount] = useState(0);
   const [totalLossesCount, setTotalLossesCount] = useState(0);
+  // Real-time map of matchId -> VOD URL
+  const [vodsMap, setVodsMap] = useState<Record<string, string>>({});
+  
+  // Modal VOD Player states
+  const [activeVodUrl, setActiveVodUrl] = useState<string | null>(null);
   
   const [riotStats, setRiotStats] = useState<Record<string, any> | null>(null);
   const [loadingRiot, setLoadingRiot] = useState(false);
@@ -154,6 +161,35 @@ export default function PlayerPublicProfileClient({ username }: { username: stri
     };
   }, [username, refreshCount]);
 
+  // Subscribe to VODs for matched records
+  useEffect(() => {
+    if (matches.length === 0) {
+      setVodsMap({});
+      return;
+    }
+
+    const matchIds = matches.map(m => m.id).filter(Boolean);
+    if (matchIds.length === 0) return;
+
+    const vodsRef = collection(db, "matchVods");
+    const q = query(vodsRef, where("matchId", "in", matchIds));
+    
+    const unsub = onSnapshot(q, (snap) => {
+      const tempMap: Record<string, string> = {};
+      snap.docs.forEach(docSnap => {
+        const d = docSnap.data();
+        if (d.userId === profile?.uid) {
+          tempMap[d.matchId] = d.vodUrl;
+        } else if (!tempMap[d.matchId]) {
+          tempMap[d.matchId] = d.vodUrl;
+        }
+      });
+      setVodsMap(tempMap);
+    }, err => console.error("Error loading match VODs:", err));
+
+    return () => unsub();
+  }, [matches, profile?.uid]);
+
   useEffect(() => {
     const rId = profile?.riotId;
     if (!rId) return;
@@ -231,6 +267,30 @@ export default function PlayerPublicProfileClient({ username }: { username: stri
     }
   };
 
+  const getEmbedUrl = (url: string) => {
+    if (!url) return null;
+    let videoId = '';
+    
+    if (url.includes('youtube.com/watch')) {
+      const parts = url.split('v=');
+      if (parts[1]) {
+        videoId = parts[1].split('&')[0];
+      }
+    } else if (url.includes('youtu.be/')) {
+      const parts = url.split('youtu.be/');
+      if (parts[1]) {
+        videoId = parts[1].split('?')[0];
+      }
+    } else if (url.includes('youtube.com/embed/')) {
+      return url;
+    }
+
+    if (videoId) {
+      return `https://www.youtube.com/embed/${videoId}?autoplay=1`;
+    }
+    return null;
+  };
+
   if (loading) {
     return (
       <div style={{ display: 'flex', minHeight: 'calc(100vh - 4.5rem)', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '1rem' }}>
@@ -264,7 +324,7 @@ export default function PlayerPublicProfileClient({ username }: { username: stri
       <div className="container" style={{ maxWidth: '800px', position: 'relative', zIndex: 1 }}>
         
         {/* Main Profile Header Panel */}
-        <div className="glass-panel fade-in" style={{ padding: '2.5rem', marginBottom: '2rem' }}>
+        <div className="glass-panel fade-in" style={{ padding: '2.5rem', marginBottom: '2rem', position: 'relative', zIndex: 10 }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2rem', alignItems: 'center' }}>
             {/* Avatar Circle */}
             <div style={{ 
@@ -283,7 +343,7 @@ export default function PlayerPublicProfileClient({ username }: { username: stri
             </div>
 
             {/* User Meta */}
-            <div>
+            <div style={{ flex: 1 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
                 <h1 style={{ fontSize: '2.25rem' }}>{profile.displayName}</h1>
                 <span className="badge badge-cyan" style={{ fontSize: '0.85rem' }}>@{profile.gamertag}</span>
@@ -307,6 +367,13 @@ export default function PlayerPublicProfileClient({ username }: { username: stri
                 )}
               </div>
             </div>
+
+            {/* Share Profile Button */}
+            <ShareButton
+              title={`${profile.displayName}'s SHAKTRIX Profile`}
+              description={`@${profile.gamertag} • ${profile.skillLevel} • ${profile.stats?.wins || 0}W / ${profile.stats?.losses || 0}L`}
+              style={{ alignSelf: 'flex-start', flexShrink: 0 }}
+            />
           </div>
         </div>
 
@@ -414,6 +481,24 @@ export default function PlayerPublicProfileClient({ username }: { username: stri
                   {totalWinsCount}W - {totalLossesCount}L
                 </span>
               </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border-color)', paddingTop: '0.5rem' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>MVP Awards</span>
+                <span style={{ fontWeight: 650, color: 'var(--accent-gold)' }}>
+                  🏅 {profile.stats?.mvps || 0} MVPs
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border-color)', paddingTop: '0.5rem' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Average KDA Ratio</span>
+                <span style={{ fontWeight: 650, color: 'var(--accent-cyan)' }}>
+                  ⚔️ {profile.stats?.kda || '0.0'}
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border-color)', paddingTop: '0.5rem' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Tournaments Played</span>
+                <span style={{ fontWeight: 650 }}>
+                  🎮 {profile.stats?.totalTournaments || 0} events
+                </span>
+              </div>
             </div>
           </article>
 
@@ -452,6 +537,67 @@ export default function PlayerPublicProfileClient({ username }: { username: stri
 
         </div>
 
+        {/* Achievements & Badges Panel */}
+        <section className="glass-panel fade-in" style={{ padding: '2rem', marginTop: '2rem' }}>
+          <h2 style={{ fontSize: '1.25rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Award size={20} style={{ color: 'var(--accent-cyan)' }} />
+            Achievements & Badges
+          </h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '1.5rem' }}>
+            {ACHIEVEMENTS.map((ach) => {
+              const unlocked = profile.achievements?.includes(ach.id);
+              return (
+                <div 
+                  key={ach.id} 
+                  style={{
+                    background: unlocked ? 'var(--bg-secondary)' : 'var(--bg-tertiary)',
+                    border: unlocked ? `1px solid ${ach.color}` : '1px solid var(--border-color)',
+                    borderRadius: '12px',
+                    padding: '1.25rem 1rem',
+                    textAlign: 'center',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    boxShadow: unlocked ? `0 0 10px ${ach.color}10` : 'none',
+                    transition: 'transform 200ms ease',
+                    opacity: unlocked ? 1 : 0.3
+                  }}
+                  className={unlocked ? "table-row-hover" : ""}
+                >
+                  <div style={{
+                    width: '50px',
+                    height: '50px',
+                    borderRadius: '50%',
+                    background: ach.gradient,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '1.5rem',
+                    boxShadow: unlocked ? `0 0 10px ${ach.color}40` : 'none',
+                    color: 'var(--bg-primary)',
+                    filter: unlocked ? 'none' : 'grayscale(1)'
+                  }}>
+                    {ach.icon === 'ShieldAlert' ? '🛡️' :
+                     ach.icon === 'Users' ? '👥' :
+                     ach.icon === 'Trophy' ? '🏆' :
+                     ach.icon === 'Award' ? '🏅' : '✨'}
+                  </div>
+                  
+                  <div>
+                    <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: '0 0 0.15rem 0', color: unlocked ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                      {ach.title}
+                    </h3>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', margin: 0, lineHeight: 1.3 }}>
+                      {ach.description}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
         {/* Dynamic Match History Logs */}
         <section className="glass-panel fade-in" style={{ padding: '2rem', marginTop: '2rem' }}>
           <h2 style={{ fontSize: '1.25rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -474,6 +620,7 @@ export default function PlayerPublicProfileClient({ username }: { username: stri
                     <th style={{ padding: '0.75rem 1rem' }}>Opponent</th>
                     <th style={{ padding: '0.75rem 1rem' }}>Score</th>
                     <th style={{ padding: '0.75rem 1rem' }}>Tournament Name</th>
+                    <th style={{ padding: '0.75rem 1rem' }}>POV Clip</th>
                     <th style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>Date Played</th>
                   </tr>
                 </thead>
@@ -533,6 +680,29 @@ export default function PlayerPublicProfileClient({ username }: { username: stri
                             {match.tournamentName}
                           </Link>
                         </td>
+                        <td style={{ padding: '1rem' }}>
+                          {vodsMap[match.id] ? (
+                            <button
+                              onClick={() => setActiveVodUrl(vodsMap[match.id])}
+                              style={{
+                                border: 'none',
+                                background: 'none',
+                                color: 'var(--accent-cyan)',
+                                fontSize: '0.8rem',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.2rem',
+                                cursor: 'pointer',
+                                padding: '0'
+                              }}
+                              className="hover-cyan touch-target"
+                            >
+                              <Video size={12} /> Play VOD
+                            </button>
+                          ) : (
+                            <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontStyle: 'italic' }}>None</span>
+                          )}
+                        </td>
                         <td style={{ padding: '1rem', textAlign: 'right', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
                           {match.resolvedAt.toLocaleDateString()}
                         </td>
@@ -559,6 +729,72 @@ export default function PlayerPublicProfileClient({ username }: { username: stri
 
       </div>
       
+      {/* Sleek Dark VOD Overlay Player Modal */}
+      {activeVodUrl && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          background: 'rgba(0, 0, 0, 0.85)',
+          backdropFilter: 'blur(10px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '1.5rem'
+        }} onClick={() => setActiveVodUrl(null)}>
+          <div style={{
+            width: '100%',
+            maxWidth: '800px',
+            background: '#040914',
+            border: '1px solid rgba(0, 240, 255, 0.2)',
+            borderRadius: '12px',
+            padding: '1rem',
+            position: 'relative'
+          }} onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setActiveVodUrl(null)}
+              style={{ 
+                position: 'absolute', 
+                top: '-2.5rem', 
+                right: '0', 
+                background: 'none', 
+                border: 'none', 
+                color: '#fff', 
+                fontSize: '1rem', 
+                cursor: 'pointer', 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '0.25rem' 
+              }}
+            >
+              <X size={20} /> Close Player
+            </button>
+            <div style={{ position: 'relative', width: '100%', paddingBottom: '56.25%', height: 0 }}>
+              {getEmbedUrl(activeVodUrl) ? (
+                <iframe
+                  src={getEmbedUrl(activeVodUrl)!}
+                  style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', borderRadius: '8px', border: 'none' }}
+                  allow="autoplay; encrypted-media; picture-in-picture"
+                  allowFullScreen
+                  title="VOD Clip Player"
+                />
+              ) : (
+                <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1rem', background: 'var(--bg-secondary)', borderRadius: '8px' }}>
+                  <Video size={48} style={{ color: 'var(--text-muted)' }} />
+                  <p style={{ color: 'var(--text-secondary)' }}>Embed player not available for this host.</p>
+                  <a href={activeVodUrl} target="_blank" rel="noreferrer" className="btn btn-primary" style={{ padding: '0.5rem 1rem' }}>
+                    Open VOD in New Tab <ExternalLink size={14} />
+                  </a>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Mobile Responsive overrides */}
       <style jsx>{`
         @media (max-width: 1024px) {

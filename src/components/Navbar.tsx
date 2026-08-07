@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAppStore } from '@/store/useAppStore';
-import { User, LogOut, Menu, X, Bell, ChevronDown, Home, Sun, Moon, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { User, LogOut, Menu, X, Bell, ChevronDown, Home, Palette, Check, Sun, Moon, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { 
   collection, 
   query, 
@@ -46,6 +46,7 @@ export default function Navbar() {
   const [welcomeToast, setWelcomeToast] = useState<string | null>(null);
   const notifRef = useRef<HTMLDivElement>(null);
   const aboutRef = useRef<HTMLDivElement>(null);
+  const themeRef = useRef<HTMLDivElement>(null);
 
   // Check for session welcome message trigger
   useEffect(() => {
@@ -61,21 +62,26 @@ export default function Navbar() {
     }
   }, [user, pathname]);
 
-  // Theme Mode State (Dark / Light)
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  // 2-Theme System (Neon and Light only)
+  type ThemeId = 'neon' | 'light';
+  const THEMES: { id: ThemeId; label: string; desc: string; accentColor: string; swatches: string[] }[] = [
+    { id: 'neon',     label: 'Neon Esports',       desc: 'Deep space · electric cyan',       accentColor: '#00E5FF', swatches: ['#02040a', '#00E5FF', '#D946EF', '#0c1020'] },
+    { id: 'light',    label: 'Minimal Light',       desc: 'Clean white · deep indigo',        accentColor: '#4F46E5', swatches: ['#F8FAFC', '#4F46E5', '#0EA5E9', '#E2E8F0'] },
+  ];
+
+  const [theme, setTheme] = useState<ThemeId>('neon');
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const savedTheme = (localStorage.getItem('shaktrix_theme') as 'dark' | 'light') || 'dark';
-    setTheme(savedTheme);
-    document.documentElement.setAttribute('data-theme', savedTheme);
+    const saved = (localStorage.getItem('shaktrix_theme') as ThemeId) || 'neon';
+    setTheme(saved);
+    document.documentElement.setAttribute('data-theme', saved);
   }, []);
 
-  const toggleTheme = () => {
-    const nextTheme = theme === 'dark' ? 'light' : 'dark';
-    setTheme(nextTheme);
-    localStorage.setItem('shaktrix_theme', nextTheme);
-    document.documentElement.setAttribute('data-theme', nextTheme);
+  const selectTheme = (id: ThemeId) => {
+    setTheme(id);
+    localStorage.setItem('shaktrix_theme', id);
+    document.documentElement.setAttribute('data-theme', id);
   };
 
   // Dropdown states for the inner-page black bar
@@ -305,8 +311,8 @@ export default function Navbar() {
               letterSpacing: '0.04em', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.15rem',
               userSelect: 'none'
             }}>
-              <span style={{ color: 'var(--neon-blue)', textShadow: '0 0 15px rgba(0, 240, 255, 0.75)' }}>SHAKT</span>
-              <span style={{ color: 'var(--neon-purple)', textShadow: '0 0 15px rgba(176, 38, 255, 0.75)' }}>RIX</span>
+              <span className="logo-shakt" style={{ color: 'var(--neon-blue)', textShadow: '0 0 15px rgba(0, 240, 255, 0.75)' }}>SHAKT</span>
+              <span className="logo-rix" style={{ color: 'var(--neon-purple)', textShadow: '0 0 15px rgba(176, 38, 255, 0.75)' }}>RIX</span>
             </div>
           </div>
 
@@ -315,9 +321,9 @@ export default function Navbar() {
             
             {/* Quick Mobile Theme Toggle */}
             <button
-              onClick={toggleTheme}
-              aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-              title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
+              onClick={() => selectTheme(theme === 'neon' ? 'light' : 'neon')}
+              aria-label={`Switch to ${theme === 'neon' ? 'light' : 'dark'} mode`}
+              title={`Switch to ${theme === 'neon' ? 'Light' : 'Dark'} Mode`}
               style={{
                 padding: '0.45rem',
                 display: 'flex',
@@ -326,17 +332,64 @@ export default function Navbar() {
                 background: 'rgba(255, 255, 255, 0.08)',
                 border: '1px solid rgba(0, 240, 255, 0.25)',
                 borderRadius: '8px',
-                color: theme === 'dark' ? 'var(--accent-gold)' : 'var(--neon-blue)',
+                color: theme === 'neon' ? 'var(--neon-blue)' : 'var(--accent-gold)',
                 cursor: 'pointer',
                 transition: 'all 0.25s ease'
               }}
               className="mobile-theme-btn"
             >
-              {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+              {theme === 'neon' ? <Moon size={18} /> : <Sun size={18} />}
             </button>
 
             <nav className="desktop-nav" style={{ display: 'none', alignItems: 'center', gap: '1.75rem' }}>
               
+              {/* ── Theme Toggle Switch (Neon vs Minimal Light) ── */}
+              <button
+                onClick={() => selectTheme(theme === 'neon' ? 'light' : 'neon')}
+                aria-label="Toggle visual theme between Dark and Light"
+                title={`Switch to ${theme === 'neon' ? 'Light Theme' : 'Neon Esports'}`}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '20px',
+                  width: '56px',
+                  height: '28px',
+                  position: 'relative',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '2px',
+                  transition: 'all 0.3s ease',
+                  boxShadow: theme === 'neon' ? 'none' : 'inset 0 2px 5px rgba(0,0,0,0.05)'
+                }}
+              >
+                <div
+                  style={{
+                    width: '22px',
+                    height: '22px',
+                    borderRadius: '50%',
+                    background: theme === 'neon' ? 'var(--accent-cyan)' : 'var(--neon-blue)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    position: 'absolute',
+                    left: theme === 'neon' ? '4px' : '28px',
+                    transition: 'left 0.25s cubic-bezier(0.23, 1, 0.32, 1), background-color 0.25s ease',
+                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)'
+                  }}
+                >
+                  {theme === 'neon' ? (
+                    <Moon size={12} color="#02040a" />
+                  ) : (
+                    <Sun size={12} color="#ffffff" />
+                  )}
+                </div>
+                {/* Secondary static icons inside path */}
+                <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', padding: '0 6px', opacity: 0.3 }}>
+                  <Moon size={11} style={{ visibility: theme === 'neon' ? 'hidden' : 'visible' }} />
+                  <Sun size={11} style={{ visibility: theme === 'neon' ? 'visible' : 'hidden' }} />
+                </div>
+              </button>
               {/* 1. Notification Symbol */}
               {user && (
                 <div ref={notifRef} style={{ position: 'relative' }}>
@@ -479,23 +532,23 @@ export default function Navbar() {
               )}
 
               {/* 2. LEADERBOARD */}
-              <Link href="/leaderboard" className="zentry-text-link" style={{ color: '#ffffff' }}>
+              <Link href="/leaderboard" className="zentry-text-link">
                 LEADERBOARD
               </Link>
 
               {/* 3. TOURNAMENTS */}
-              <Link href="/tournaments" className="zentry-text-link" style={{ color: '#ffffff' }}>
+              <Link href="/tournaments" className="zentry-text-link">
                 TOURNAMENTS
               </Link>
 
               {/* 4. TEAMS */}
-              <Link href="/teams" className="zentry-text-link" style={{ color: '#ffffff' }}>
+              <Link href="/teams" className="zentry-text-link">
                 TEAMS
               </Link>
 
               {/* 5. ABOUT US */}
               <div ref={aboutRef} style={{ position: 'relative' }}>
-                <button onClick={() => { setAboutOpen(!aboutOpen); setProductsOpen(false); }} className="zentry-text-link flex items-center gap-1" style={{ color: '#ffffff' }}>
+                <button onClick={() => { setAboutOpen(!aboutOpen); setProductsOpen(false); }} className="zentry-text-link flex items-center gap-1">
                   ABOUT <ChevronDown size={12} />
                 </button>
                 {aboutOpen && (
@@ -507,20 +560,20 @@ export default function Navbar() {
               </div>
 
               {/* 6. PROFILE */}
-              <Link href="/profile" className="zentry-text-link" style={{ color: '#ffffff' }}>
+              <Link href="/profile" className="zentry-text-link">
                 PROFILE
               </Link>
 
               {/* 7. LOGOUT / AUTH */}
               {user ? (
-                <button onClick={promptLogout} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', opacity: 0.8 }} className="hover-opacity" aria-label="Log out">
+                <button onClick={promptLogout} style={{ background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', opacity: 0.8 }} className="hover-opacity" aria-label="Log out">
                   <LogOut size={18} />
                 </button>
               ) : (
                 !loading && (
                   <>
-                    <Link href="/login" className="zentry-text-link" style={{ color: '#ffffff' }}>LOGIN</Link>
-                    <Link href="/register" className="zentry-text-link" style={{ color: '#ffffff' }}>JOIN NOW</Link>
+                    <Link href="/login" className="zentry-text-link">LOGIN</Link>
+                    <Link href="/register" className="zentry-text-link">JOIN NOW</Link>
                   </>
                 )
               )}
@@ -531,7 +584,7 @@ export default function Navbar() {
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="mobile-toggle"
               aria-label="Toggle Navigation Menu"
-              style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', padding: '0.4rem' }}
+              style={{ background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', padding: '0.4rem' }}
             >
               {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
@@ -641,7 +694,7 @@ export default function Navbar() {
           to { opacity: 1; transform: translateY(0); }
         }
         .zentry-text-link {
-          color: #ffffff;
+          color: var(--text-primary);
           font-size: 0.75rem;
           font-weight: 800;
           text-transform: uppercase;
@@ -663,7 +716,7 @@ export default function Navbar() {
           left: 0;
           width: 0%;
           height: 1px;
-          background: #fff;
+          background: var(--text-primary);
           transition: width 0.3s ease;
         }
         .zentry-text-link:hover::after {

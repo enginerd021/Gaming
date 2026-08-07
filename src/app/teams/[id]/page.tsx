@@ -15,7 +15,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const teamId = resolvedParams?.id;
   if (!teamId) {
     return {
-      title: 'Esports Team Profile — Shakti Gaming',
+      title: 'Esports Team Profile — SHAKTRIX',
       description: 'View esports team rosters, members, points, wins, and match history.',
     };
   }
@@ -25,8 +25,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const snap = await getDoc(docRef);
     if (snap.exists()) {
       const tData = snap.data();
-      const title = `${tData.name} — Esports Team Profile | Shakti Gaming`;
-      const description = `Check out combat roster, wins (${tData.wins || 0} wins), XP points (${tData.points || 0} XP), and match history for esports team ${tData.name} on Shakti Gaming.`;
+      const title = `${tData.name} — Esports Team Profile | SHAKTRIX`;
+      const description = `Check out combat roster, wins (${tData.wins || 0} wins), XP points (${tData.points || 0} XP), and match history for esports team ${tData.name} on SHAKTRIX.`;
       return {
         title,
         description,
@@ -34,7 +34,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
           title,
           description,
           type: 'website',
-          url: `https://shakti-gaming.web.app/teams/${teamId}`,
+          url: `https://shakti-gaming-esports.vercel.app/teams/${teamId}`,
         },
       };
     }
@@ -43,7 +43,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 
   return {
-    title: 'Esports Team Profile — Shakti Gaming',
+    title: 'Esports Team Profile — SHAKTRIX',
     description: 'View esports team rosters, members, points, wins, and match history.',
   };
 }

@@ -190,7 +190,7 @@ export default function HomeView() {
     <main style={{ position: 'relative', overflowX: 'hidden', backgroundColor: 'var(--bg-primary)' }}>
       
       {/* COCKPIT HERO SECTION */}
-      <section ref={heroWrapperRef} style={{ position: 'relative', width: '100%', height: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <section ref={heroWrapperRef} className="cockpit-hero-section" style={{ position: 'relative', width: '100%', height: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#02040a' }}>
         <div ref={videoFrameRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', clipPath: 'polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)', overflow: 'hidden' }}>
           <video autoPlay loop muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.85 }}>
             <source src="/videos/hero-drive.mp4" type="video/mp4" />

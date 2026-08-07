@@ -2,11 +2,44 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { doc, updateDoc } from 'firebase/firestore';
+import { 
+  doc, 
+  updateDoc, 
+  collection, 
+  query, 
+  where, 
+  onSnapshot, 
+  setDoc, 
+  deleteDoc, 
+  serverTimestamp, 
+  orderBy 
+} from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/store/useAppStore';
-import { Gamepad2, Award, User, Settings, Save, AlertCircle, CheckCircle, Plus } from 'lucide-react';
+import { 
+  Gamepad2, 
+  Award, 
+  User, 
+  Settings, 
+  Save, 
+  Loader, 
+  AlertCircle, 
+  CheckCircle, 
+  Plus, 
+  Check, 
+  Trophy, 
+  Calendar, 
+  Clock, 
+  ShieldAlert, 
+  Video, 
+  Link as LinkIcon, 
+  ExternalLink,
+  Users
+} from 'lucide-react';
 import { recommendGames } from '@/lib/recommendGames';
+import { ACHIEVEMENTS } from '@/lib/achievements';
+import { achievementService } from '@/services/achievementService';
+import StatsCharts from '@/components/ui/StatsCharts';
 
 const AVAILABLE_GAMES = ["Valorant", "League of Legends", "CS:GO", "Apex Legends", "Rocket League", "Overwatch 2"];
 const POPULAR_ROLES = ["Duelist", "Sentinel", "Mid Laner", "Jungler", "IGL (In-Game Leader)", "Entry Fragger", "Support", "Sniper", "Flex"];
@@ -14,15 +47,30 @@ const POPULAR_ROLES = ["Duelist", "Sentinel", "Mid Laner", "Jungler", "IGL (In-G
 export default function ProfileClient() {
   const user = useAppStore((state) => state.user);
   const profile = useAppStore((state) => state.profile);
+  const team = useAppStore((state) => state.team);
   const loading = useAppStore((state) => state.loading);
   const router = useRouter();
 
+  // Navigation state
+  const [activeTab, setActiveTab] = useState<'details' | 'career' | 'achievements' | 'matches' | 'charts'>('details');
+
+  // Form states
   const [displayName, setDisplayName] = useState('');
   const [skillLevel, setSkillLevel] = useState<'Beginner' | 'Intermediate' | 'Advanced'>('Intermediate');
   const [selectedGames, setSelectedGames] = useState<string[]>([]);
   const [preferredRoles, setPreferredRoles] = useState<string[]>([]);
   const [newRole, setNewRole] = useState('');
   const [riotId, setRiotId] = useState('');
+
+  // Extended Stats states
+  const [losses, setLosses] = useState(0);
+  const [mvps, setMvps] = useState(0);
+  const [kda, setKda] = useState('0.0');
+  const [totalTournaments, setTotalTournaments] = useState(0);
+
+  // Match history & VODs
+  const [matches, setMatches] = useState<any[]>([]);
+  const [userVods, setUserVods] = useState<Record<string, string>>({});
   
   const [updating, setUpdating] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
@@ -42,6 +90,10 @@ export default function ProfileClient() {
     setSelectedGames(profile.registeredGames || []);
     setPreferredRoles(profile.preferredRoles || []);
     setRiotId(profile.riotId || '');
+    setLosses(profile.stats?.losses || 0);
+    setMvps(profile.stats?.mvps || 0);
+    setKda(profile.stats?.kda || '0.0');
+    setTotalTournaments(profile.stats?.totalTournaments || 0);
   }
 
   useEffect(() => {
@@ -49,6 +101,47 @@ export default function ProfileClient() {
       router.push('/login');
     }
   }, [user, loading, router]);
+
+  // Subscribe to match history and VODs
+  useEffect(() => {
+    if (!profile?.uid) return;
+
+    // Stream user's match history
+    const historyRef = collection(db, "matchHistory");
+    const q = query(
+      historyRef,
+      where("participantIds", "array-contains", profile.uid),
+      orderBy("resolvedAt", "desc")
+    );
+
+    const unsubMatches = onSnapshot(q, (snap) => {
+      const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setMatches(list);
+    }, err => console.error("Error loading match history:", err));
+
+    // Stream user's VOD clips
+    const vodsRef = collection(db, "matchVods");
+    const qVods = query(vodsRef, where("userId", "==", profile.uid));
+    const unsubVods = onSnapshot(qVods, (snap) => {
+      const map: Record<string, string> = {};
+      snap.docs.forEach(d => {
+        map[d.data().matchId] = d.data().vodUrl;
+      });
+      setUserVods(map);
+    }, err => console.error("Error loading match VODs:", err));
+
+    return () => {
+      unsubMatches();
+      unsubVods();
+    };
+  }, [profile?.uid]);
+
+  // Trigger Team Player achievement check when team loads
+  useEffect(() => {
+    if (profile && team) {
+      achievementService.unlockAchievement(profile.uid, 'team_player', profile.achievements || []);
+    }
+  }, [profile, team]);
 
   const handleGameToggle = (game: string) => {
     if (selectedGames.includes(game)) {
@@ -95,10 +188,20 @@ export default function ProfileClient() {
         skillLevel,
         registeredGames: selectedGames,
         preferredRoles: preferredRoles,
-        riotId: riotId.trim()
+        riotId: riotId.trim(),
+        // Stats
+        "stats.losses": Number(losses),
+        "stats.mvps": Number(mvps),
+        "stats.totalTournaments": Number(totalTournaments),
+        "stats.kda": kda.trim()
       });
+      
       setMessage({ type: 'success', text: 'Profile updated successfully!' });
-    } catch (err: unknown) {
+      // Trigger Sheriff check if Riot ID linked
+      if (riotId.trim()) {
+        await achievementService.unlockAchievement(profile.uid, 'sheriff', profile.achievements || []);
+      }
+    } catch (err: any) {
       console.error("Error updating profile:", err);
       triggerShake();
       const pErr = err as { code?: string; message?: string };
@@ -123,8 +226,11 @@ export default function ProfileClient() {
         "stats.wins": currentWins + 1,
         "stats.points": currentPoints + 150
       });
-      setMessage({ type: 'success', text: 'Victory simulated! +150 Points added.' });
-    } catch (err: unknown) {
+      setMessage({ type: 'success', text: 'Victory simulated! +150 XP added.' });
+
+      // Unlock First Blood achievement if first win
+      await achievementService.unlockAchievement(profile.uid, 'first_blood', profile.achievements || []);
+    } catch (err: any) {
       console.error(err);
       triggerShake();
       const pErr = err as { code?: string };
@@ -160,6 +266,42 @@ export default function ProfileClient() {
     }
   };
 
+  // Attach / Edit VOD Link
+  const handleAttachVod = async (matchId: string, currentUrl?: string) => {
+    if (!profile) return;
+    const promptMsg = currentUrl ? "Update POV VOD Link (YouTube, Twitch, Medal):" : "Attach POV VOD Link (YouTube, Twitch, Medal):";
+    const url = window.prompt(promptMsg, currentUrl || "");
+    if (url === null) return; // Cancelled
+
+    if (url.trim() && !/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be|twitch\.tv|medal\.tv)\/.+$/i.test(url.trim())) {
+      alert("Please enter a valid gaming video link from YouTube, Twitch, or Medal.");
+      return;
+    }
+
+    try {
+      const docId = `${matchId}_${profile.uid}`;
+      const vodRef = doc(db, "matchVods", docId);
+      
+      if (url.trim() === "") {
+        await deleteDoc(vodRef);
+        setMessage({ type: 'success', text: 'VOD link cleared successfully.' });
+      } else {
+        await setDoc(vodRef, {
+          matchId,
+          userId: profile.uid,
+          gamertag: profile.gamertag,
+          username: profile.displayName,
+          vodUrl: url.trim(),
+          createdAt: serverTimestamp()
+        }, { merge: true });
+        setMessage({ type: 'success', text: 'POV VOD clip linked to match!' });
+      }
+    } catch (err) {
+      console.error("Failed to link VOD:", err);
+      setMessage({ type: 'error', text: 'Failed to save VOD link.' });
+    }
+  };
+
   if (loading || !profile) {
     return (
       <div style={{ position: 'relative', minHeight: 'calc(100vh - 4.5rem)', padding: '7.5rem 1.5rem 4rem 1.5rem' }}>
@@ -184,6 +326,7 @@ export default function ProfileClient() {
       
       <div className="container" style={{ maxWidth: '800px', position: 'relative', zIndex: 1 }}>
         
+        {/* Profile Card Header */}
         <div className="glass-panel" style={{ padding: '2.5rem', marginBottom: '2rem', display: 'flex', flexWrap: 'wrap', gap: '2rem', alignItems: 'center' }}>
           <div style={{ 
             width: '80px', 
@@ -214,11 +357,11 @@ export default function ProfileClient() {
             className="btn btn-outline"
             style={{ marginLeft: 'auto', fontSize: '0.85rem' }}
           >
-            Simulate Victory (+150 XP)
+            Simulate Win (+150 XP)
           </button>
         </div>
 
-        {/* Assertive live region for validation error and success messages */}
+        {/* Global Feedback message */}
         <div aria-live="assertive">
           {message && (
             <div style={{
@@ -239,192 +382,498 @@ export default function ProfileClient() {
           )}
         </div>
 
-        <form onSubmit={handleSaveProfile} className={`glass-panel ${shake ? 'shake' : ''}`} style={{ padding: '2.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '2rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>
-            <Settings size={20} style={{ color: 'var(--accent-cyan)' }} />
-            <h2 style={{ fontSize: '1.5rem' }}>Edit Player Profile</h2>
-          </div>
+        {/* Navigation Tabs */}
+        <div style={{ display: 'flex', gap: '1rem', borderBottom: '1px solid var(--border-color)', marginBottom: '2rem', paddingBottom: '0.5rem', flexWrap: 'wrap' }}>
+          {[
+            { id: 'details', label: '👤 Profile Info' },
+            { id: 'career', label: '📊 Career Stats' },
+            { id: 'charts', label: '📈 Stats Charts' },
+            { id: 'achievements', label: '🏆 Achievements' },
+            { id: 'matches', label: '⚔️ Match History & VODs' }
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => {
+                setActiveTab(tab.id as any);
+                setMessage(null);
+              }}
+              className={`btn ${activeTab === tab.id ? 'btn-primary' : 'btn-outline'}`}
+              style={{
+                padding: '0.5rem 1.25rem',
+                fontSize: '0.85rem',
+                fontWeight: activeTab === tab.id ? 700 : 500,
+                boxShadow: activeTab === tab.id ? 'var(--glow-cyan)' : 'none',
+                borderRadius: '8px'
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }} className="grid-2-col">
-            {/* Display Name */}
-            <div className="form-group">
-              <label htmlFor="prof-displayname" className="form-label">Display Name</label>
-              <div className="input-glow-wrapper">
-                <User size={16} style={{ position: 'absolute', left: '1rem', color: 'var(--text-muted)' }} />
+        {/* DETAILS TAB */}
+        {activeTab === 'details' && (
+          <form onSubmit={handleSaveProfile} className={`glass-panel ${shake ? 'shake' : ''}`} style={{ padding: '2.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '2rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>
+              <Settings size={20} style={{ color: 'var(--accent-cyan)' }} />
+              <h2 style={{ fontSize: '1.5rem', margin: 0 }}>Edit Player Profile</h2>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }} className="grid-2-col">
+              {/* Display Name */}
+              <div className="form-group">
+                <label htmlFor="prof-displayname" className="form-label">Display Name</label>
+                <div className="input-glow-wrapper">
+                  <User size={16} style={{ position: 'absolute', left: '1rem', color: 'var(--text-muted)' }} />
+                  <input
+                    id="prof-displayname"
+                    type="text"
+                    className="glass-input"
+                    style={{ paddingLeft: '2.5rem' }}
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    disabled={updating}
+                  />
+                </div>
+              </div>
+
+              {/* Skill Level */}
+              <div className="form-group">
+                <label htmlFor="prof-skilllevel" className="form-label">Skill Level</label>
+                <select
+                  id="prof-skilllevel"
+                  className="glass-input glass-select"
+                  value={skillLevel}
+                  onChange={(e) => setSkillLevel(e.target.value as any)}
+                  disabled={updating}
+                >
+                  <option value="Beginner">Beginner / Casual</option>
+                  <option value="Intermediate">Intermediate / Competitor</option>
+                  <option value="Advanced">Advanced / Pro-Tier</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Games Selection */}
+            <div className="form-group" style={{ marginTop: '1.5rem' }}>
+              <span className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.5rem' }}>
+                <Gamepad2 size={16} style={{ color: 'var(--accent-cyan)' }} />
+                Registered Games (Games you actively play)
+              </span>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
+                {AVAILABLE_GAMES.map((game) => {
+                  const isSelected = selectedGames.includes(game);
+                  return (
+                    <button
+                      type="button"
+                      key={game}
+                      onClick={() => handleGameToggle(game)}
+                      className={`btn ${isSelected ? 'btn-primary' : 'btn-outline'}`}
+                      style={{ 
+                        padding: '0.5rem 1rem', 
+                        fontSize: '0.85rem',
+                        boxShadow: isSelected ? 'var(--glow-cyan)' : 'none'
+                      }}
+                      disabled={updating}
+                    >
+                      {game}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Preferred Roles Selection */}
+            <div className="form-group" style={{ marginTop: '2rem' }}>
+              <span className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.5rem' }}>
+                <Award size={16} style={{ color: 'var(--accent-violet)' }} />
+                Preferred Roles / Playstyles
+              </span>
+
+              {/* Role Tags */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', margin: '0.5rem 0 1rem 0' }}>
+                {preferredRoles.map((role) => (
+                  <span 
+                    key={role} 
+                    className="badge badge-violet" 
+                    style={{ gap: '0.4rem', cursor: 'pointer', padding: '0.4rem 0.8rem' }}
+                    onClick={() => handleRemoveRole(role)}
+                    title="Click to remove"
+                  >
+                    {role} &times;
+                  </span>
+                ))}
+                {preferredRoles.length === 0 && (
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontStyle: 'italic' }}>No preferred roles added yet.</span>
+                )}
+              </div>
+
+              {/* Role quick add & input */}
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <label htmlFor="prof-role-input" className="sr-only">Add Preferred Role</label>
                 <input
-                  id="prof-displayname"
+                  id="prof-role-input"
                   type="text"
                   className="glass-input"
-                  style={{ paddingLeft: '2.5rem' }}
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="Type custom role or select quick suggestions..."
+                  value={newRole}
+                  onChange={(e) => setNewRole(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddRole(newRole);
+                    }
+                  }}
+                  disabled={updating}
+                />
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={() => handleAddRole(newRole)}
+                  disabled={updating}
+                >
+                  Add
+                </button>
+              </div>
+
+              {/* Suggestions */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '0.5rem' }}>
+                {POPULAR_ROLES.filter(r => !preferredRoles.includes(r)).slice(0, 6).map((role) => (
+                  <button
+                    type="button"
+                    key={role}
+                    onClick={() => handleAddRole(role)}
+                    style={{
+                      padding: '0.2rem 0.6rem',
+                      fontSize: '0.75rem',
+                      background: 'var(--bg-secondary)',
+                      border: '1px dashed var(--border-color)',
+                      color: 'var(--text-secondary)',
+                      borderRadius: '4px',
+                      cursor: 'pointer'
+                    }}
+                    disabled={updating}
+                  >
+                    + {role}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Submit */}
+            <button
+              type="submit"
+              className="btn btn-primary"
+              style={{ width: '100%', marginTop: '2rem', height: '3.2rem' }}
+              disabled={updating}
+            >
+              {updating ? 'Saving Changes...' : (
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center' }}>
+                  <Save size={18} /> Save Profile Settings
+                </span>
+              )}
+            </button>
+          </form>
+        )}
+
+        {/* CAREER TAB */}
+        {activeTab === 'career' && (
+          <form onSubmit={handleSaveProfile} className="glass-panel" style={{ padding: '2.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '2rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>
+              <Trophy size={20} style={{ color: 'var(--accent-cyan)' }} />
+              <h2 style={{ fontSize: '1.5rem', margin: 0 }}>Career Stats & Game Sync</h2>
+            </div>
+
+            {/* Riot Games ID Link */}
+            <div className="form-group" style={{ marginBottom: '2rem' }}>
+              <label htmlFor="prof-riotid" className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.5rem' }}>
+                <Gamepad2 size={16} style={{ color: 'var(--accent-cyan)' }} />
+                Linked Riot Games ID
+              </label>
+              <div className="input-glow-wrapper">
+                <input
+                  id="prof-riotid"
+                  type="text"
+                  className="glass-input"
+                  placeholder="e.g. Rioter#NA1"
+                  value={riotId}
+                  onChange={(e) => setRiotId(e.target.value)}
+                  disabled={updating}
+                />
+              </div>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginTop: '0.4rem' }}>
+                Enter your Riot ID (name#tag) to fetch your League of Legends live rank and link it to your profile. Unlocks the "Sheriff" achievement badge!
+              </span>
+            </div>
+
+            {/* Edit Career Stats */}
+            <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: 'var(--text-primary)' }}>Adjust Career Stats manually</h3>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }} className="grid-2-col">
+              <div className="form-group">
+                <label htmlFor="prof-losses" className="form-label">Match Losses</label>
+                <input
+                  id="prof-losses"
+                  type="number"
+                  className="glass-input"
+                  value={losses}
+                  onChange={(e) => setLosses(Number(e.target.value))}
+                  disabled={updating}
+                />
+              </div>
+              
+              <div className="form-group">
+                <label htmlFor="prof-mvps" className="form-label">MVP Count</label>
+                <input
+                  id="prof-mvps"
+                  type="number"
+                  className="glass-input"
+                  value={mvps}
+                  onChange={(e) => setMvps(Number(e.target.value))}
                   disabled={updating}
                 />
               </div>
             </div>
 
-            {/* Skill Level */}
-            <div className="form-group">
-              <label htmlFor="prof-skilllevel" className="form-label">Skill Level</label>
-              <select
-                id="prof-skilllevel"
-                className="glass-input glass-select"
-                value={skillLevel}
-                onChange={(e) => setSkillLevel(e.target.value as typeof skillLevel)}
-                disabled={updating}
-              >
-                <option value="Beginner">Beginner / Casual</option>
-                <option value="Intermediate">Intermediate / Competitor</option>
-                <option value="Advanced">Advanced / Pro-Tier</option>
-              </select>
-            </div>
-          </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }} className="grid-2-col">
+              <div className="form-group">
+                <label htmlFor="prof-kda" className="form-label">Average KDA (Kills/Deaths/Assists)</label>
+                <input
+                  id="prof-kda"
+                  type="text"
+                  className="glass-input"
+                  placeholder="e.g. 3.2"
+                  value={kda}
+                  onChange={(e) => setKda(e.target.value)}
+                  disabled={updating}
+                />
+              </div>
 
-          {/* Riot Games ID Link */}
-          <div className="form-group" style={{ marginTop: '1.5rem' }}>
-            <label htmlFor="prof-riotid" className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.5rem' }}>
-              <Gamepad2 size={16} style={{ color: 'var(--accent-cyan)' }} />
-              Riot ID Link (For Live Stats)
-            </label>
-            <div className="input-glow-wrapper">
-              <input
-                id="prof-riotid"
-                type="text"
-                className="glass-input"
-                placeholder="e.g. Rioter#NA1"
-                value={riotId}
-                onChange={(e) => setRiotId(e.target.value)}
-                disabled={updating}
-              />
+              <div className="form-group">
+                <label htmlFor="prof-tournaments" className="form-label">Total Tournaments Played</label>
+                <input
+                  id="prof-tournaments"
+                  type="number"
+                  className="glass-input"
+                  value={totalTournaments}
+                  onChange={(e) => setTotalTournaments(Number(e.target.value))}
+                  disabled={updating}
+                />
+              </div>
             </div>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginTop: '0.4rem' }}>
-              Link your Riot ID (format: name#tag) to fetch and show your active League of Legends rank on your public profile.
-            </span>
-          </div>
 
-          {/* Games Selection */}
-          <div className="form-group" style={{ marginTop: '1.5rem' }}>
-            <span className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.5rem' }}>
-              <Gamepad2 size={16} style={{ color: 'var(--accent-cyan)' }} />
-              Registered Games (Games you actively play)
-            </span>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
-              {AVAILABLE_GAMES.map((game) => {
-                const isSelected = selectedGames.includes(game);
+            <button
+              type="submit"
+              className="btn btn-primary"
+              style={{ width: '100%', height: '3.2rem', marginTop: '1.5rem' }}
+              disabled={updating}
+            >
+              {updating ? 'Saving Changes...' : (
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center' }}>
+                  <Save size={18} /> Update Career Statistics
+                </span>
+              )}
+            </button>
+          </form>
+        )}
+
+        {/* STATS CHARTS TAB */}
+        {activeTab === 'charts' && (
+          <div className="glass-panel fade-in" style={{ padding: '2.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '2rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-cyan)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+              </svg>
+              <h2 style={{ fontSize: '1.5rem', margin: 0 }}>Stats &amp; Analytics</h2>
+            </div>
+            <StatsCharts profile={profile} />
+          </div>
+        )}
+
+        {/* ACHIEVEMENTS TAB */}
+        {activeTab === 'achievements' && (
+          <div className="glass-panel" style={{ padding: '2.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '2rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>
+              <Award size={20} style={{ color: 'var(--accent-cyan)' }} />
+              <h2 style={{ fontSize: '1.5rem', margin: 0 }}>Achievements & Badges</h2>
+            </div>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '1.5rem' }}>
+              {ACHIEVEMENTS.map((ach) => {
+                const unlocked = profile.achievements?.includes(ach.id);
                 return (
-                  <button
-                    type="button"
-                    key={game}
-                    onClick={() => handleGameToggle(game)}
-                    className={`btn ${isSelected ? 'btn-primary' : 'btn-outline'}`}
-                    style={{ 
-                      padding: '0.5rem 1rem', 
-                      fontSize: '0.85rem',
-                      boxShadow: isSelected ? 'var(--glow-cyan)' : 'none'
+                  <div 
+                    key={ach.id} 
+                    style={{
+                      background: unlocked ? 'var(--bg-secondary)' : 'var(--bg-tertiary)',
+                      border: unlocked ? `1px solid ${ach.color}` : '1px solid var(--border-color)',
+                      borderRadius: '12px',
+                      padding: '1.5rem',
+                      textAlign: 'center',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: '0.75rem',
+                      boxShadow: unlocked ? `0 0 15px ${ach.color}15` : 'none',
+                      transition: 'transform 200ms ease, box-shadow 200ms ease',
+                      opacity: unlocked ? 1 : 0.4
                     }}
-                    disabled={updating}
+                    className={unlocked ? "table-row-hover" : ""}
                   >
-                    {game}
-                  </button>
+                    {/* Badge Icon */}
+                    <div style={{
+                      width: '60px',
+                      height: '60px',
+                      borderRadius: '50%',
+                      background: ach.gradient,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '1.75rem',
+                      boxShadow: unlocked ? `0 0 10px ${ach.color}50` : 'none',
+                      color: 'var(--bg-primary)',
+                      filter: unlocked ? 'none' : 'grayscale(1)'
+                    }}>
+                      {ach.icon === 'ShieldAlert' ? '🛡️' :
+                       ach.icon === 'Users' ? '👥' :
+                       ach.icon === 'Trophy' ? '🏆' :
+                       ach.icon === 'Award' ? '🏅' : '✨'}
+                    </div>
+                    
+                    <div>
+                      <h3 style={{ fontSize: '1.1rem', fontWeight: 800, margin: '0 0 0.25rem 0', color: unlocked ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                        {ach.title}
+                      </h3>
+                      <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', margin: 0, lineHeight: 1.4 }}>
+                        {ach.description}
+                      </p>
+                    </div>
+
+                    {unlocked ? (
+                      <span style={{ fontSize: '0.7rem', color: ach.color, background: `${ach.color}15`, border: `1px solid ${ach.color}30`, borderRadius: '4px', padding: '0.1rem 0.4rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Unlocked
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', border: '1px solid var(--border-color)', borderRadius: '4px', padding: '0.1rem 0.4rem' }}>
+                        Locked
+                      </span>
+                    )}
+                  </div>
                 );
               })}
             </div>
           </div>
+        )}
 
-          {/* Preferred Roles Selection */}
-          <div className="form-group" style={{ marginTop: '2rem' }}>
-            <span className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.5rem' }}>
-              <Award size={16} style={{ color: 'var(--accent-violet)' }} />
-              Preferred Roles / Playstyles
-            </span>
-
-            {/* Role Tags */}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', margin: '0.5rem 0 1rem 0' }}>
-              {preferredRoles.map((role) => (
-                <span 
-                  key={role} 
-                  className="badge badge-violet" 
-                  style={{ gap: '0.4rem', cursor: 'pointer', padding: '0.4rem 0.8rem' }}
-                  onClick={() => handleRemoveRole(role)}
-                  title="Click to remove"
-                >
-                  {role} &times;
-                </span>
-              ))}
-              {preferredRoles.length === 0 && (
-                <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontStyle: 'italic' }}>No preferred roles added yet.</span>
-              )}
+        {/* MATCHES TAB */}
+        {activeTab === 'matches' && (
+          <div className="glass-panel" style={{ padding: '2.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '2rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>
+              <Trophy size={20} style={{ color: 'var(--accent-cyan)' }} />
+              <h2 style={{ fontSize: '1.5rem', margin: 0 }}>Match History & VOD Clips</h2>
             </div>
 
-            {/* Role quick add & input */}
-            <div style={{ display: 'flex', gap: '0.75rem' }}>
-              <label htmlFor="prof-role-input" className="sr-only">Add Preferred Role</label>
-              <input
-                id="prof-role-input"
-                type="text"
-                className="glass-input"
-                placeholder="Type custom role or select quick suggestions..."
-                value={newRole}
-                onChange={(e) => setNewRole(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleAddRole(newRole);
-                  }
-                }}
-                disabled={updating}
-              />
-              <button
-                type="button"
-                className="btn btn-outline"
-                onClick={() => handleAddRole(newRole)}
-                disabled={updating}
-              >
-                Add
-              </button>
-            </div>
+            {matches.length === 0 ? (
+              <div style={{ padding: '3rem 1rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                <Calendar size={32} style={{ margin: '0 auto 1rem auto', opacity: 0.5 }} />
+                <p>No tournament matches played yet.</p>
+              </div>
+            ) : (
+              <div className="responsive-table">
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                      <th style={{ padding: '0.75rem 1rem' }}>Match</th>
+                      <th style={{ padding: '0.75rem 1rem' }}>Score</th>
+                      <th style={{ padding: '0.75rem 1rem' }}>Tournament</th>
+                      <th style={{ padding: '0.75rem 1rem' }}>POV Clip / VOD</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {matches.map((match: any) => {
+                      const isTeam1 = match.team1Members?.includes(profile.uid);
+                      const teamPlayedName = isTeam1 ? match.team1Name : match.team2Name;
+                      const opponentName = isTeam1 ? match.team2Name : match.team1Name;
+                      
+                      const isWin = (isTeam1 && match.winnerId === match.team1Id) || 
+                                    (!isTeam1 && match.winnerId === match.team2Id);
+                      
+                      const teamScore = isTeam1 ? match.score1 : match.score2;
+                      const oppScore = isTeam1 ? match.score2 : match.score1;
 
-            {/* Suggestions */}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '0.5rem' }}>
-              {POPULAR_ROLES.filter(r => !preferredRoles.includes(r)).slice(0, 6).map((role) => (
-                <button
-                  type="button"
-                  key={role}
-                  onClick={() => handleAddRole(role)}
-                  style={{
-                    padding: '0.2rem 0.6rem',
-                    fontSize: '0.75rem',
-                    background: 'var(--bg-secondary)',
-                    border: '1px dashed var(--border-color)',
-                    color: 'var(--text-secondary)',
-                    borderRadius: '4px',
-                    cursor: 'pointer'
-                  }}
-                  disabled={updating}
-                >
-                  + {role}
-                </button>
-              ))}
-            </div>
-          </div>
+                      const linkedVod = userVods[match.id];
 
-          {/* Submit */}
-          <button
-            type="submit"
-            className="btn btn-primary"
-            style={{ width: '100%', marginTop: '2rem', height: '3.2rem' }}
-            disabled={updating}
-          >
-            {updating ? 'Saving Changes...' : (
-              <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center' }}>
-                <Save size={18} /> Save Profile Settings
-              </span>
+                      return (
+                        <tr key={match.id} style={{ borderBottom: '1px solid var(--border-color)', fontSize: '0.9rem' }} className="table-row-hover">
+                          <td style={{ padding: '1rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <span className={`badge ${isWin ? 'badge-green' : 'badge-red'}`} style={{ minWidth: '24px', textAlign: 'center' }}>
+                                {isWin ? 'W' : 'L'}
+                              </span>
+                              <div>
+                                <strong style={{ color: 'var(--text-primary)' }}>{teamPlayedName}</strong>
+                                <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', display: 'block' }}>vs {opponentName}</span>
+                              </div>
+                            </div>
+                          </td>
+                          <td style={{ padding: '1rem', fontFamily: 'monospace', fontWeight: 700 }}>
+                            {teamScore} - {oppScore}
+                          </td>
+                          <td style={{ padding: '1rem', color: 'var(--text-secondary)' }}>
+                            {match.tournamentName}
+                          </td>
+                          <td style={{ padding: '1rem' }}>
+                            {linkedVod ? (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <a 
+                                  href={linkedVod} 
+                                  target="_blank" 
+                                  rel="noreferrer"
+                                  style={{
+                                    fontSize: '0.8rem',
+                                    color: 'var(--accent-cyan)',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.2rem',
+                                    textDecoration: 'none'
+                                  }}
+                                  className="hover-cyan"
+                                >
+                                  <Video size={12} /> Play VOD <ExternalLink size={10} />
+                                </a>
+                                <button
+                                  type="button"
+                                  onClick={() => handleAttachVod(match.id, linkedVod)}
+                                  className="btn btn-outline touch-target"
+                                  style={{ padding: '0.15rem 0.4rem', fontSize: '0.7rem' }}
+                                >
+                                  Edit Link
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleAttachVod(match.id)}
+                                className="btn btn-outline touch-target"
+                                style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', borderColor: 'var(--accent-cyan)', color: 'var(--accent-cyan)' }}
+                              >
+                                <LinkIcon size={10} /> Link VOD Clip
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             )}
-          </button>
-        </form>
+          </div>
+        )}
 
         {/* AI GAME RECOMMENDATIONS DECK */}
-        {(() => {
+        {activeTab === 'details' && (() => {
           const recommendations = recommendGames(selectedGames, preferredRoles);
           const isColdStart = selectedGames.length === 0 && preferredRoles.length === 0;
 
