@@ -12,6 +12,7 @@ export default function LoginClient() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(true);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [shake, setShake] = useState(false);
@@ -96,6 +97,12 @@ export default function LoginClient() {
 
     if (!email.trim() || !password.trim()) {
       setError('Both email and password are required.');
+      triggerShake();
+      return;
+    }
+
+    if (!acceptedTerms) {
+      setError('Please agree to the Terms & Conditions to log in.');
       triggerShake();
       return;
     }
@@ -228,10 +235,36 @@ export default function LoginClient() {
             </div>
           </div>
 
+          {/* Terms & Conditions Checkbox */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginTop: '1.25rem', marginBottom: '0.5rem' }}>
+            <label style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer', gap: '0.6rem', fontSize: '0.85rem', color: 'var(--text-secondary)', userSelect: 'none' }}>
+              <input
+                type="checkbox"
+                id="login-agree-terms"
+                checked={acceptedTerms}
+                onChange={(e) => setAcceptedTerms(e.target.checked)}
+                style={{
+                  accentColor: 'var(--accent-cyan)',
+                  width: '16px',
+                  height: '16px',
+                  cursor: 'pointer',
+                  borderRadius: '4px'
+                }}
+              />
+              <span>
+                I agree to the{' '}
+                <Link href="/about/rulebook" target="_blank" style={{ color: 'var(--accent-cyan)', textDecoration: 'underline', fontWeight: 600 }}>
+                  Terms & Conditions
+                </Link>{' '}
+                and Fair Play Rules.
+              </span>
+            </label>
+          </div>
+
           <button
             type="submit"
             className="btn btn-primary"
-            style={{ width: '100%', marginTop: '1rem', height: '3rem' }}
+            style={{ width: '100%', marginTop: '0.75rem', height: '3rem' }}
             disabled={loading}
           >
             {loading ? 'Signing In...' : 'Log In'}
