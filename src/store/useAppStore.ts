@@ -2,7 +2,6 @@ import { create } from "zustand";
 import { User } from "firebase/auth";
 import { 
   doc, 
-  getDoc, 
   collection, 
   query, 
   where, 
@@ -59,7 +58,7 @@ interface AppState {
 let profileListener: Unsubscribe | null = null;
 let teamListener: Unsubscribe | null = null;
 
-export const useAppStore = create<AppState>((set, get) => ({
+export const useAppStore = create<AppState>((set) => ({
   user: null,
   profile: null,
   team: null,

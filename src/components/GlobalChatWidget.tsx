@@ -266,11 +266,8 @@ export default function GlobalChatWidget() {
           if (!isOpen) setUnreadCount(0);
         }}
         aria-label="Toggle Global Lounge Chat"
+        className="global-chat-launcher hover-scale"
         style={{
-          position: 'fixed',
-          bottom: '2rem',
-          right: '2rem',
-          zIndex: 999,
           width: '56px',
           height: '56px',
           borderRadius: '50%',
@@ -284,7 +281,6 @@ export default function GlobalChatWidget() {
           cursor: 'pointer',
           transition: 'transform 0.25s cubic-bezier(0.25, 1, 0.5, 1)'
         }}
-        className="hover-scale"
       >
         {isOpen ? <X size={24} /> : <MessageSquare size={24} />}
         
@@ -308,25 +304,20 @@ export default function GlobalChatWidget() {
 
       {/* FLOATING CHAT DRAWER PANEL */}
       {isOpen && (
-        <div style={{
-          position: 'fixed',
-          bottom: '5.5rem',
-          right: '2rem',
-          zIndex: 999,
-          width: 'min(380px, calc(100vw - 2.5rem))',
-          height: '520px',
-          background: 'rgba(6, 12, 26, 0.92)',
-          backdropFilter: 'blur(20px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-          border: '1px solid rgba(0, 240, 255, 0.25)',
-          borderRadius: '16px',
-          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.7), 0 0 25px rgba(0, 240, 255, 0.15)',
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden'
-        }}
-        className="fade-in"
-        >
+        <div 
+          className="global-chat-drawer fade-in"
+          style={{
+            background: 'rgba(6, 12, 26, 0.92)',
+            backdropFilter: 'blur(20px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+            border: '1px solid rgba(0, 240, 255, 0.25)',
+            borderRadius: '16px',
+            boxShadow: '0 20px 50px rgba(0, 0, 0, 0.7), 0 0 25px rgba(0, 240, 255, 0.15)',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden'
+          }}
+          >
           {/* Header Bar */}
           <div style={{
             padding: '1rem 1.25rem',

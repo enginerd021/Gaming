@@ -1,8 +1,17 @@
 import { NextResponse } from 'next/server';
 
 interface CacheEntry {
-  data: any;
+  data: unknown;
   timestamp: number;
+}
+
+interface LeagueEntry {
+  queueType: string;
+  tier: string;
+  rank: string;
+  leaguePoints: number;
+  wins: number;
+  losses: number;
 }
 
 // In-memory cache map (riotId lowercased -> cache entry)
@@ -117,10 +126,10 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: `League entries fetch failed: Status ${leagueRes.status}` }, { status: leagueRes.status });
     }
 
-    const leagueEntries = await leagueRes.json();
+    const leagueEntries: LeagueEntry[] = await leagueRes.json();
 
     // Step D: Extract Solo Queue rank
-    const soloQueue = leagueEntries.find((e: any) => e.queueType === "RANKED_SOLO_5x5");
+    const soloQueue = leagueEntries.find((e) => e.queueType === "RANKED_SOLO_5x5");
     
     const statsPayload = {
       riotId,
@@ -151,7 +160,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json(statsPayload);
 
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Error calling Riot API:", err);
     return NextResponse.json(
       { error: "Failed to communicate with Riot API endpoints. Check server network connectivity." },

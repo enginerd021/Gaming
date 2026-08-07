@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { BookOpen, ShieldAlert, CheckCircle2, AlertTriangle, FileText, ArrowRight, Search, Sparkles } from 'lucide-react';
+import { BookOpen, ShieldAlert, CheckCircle2, AlertTriangle, FileText, ArrowRight, Search } from 'lucide-react';
 import Button from '@/components/ui/Button';
 
 export default function RulebookPage() {
@@ -198,7 +198,7 @@ export default function RulebookPage() {
             ].map(tab => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
+                onClick={() => setActiveTab(tab.id as typeof activeTab)}
                 style={{
                   padding: '0.55rem 1.15rem',
                   borderRadius: '9999px',

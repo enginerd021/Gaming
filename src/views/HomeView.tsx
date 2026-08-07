@@ -309,10 +309,27 @@ export default function HomeView() {
               ))}
             </div>
           ) : (
-            <div style={{ textAlign: 'center', padding: '3rem 1rem', border: '1px dashed var(--border-color)', borderRadius: '8px' }}>
-              <Trophy size={32} style={{ opacity: 0.25, margin: '0 auto 0.75rem auto' }} />
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontStyle: 'italic' }}>No tournaments hosted yet.</p>
-            </div>
+            <GlassCard variant="panel" style={{ 
+              textAlign: 'center', 
+              padding: '3rem 2rem', 
+              border: '1px solid rgba(0, 240, 255, 0.25)',
+              background: 'radial-gradient(circle at center, rgba(0, 240, 255, 0.05) 0%, rgba(6, 12, 28, 0.9) 100%)' 
+            }}>
+              <Trophy size={40} style={{ color: 'var(--accent-cyan)', margin: '0 auto 1rem auto', opacity: 0.8 }} />
+              <h3 style={{ fontSize: '1.4rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.5rem' }}>
+                No Active Championship Arenas Listed
+              </h3>
+              <p style={{ color: 'var(--text-secondary)', maxWidth: '480px', margin: '0 auto 1.5rem auto', fontSize: '0.95rem' }}>
+                Tournament organizers have not scheduled live clashes for this timeslot. Create a roster or host the first tournament.
+              </p>
+              <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                <Link href="/tournaments">
+                  <Button variant="primary" style={{ borderRadius: '9999px', padding: '0.75rem 1.75rem' }}>
+                    Explore All Arenas
+                  </Button>
+                </Link>
+              </div>
+            </GlassCard>
           )}
         </div>
       </section>
