@@ -7,7 +7,8 @@ import {
   createUserWithEmailAndPassword, 
   sendEmailVerification, 
   GoogleAuthProvider, 
-  signInWithPopup 
+  signInWithPopup,
+  signInWithRedirect
 } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
@@ -36,10 +37,19 @@ export default function RegisterClient() {
 
     try {
       const provider = new GoogleAuthProvider();
-      const userCredential = await signInWithPopup(auth, provider);
-      const user = userCredential.user;
+      let userCredential;
+      try {
+        userCredential = await signInWithPopup(auth, provider);
+      } catch (popupErr: unknown) {
+        const pErr = popupErr as { code?: string; message?: string };
+        if (pErr.code === 'auth/popup-blocked') {
+          await signInWithRedirect(auth, provider);
+          return;
+        }
+        throw popupErr;
+      }
 
-      // Force refresh user ID Token
+      const user = userCredential.user;
       await user.getIdToken(true);
 
       // Check if profile exists
@@ -49,14 +59,13 @@ export default function RegisterClient() {
       if (!profileSnap.exists()) {
         const rawName = user.displayName || user.email?.split('@')[0] || 'Gamer';
         const baseTag = rawName.replace(/[^a-zA-Z0-9_]/g, '') || 'Gamer';
-        const cleanGamertag = `${baseTag}_${Math.floor(1000 + Math.random() * 9000)}`;
-        const docKey = encodeURIComponent(cleanGamertag.toLowerCase());
+        const cleanGamertag = `${baseTag.toLowerCase()}_${Math.floor(1000 + Math.random() * 9000)}`;
 
-        // Reserve gamertag document
-        const claimRef = doc(db, "gamertags", docKey);
-        await setDoc(claimRef, { uid: user.uid, rawGamertag: cleanGamertag });
+        // 1. Reserve gamertag document (Doc ID MUST match gamertag field for Firestore Security Rules)
+        const claimRef = doc(db, "gamertags", cleanGamertag);
+        await setDoc(claimRef, { uid: user.uid, rawGamertag: rawName });
 
-        // Create initial profile document
+        // 2. Create initial profile document
         await setDoc(profileRef, {
           uid: user.uid,
           gamertag: cleanGamertag,
@@ -78,8 +87,14 @@ export default function RegisterClient() {
       console.error('Google Sign Up error:', err);
       triggerShake();
       const gErr = err as { code?: string; message?: string };
-      if (gErr.code !== 'auth/popup-closed-by-user') {
-        setError(gErr.message || 'Google sign-up failed. Please try again.');
+      if (gErr.code === 'auth/operation-not-allowed') {
+        setError('Google Sign-In is disabled in Firebase Console. Please enable Google under Authentication > Sign-in method.');
+      } else if (gErr.code === 'auth/unauthorized-domain') {
+        setError('This domain is not authorized for Google Sign-In in Firebase Console settings.');
+      } else if (gErr.code === 'auth/popup-closed-by-user') {
+        // User closed popup
+      } else {
+        setError(gErr.message || 'Google sign-up failed. Please check your network or try again.');
       }
     } finally {
       setLoading(false);
