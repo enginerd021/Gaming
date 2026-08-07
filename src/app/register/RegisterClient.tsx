@@ -236,29 +236,6 @@ export default function RegisterClient() {
     }
   };
 
-  const handleGoogleSignIn = async () => {
-    setError('');
-    setLoading(true);
-    try {
-      const { isNewUser } = await signInWithGoogle();
-      if (isNewUser) {
-        router.push('/profile');
-      } else {
-        router.push('/');
-      }
-    } catch (err: any) {
-      if (err.code !== 'auth/popup-closed-by-user' && err.code !== 'auth/cancelled-popup-request') {
-        console.error('Google sign-in error:', err);
-        setError(err.message || 'An error occurred during Google sign-in.');
-        triggerShake();
-      } else {
-        console.log('Google sign-in popup closed by user.');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <main style={{
       position: 'relative',
