@@ -136,6 +136,14 @@ service cloud.firestore {
 
       allow delete: if isAuthenticated()
                     && resource.data.organizerId == request.auth.uid;
+
+      // Tournament live chat subcollection
+      match /messages/{messageId} {
+        allow read: if true;
+        allow create: if isEmailVerified()
+                      && request.resource.data.uid == request.auth.uid;
+        allow update, delete: if false;
+      }
     }
 
     // ----------------------------------------------------------
@@ -150,9 +158,24 @@ service cloud.firestore {
     }
 
     // ----------------------------------------------------------
-    // /messages/{messageId}  (live chat shoutbox)
+    // /matchVods/{vodId}
+    // Linked match video clips on player profiles.
     // ----------------------------------------------------------
-    match /messages/{messageId} {
+    match /matchVods/{vodId} {
+      allow read: if true;
+      allow create: if isEmailVerified()
+                    && request.resource.data.userId == request.auth.uid;
+      allow update: if isEmailVerified()
+                    && resource.data.userId == request.auth.uid
+                    && request.resource.data.userId == request.auth.uid;
+      allow delete: if isAuthenticated()
+                    && resource.data.userId == request.auth.uid;
+    }
+
+    // ----------------------------------------------------------
+    // /global_chat/{messageId} (live global chat shoutbox)
+    // ----------------------------------------------------------
+    match /global_chat/{messageId} {
       allow read: if true;
       // Require email verification to post chat messages.
       allow create: if isEmailVerified()
