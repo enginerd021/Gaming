@@ -3,15 +3,17 @@
 import { useState, useEffect, useMemo } from 'react';
 import { leaderboardService } from '@/services/leaderboardService';
 import { Profile, Team } from '@/store/useAppStore';
-import { Trophy, Search, Users, Award, X } from 'lucide-react';
+import { Trophy, Search, Users, Award, X, Swords } from 'lucide-react';
 import Link from 'next/link';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import GlassCard from '@/components/ui/GlassCard';
 import Podium from '@/components/ui/Podium';
+import PlayerCompareModal from '@/components/ui/PlayerCompareModal';
 
 export default function LeaderboardView() {
   const [activeTab, setActiveTab] = useState<'players' | 'teams'>('players');
+  const [compareModalOpen, setCompareModalOpen] = useState(false);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
@@ -124,6 +126,14 @@ export default function LeaderboardView() {
               aria-label="Show team rosters leaderboard"
             >
               <Users size={16} /> Team Rosters
+            </Button>
+            <Button
+              onClick={() => setCompareModalOpen(true)}
+              variant="outline"
+              style={{ padding: '0.5rem 1.25rem', fontSize: '0.85rem', borderColor: 'var(--neon-blue)', color: 'var(--neon-blue)', fontWeight: 800 }}
+              aria-label="Compare two Riot IDs head-to-head"
+            >
+              <Swords size={16} /> Compare Riot IDs
             </Button>
           </div>
 
@@ -305,6 +315,11 @@ export default function LeaderboardView() {
         )}
 
       </div>
+
+      <PlayerCompareModal 
+        isOpen={compareModalOpen} 
+        onClose={() => setCompareModalOpen(false)} 
+      />
     </main>
   );
 }

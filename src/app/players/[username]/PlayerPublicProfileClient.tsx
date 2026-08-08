@@ -15,10 +15,11 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Profile, Team } from '@/store/useAppStore';
-import { Trophy, Gamepad2, Award, Users, Calendar, AlertCircle, Loader, Video, ExternalLink, X } from 'lucide-react';
+import { Trophy, Gamepad2, Award, Users, Calendar, AlertCircle, Loader, Video, ExternalLink, X, Swords } from 'lucide-react';
 import Link from 'next/link';
 import { ACHIEVEMENTS } from '@/lib/achievements';
 import ShareButton from '@/components/ui/ShareButton';
+import PlayerCompareModal from '@/components/ui/PlayerCompareModal';
 
 interface MatchRecord {
   id: string;
@@ -56,6 +57,7 @@ export default function PlayerPublicProfileClient({ username }: { username: stri
   const [riotStats, setRiotStats] = useState<Record<string, any> | null>(null);
   const [loadingRiot, setLoadingRiot] = useState(false);
   const [riotError, setRiotError] = useState<string | null>(null);
+  const [compareModalOpen, setCompareModalOpen] = useState(false);
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -410,7 +412,7 @@ export default function PlayerPublicProfileClient({ username }: { username: stri
                   </p>
                 </div>
 
-                <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
                   <div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Rank Solo Duo</div>
                     <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--accent-gold)', marginTop: '0.2rem' }}>
@@ -434,11 +436,25 @@ export default function PlayerPublicProfileClient({ username }: { username: stri
                       </div>
                     </>
                   )}
+
+                  <button
+                    onClick={() => setCompareModalOpen(true)}
+                    className="btn btn-outline"
+                    style={{ padding: '0.4rem 0.85rem', fontSize: '0.8rem', borderColor: 'var(--neon-blue)', color: 'var(--neon-blue)', fontWeight: 800 }}
+                  >
+                    <Swords size={14} /> Compare Stats
+                  </button>
                 </div>
               </div>
             ) : null}
           </section>
         )}
+
+        <PlayerCompareModal 
+          isOpen={compareModalOpen} 
+          onClose={() => setCompareModalOpen(false)} 
+          defaultRiotId1={profile?.riotId || 'Tarik#NA1'} 
+        />
 
         {/* Details Grid */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }} className="grid-2-col">
