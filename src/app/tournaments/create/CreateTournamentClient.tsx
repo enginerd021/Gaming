@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { collection, addDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/store/useAppStore';
-import { Trophy, Gamepad2, Layers, DollarSign, ArrowLeft, Loader, AlertCircle } from 'lucide-react';
+import { Trophy, Gamepad2, Layers, DollarSign, ArrowLeft, Loader, AlertCircle, Calendar, Clock } from 'lucide-react';
 import Link from 'next/link';
 
 export default function CreateTournamentClient() {
@@ -13,12 +13,21 @@ export default function CreateTournamentClient() {
   const loading = useAppStore((state) => state.loading);
   const router = useRouter();
 
+  // Helper to format ISO datetime-local string (default 1 hour from now)
+  const getDefaultStartDateStr = () => {
+    const d = new Date(Date.now() + 3600000);
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().slice(0, 16);
+  };
+
   // Form states
   const [name, setName] = useState('');
   const [game, setGame] = useState('Valorant');
   const [entryType, setEntryType] = useState<'Free' | 'Paid'>('Free');
   const [maxTeams, setMaxTeams] = useState<number>(4);
-  
+  const [startDateStr, setStartDateStr] = useState<string>(getDefaultStartDateStr());
+  const [roundDurationMins, setRoundDurationMins] = useState<number>(45);
+
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [shake, setShake] = useState(false);
@@ -34,6 +43,11 @@ export default function CreateTournamentClient() {
     }
   }, [user, loading, router]);
 
+  // Calculate estimated end time dynamically
+  const rounds = Math.max(1, Math.ceil(Math.log2(maxTeams)));
+  const effectiveRoundMins = Math.max(45, Number(roundDurationMins) || 45);
+  const totalDurationMins = rounds * effectiveRoundMins;
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -43,6 +57,27 @@ export default function CreateTournamentClient() {
       triggerShake();
       return;
     }
+
+    if (!startDateStr) {
+      setError("Please select a tournament start date & time.");
+      triggerShake();
+      return;
+    }
+
+    const startTimestamp = new Date(startDateStr).getTime();
+    if (isNaN(startTimestamp)) {
+      setError("Invalid start date format.");
+      triggerShake();
+      return;
+    }
+
+    if (effectiveRoundMins < 45) {
+      setError("Each round must be allocated AT LEAST 45 minutes.");
+      triggerShake();
+      return;
+    }
+
+    const estimatedEndTime = startTimestamp + totalDurationMins * 60 * 1000;
 
     setActionLoading(true);
 
@@ -58,6 +93,9 @@ export default function CreateTournamentClient() {
         bracket: {
           matches: []
         },
+        startDate: startTimestamp,
+        roundDurationMins: effectiveRoundMins,
+        estimatedEndTime: estimatedEndTime,
         createdAt: Date.now()
       });
 
@@ -160,6 +198,22 @@ export default function CreateTournamentClient() {
             </select>
           </div>
 
+          {/* Start Date & Time */}
+          <div className="form-group">
+            <label htmlFor="create-tourney-startdate" className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <Calendar size={16} style={{ color: 'var(--accent-cyan)' }} />
+              Tournament Start Schedule
+            </label>
+            <input
+              id="create-tourney-startdate"
+              type="datetime-local"
+              className="glass-input"
+              value={startDateStr}
+              onChange={(e) => setStartDateStr(e.target.value)}
+              disabled={actionLoading}
+            />
+          </div>
+
           {/* Bracket size & Entry type */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }} className="grid-2-col">
             
@@ -182,34 +236,72 @@ export default function CreateTournamentClient() {
               </select>
             </div>
 
-            {/* Entry Type */}
+            {/* Round Duration */}
             <div className="form-group">
-              <label htmlFor="create-tourney-entrytype" className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <DollarSign size={16} style={{ color: 'var(--accent-cyan)' }} />
-                Registration Access
+              <label htmlFor="create-tourney-roundmins" className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <Clock size={16} style={{ color: 'var(--accent-cyan)' }} />
+                Round Allocation (mins)
               </label>
-              <select
-                id="create-tourney-entrytype"
-                className="glass-input glass-select"
-                value={entryType}
-                onChange={(e) => setEntryType(e.target.value as any)}
+              <input
+                id="create-tourney-roundmins"
+                type="number"
+                min={45}
+                className="glass-input"
+                value={roundDurationMins}
+                onChange={(e) => setRoundDurationMins(Math.max(45, Number(e.target.value)))}
                 disabled={actionLoading}
-              >
-                <option value="Free">Free to Join</option>
-                <option value="Paid">Paid Entry (Ticket/Pass Required)</option>
-              </select>
+              />
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem', display: 'block' }}>
+                Min 45 mins per round
+              </span>
             </div>
 
+          </div>
+
+          {/* Access Type */}
+          <div className="form-group">
+            <label htmlFor="create-tourney-entrytype" className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <DollarSign size={16} style={{ color: 'var(--accent-gold)' }} />
+              Registration Access
+            </label>
+            <select
+              id="create-tourney-entrytype"
+              className="glass-input glass-select"
+              value={entryType}
+              onChange={(e) => setEntryType(e.target.value as any)}
+              disabled={actionLoading}
+            >
+              <option value="Free">Free to Join</option>
+              <option value="Paid">Paid Entry (Ticket/Pass Required)</option>
+            </select>
+          </div>
+
+          {/* Schedule Summary Preview */}
+          <div style={{
+            background: 'hsla(185, 85%, 50%, 0.05)',
+            border: '1px solid hsla(185, 85%, 50%, 0.2)',
+            borderRadius: '8px',
+            padding: '1rem',
+            marginBottom: '1.5rem',
+            fontSize: '0.85rem',
+            color: 'var(--text-secondary)'
+          }}>
+            <div style={{ fontWeight: 700, color: 'var(--accent-cyan)', marginBottom: '0.3rem' }}>
+              Est. Schedule Summary:
+            </div>
+            <div>Total Rounds: <strong>{rounds} rounds</strong></div>
+            <div>Time per round: <strong>{effectiveRoundMins} mins</strong> (Rule: min 45m)</div>
+            <div>Est. Total Duration: <strong>{totalDurationMins} minutes ({Math.floor(totalDurationMins / 60)}h {totalDurationMins % 60}m)</strong></div>
           </div>
 
           {/* Submit */}
           <button
             type="submit"
             className="btn btn-primary"
-            style={{ width: '100%', marginTop: '1.5rem', height: '3rem' }}
+            style={{ width: '100%', marginTop: '0.5rem', height: '3rem' }}
             disabled={actionLoading}
           >
-            {actionLoading ? 'Creating Tournament...' : 'Launch Tournament'}
+            {actionLoading ? 'Launching Tournament...' : 'Launch Tournament'}
           </button>
         </form>
 

@@ -22,9 +22,11 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAppStore, Team } from '@/store/useAppStore';
-import { Trophy, Calendar, Shield, Users, Layers, Award, Loader, AlertCircle, Edit3, Save, Play, Check, X, MessageSquare, Send, Trash2 } from 'lucide-react';
+import { Trophy, Calendar, Shield, Users, Layers, Award, Loader, AlertCircle, Edit3, Save, Play, Check, X, MessageSquare, Send, Trash2, Bell, Clock } from 'lucide-react';
 import Link from 'next/link';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
+import { TournamentCountdown } from '@/components/TournamentCountdown';
+import { calculateTournamentTimeWindow, checkPlayerTournamentOverlap } from '@/lib/tournamentUtils';
 
 interface Match {
   id: string; // m-r-idx (e.g., m-1-1, m-2-1)
@@ -51,6 +53,9 @@ interface Tournament {
     matches: Match[];
   };
   createdAt: number;
+  startDate?: number;
+  roundDurationMins?: number;
+  estimatedEndTime?: number;
 }
 
 interface ChatMessage {
@@ -287,6 +292,17 @@ export default function TournamentDetailClient({ id }: { id: string }) {
 
     setActionLoading(true);
     try {
+      // Overlap Validation: Player can't participate in concurrent tournaments
+      const tournamentsSnap = await getDocs(collection(db, "tournaments"));
+      const allTournaments = tournamentsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Tournament));
+      
+      const conflict = await checkPlayerTournamentOverlap(team.members || [], tournament, allTournaments);
+      if (conflict.hasConflict) {
+        setError(`Registration REJECTED: Team member @${conflict.conflictingPlayerGamertag} is already registered in tournament '${conflict.conflictingTournamentName}' running at the same time (${conflict.conflictTimeWindow}). A player cannot participate in multiple tournaments simultaneously.`);
+        setActionLoading(false);
+        return;
+      }
+
       const tournamentRef = doc(db, "tournaments", tournament.id);
       await updateDoc(tournamentRef, {
         registeredTeamIds: arrayUnion(team.id),
@@ -318,6 +334,65 @@ export default function TournamentDetailClient({ id }: { id: string }) {
       } else {
         setError(err.message || "Failed to register for tournament.");
       }
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Broadcast Announcement Notification (Organizer only)
+  const handleBroadcastNotification = async () => {
+    clearMessages();
+    if (!tournament || !isOrganizer) return;
+
+    const customMessage = window.prompt(
+      "Send alert notification to ALL registered players in this tournament:",
+      `Important update for ${tournament.name}: Tournament schedule is updated. Please check brackets!`
+    );
+
+    if (!customMessage || !customMessage.trim()) return;
+
+    setActionLoading(true);
+    try {
+      const membersToNotify: string[] = [];
+      if (tournament.registeredTeamIds && tournament.registeredTeamIds.length > 0) {
+        const teamsRef = collection(db, "teams");
+        const q = query(teamsRef, where("id", "in", tournament.registeredTeamIds));
+        const teamSnap = await getDocs(q);
+        
+        teamSnap.docs.forEach((docSnap) => {
+          const tData = docSnap.data();
+          if (tData.members) {
+            tData.members.forEach((mId: string) => {
+              if (!membersToNotify.includes(mId)) {
+                membersToNotify.push(mId);
+              }
+            });
+          }
+        });
+      }
+
+      if (membersToNotify.length === 0) {
+        setError("No registered players found to notify.");
+        setActionLoading(false);
+        return;
+      }
+
+      const notifyBatch = writeBatch(db);
+      membersToNotify.forEach((mUid) => {
+        const nRef = doc(collection(db, "profiles", mUid, "notifications"));
+        notifyBatch.set(nRef, {
+          type: 'tournament_starting',
+          message: customMessage.trim(),
+          relatedId: tournament.id,
+          read: false,
+          createdAt: serverTimestamp()
+        });
+      });
+      await notifyBatch.commit();
+      setSuccess(`Notification broadcast successfully sent to ${membersToNotify.length} registered players!`);
+    } catch (notifyErr) {
+      console.error("Failed to broadcast notification:", notifyErr);
+      setError("Failed to send broadcast notifications.");
     } finally {
       setActionLoading(false);
     }
@@ -666,7 +741,7 @@ export default function TournamentDetailClient({ id }: { id: string }) {
         <div className="glass-panel" style={{ padding: '2.5rem', marginBottom: '2rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.5rem' }}>
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
                 <span className={`badge ${
                   tournament.status === 'Upcoming' ? 'badge-cyan' :
                   tournament.status === 'Active' ? 'badge-violet' : 'badge-gold'
@@ -676,42 +751,97 @@ export default function TournamentDetailClient({ id }: { id: string }) {
                 <span className="badge badge-cyan">{tournament.game}</span>
                 <span className="badge badge-violet">{tournament.entryType} Entry</span>
               </div>
-              <h1 style={{ fontSize: '2.25rem', marginBottom: '0.5rem' }}>{tournament.name}</h1>
-              <p style={{ color: 'var(--text-secondary)' }}>
-                Bracket capacity: {tournament.registeredTeamIds.length} / {tournament.maxTeams} rosters registered.
+
+              <h1 style={{ fontSize: '2.25rem', marginBottom: '0.75rem' }}>{tournament.name}</h1>
+              
+              <div style={{ marginBottom: '1rem' }}>
+                <TournamentCountdown tournament={tournament} showDetails={true} />
+              </div>
+
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                Bracket capacity: <strong>{tournament.registeredTeamIds.length} / {tournament.maxTeams}</strong> rosters registered.
               </p>
             </div>
 
-            {/* Registration / Start Actions */}
-            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-              {tournament.status === 'Upcoming' && (
-                <>
-                  {isOrganizer ? (
-                    <button 
-                      onClick={handleStartTournament}
-                      className="btn btn-primary"
-                      disabled={actionLoading || tournament.registeredTeamIds.length < 2}
-                      style={{ background: 'linear-gradient(135deg, var(--accent-violet) 0%, hsl(280, 80%, 55%) 100%)', boxShadow: 'var(--glow-violet)' }}
-                    >
-                      <Play size={16} /> Generate Bracket & Start
-                    </button>
-                  ) : isRegistered ? (
-                    <button className="btn btn-outline" style={{ borderColor: 'var(--accent-green)', color: 'var(--accent-green)' }} disabled>
-                      <Check size={16} /> Roster Registered
-                    </button>
-                  ) : (
-                    <button 
-                      onClick={handleJoinTournament}
-                      className="btn btn-primary"
-                      disabled={actionLoading || tournament.registeredTeamIds.length >= tournament.maxTeams}
-                    >
-                      Register Team Roster
-                    </button>
-                  )}
-                </>
+            {/* Registration / Start / Broadcast Actions */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', alignItems: 'flex-end' }}>
+              <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                {tournament.status === 'Upcoming' && (
+                  <>
+                    {isOrganizer ? (
+                      <button 
+                        onClick={handleStartTournament}
+                        className="btn btn-primary"
+                        disabled={actionLoading || tournament.registeredTeamIds.length < 2}
+                        style={{ background: 'linear-gradient(135deg, var(--accent-violet) 0%, hsl(280, 80%, 55%) 100%)', boxShadow: 'var(--glow-violet)' }}
+                      >
+                        <Play size={16} /> Generate Bracket & Start
+                      </button>
+                    ) : isRegistered ? (
+                      <button className="btn btn-outline" style={{ borderColor: 'var(--accent-green)', color: 'var(--accent-green)' }} disabled>
+                        <Check size={16} /> Roster Registered
+                      </button>
+                    ) : (
+                      <button 
+                        onClick={handleJoinTournament}
+                        className="btn btn-primary"
+                        disabled={actionLoading || tournament.registeredTeamIds.length >= tournament.maxTeams}
+                      >
+                        Register Team Roster
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
+
+              {/* Organizer Broadcast Notification Action */}
+              {isOrganizer && tournament.registeredTeamIds.length > 0 && (
+                <button
+                  onClick={handleBroadcastNotification}
+                  className="btn btn-outline"
+                  disabled={actionLoading}
+                  style={{ fontSize: '0.85rem', padding: '0.4rem 0.85rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+                >
+                  <Bell size={14} style={{ color: 'var(--accent-cyan)' }} /> Notify All Registered Players
+                </button>
               )}
             </div>
           </div>
+
+          {/* Round Duration Schedule Timetable */}
+          {(() => {
+            const timeWindow = calculateTournamentTimeWindow(tournament);
+            return (
+              <div style={{ 
+                marginTop: '1.5rem', 
+                paddingTop: '1.5rem', 
+                borderTop: '1px solid var(--border-color)',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gap: '1rem'
+              }}>
+                <div style={{ fontSize: '0.85rem' }}>
+                  <div style={{ color: 'var(--text-muted)', marginBottom: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                    <Clock size={14} /> Total Allocated Duration
+                  </div>
+                  <strong style={{ color: 'var(--accent-cyan)' }}>
+                    {timeWindow.totalRounds * timeWindow.roundDurationMins} minutes ({timeWindow.totalRounds} Rounds $\times$ {timeWindow.roundDurationMins}m min)
+                  </strong>
+                </div>
+
+                {timeWindow.roundSchedules.map((rs) => (
+                  <div key={rs.round} style={{ fontSize: '0.8rem', background: 'hsla(0, 0%, 100%, 0.03)', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                    <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.15rem' }}>
+                      Round {rs.round} (45m min)
+                    </div>
+                    <div style={{ color: 'var(--text-secondary)' }}>
+                      {new Date(rs.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(rs.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
         </div>
 
         {/* Global Action feedback messages */}
