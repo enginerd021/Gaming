@@ -354,7 +354,20 @@ export default function TeamsView() {
   const handleLeaveTeam = async () => {
     if (!team || !user) return;
     const isCaptain = team.captainId === user.uid;
-    const eligibleMembers = memberProfiles.filter(m => m.uid !== user.uid);
+    const activeMemberUids = (team.members || []).filter(id => id !== user.uid);
+    const eligibleMembers = activeMemberUids.map(uid => {
+      const prof = memberProfiles.find(p => p.uid === uid);
+      return prof || {
+        uid,
+        displayName: 'Active Roster Member',
+        gamertag: 'player',
+        registeredGames: [],
+        preferredRoles: [],
+        skillLevel: 'Intermediate' as const,
+        stats: { wins: 0, losses: 0, points: 1000 },
+        createdAt: Date.now()
+      };
+    });
 
     if (isCaptain) {
       if (eligibleMembers.length > 0) {
@@ -838,7 +851,13 @@ export default function TeamsView() {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', margin: '1.5rem 0', maxHeight: '260px', overflowY: 'auto' }}>
-              {memberProfiles.filter(m => m.uid !== user?.uid).map((m) => {
+              {(team.members || []).filter(uid => uid !== user?.uid).map((memberUid) => {
+                const m = memberProfiles.find(p => p.uid === memberUid) || {
+                  uid: memberUid,
+                  displayName: 'Active Roster Member',
+                  gamertag: 'player',
+                  skillLevel: 'Intermediate'
+                };
                 const isSelected = selectedNewCaptainId === m.uid;
                 return (
                   <div 
