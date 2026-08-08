@@ -88,8 +88,10 @@ service cloud.firestore {
           // Owner can write their own notifications (e.g. registration_confirmed)
           request.auth.uid == userId
 
-          // Team captains can send invites to any user
+          // Team captains can send invites or leadership updates to users
           || request.resource.data.type == 'team_invite'
+          || request.resource.data.type == 'captain_transferred'
+          || request.resource.data.type == 'captain_updated'
 
           // Organizer/admin-triggered types: tournament_starting, match_result, new_tournament
           || request.resource.data.type == 'tournament_starting'
@@ -121,6 +123,14 @@ service cloud.firestore {
           && request.resource.data.name == resource.data.name
           && request.auth.uid in request.resource.data.members
           && request.resource.data.members.size() == resource.data.members.size() + 1
+        )
+        // Case 3: Non-captain member leaves the team voluntarily (removes themselves from members)
+        || (
+          request.resource.data.captainId == resource.data.captainId
+          && request.resource.data.name == resource.data.name
+          && request.auth.uid in resource.data.members
+          && !(request.auth.uid in request.resource.data.members)
+          && request.resource.data.members.size() == resource.data.members.size() - 1
         )
       );
       allow delete: if isAuthenticated()
