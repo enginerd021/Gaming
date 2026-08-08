@@ -133,14 +133,7 @@ export default function LoginClient() {
         });
       }
 
-      const welcomeStr = `Welcome back, ${rawName}!`;
-      setWelcomeMsg(welcomeStr);
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem('shaktrix_welcome_msg', welcomeStr);
-      }
-      setTimeout(() => {
-        router.push('/');
-      }, 1000);
+      router.push('/');
     } catch (err: unknown) {
       console.error('Google Sign In error:', err);
       triggerShake();
@@ -189,14 +182,7 @@ export default function LoginClient() {
         return;
       }
 
-      const welcomeStr = `Welcome back, ${user.displayName || email.split('@')[0]}!`;
-      setWelcomeMsg(welcomeStr);
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem('shaktrix_welcome_msg', welcomeStr);
-      }
-      setTimeout(() => {
-        router.push('/');
-      }, 1000);
+      router.push('/');
     } catch (err: unknown) {
       console.error('Login error:', err);
       triggerShake();

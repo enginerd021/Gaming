@@ -107,14 +107,7 @@ export default function RegisterClient() {
         });
       }
 
-      const welcomeStr = `Welcome to SHAKTRIX, ${user.displayName || 'Gamer'}!`;
-      setWelcomeMsg(welcomeStr);
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem('shaktrix_welcome_msg', welcomeStr);
-      }
-      setTimeout(() => {
-        router.push('/profile');
-      }, 1000);
+      router.push('/profile');
     } catch (err: unknown) {
       console.error('Google Sign Up error:', err);
       triggerShake();
