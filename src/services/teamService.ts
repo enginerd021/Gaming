@@ -76,3 +76,62 @@ export async function transferLeaderOrDisband(
     return { disbanded: true };
   }
 }
+
+/**
+ * Explicitly transfers team captaincy to a specific chosen member.
+ * If leavingCaptainUid is specified, the leaving captain is also removed from team.members.
+ */
+export async function transferCaptainToSelectedMember(
+  team: Team,
+  newCaptainUid: string,
+  leavingCaptainUid?: string
+): Promise<{ success: boolean; newCaptainGamertag: string }> {
+  const teamRef = doc(db, "teams", team.id);
+  const updatedMembers = leavingCaptainUid
+    ? (team.members || []).filter((uid) => uid !== leavingCaptainUid)
+    : team.members;
+
+  const batch = writeBatch(db);
+
+  // 1. Update team document
+  batch.update(teamRef, {
+    captainId: newCaptainUid,
+    members: updatedMembers
+  });
+
+  // 2. Fetch new captain's profile for notification text
+  const newCapProfileRef = doc(db, "profiles", newCaptainUid);
+  const newCapSnap = await getDoc(newCapProfileRef);
+  const newCapGamertag = newCapSnap.exists()
+    ? (newCapSnap.data().gamertag || newCapSnap.data().displayName || 'Player')
+    : 'Player';
+
+  // 3. Create notification for the new Captain
+  const newCapNotifRef = doc(collection(db, "profiles", newCaptainUid, "notifications"));
+  batch.set(newCapNotifRef, {
+    type: 'captain_transferred',
+    message: leavingCaptainUid 
+      ? `👑 The previous captain left and appointed you as the new Team Captain of ${team.name}!`
+      : `👑 You have been promoted to Team Captain of ${team.name}!`,
+    relatedId: team.id,
+    read: false,
+    createdAt: serverTimestamp(),
+    teamId: team.id
+  });
+
+  // 4. Create notifications for all other remaining team members
+  updatedMembers.filter(m => m !== newCaptainUid).forEach((memberUid) => {
+    const notifRef = doc(collection(db, "profiles", memberUid, "notifications"));
+    batch.set(notifRef, {
+      type: 'captain_updated',
+      message: `🛡️ @${newCapGamertag} is now the Team Captain of ${team.name}.`,
+      relatedId: team.id,
+      read: false,
+      createdAt: serverTimestamp(),
+      teamId: team.id
+    });
+  });
+
+  await batch.commit();
+  return { success: true, newCaptainGamertag: newCapGamertag };
+}
