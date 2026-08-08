@@ -63,6 +63,7 @@ export default function GlobalChatWidget() {
   const [unreadCount, setUnreadCount] = useState(0);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
   const isFirstLoad = useRef(true);
   const channelRef = useRef<BroadcastChannel | null>(null);
 
@@ -124,14 +125,14 @@ export default function GlobalChatWidget() {
     };
   }, [isOpen]);
 
-  // Auto scroll chat to bottom when message list updates
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
+  // Scroll to bottom only if user is near bottom or opening chat
   useEffect(() => {
-    if (isOpen) {
-      scrollToBottom();
+    if (isOpen && chatScrollRef.current) {
+      const el = chatScrollRef.current;
+      const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+      if (isNearBottom || isFirstLoad.current) {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }
       setUnreadCount(0);
     }
   }, [messages, isOpen]);
@@ -184,17 +185,34 @@ export default function GlobalChatWidget() {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !newMessage.trim() || sending) return;
+    if (!newMessage.trim() || sending) return;
 
     const messageText = newMessage.trim();
-    const myGamertag = profile?.gamertag || user.email?.split('@')[0] || 'Player';
-    const myDisplayName = profile?.displayName || user.displayName || 'Player';
+    
+    // Determine Gamertag: User's profile gamertag or persistent guest handle
+    let myGamertag = 'Guest';
+    let myUid = 'guest';
+
+    if (user) {
+      myGamertag = profile?.gamertag || user.email?.split('@')[0] || 'Player';
+      myUid = user.uid;
+    } else {
+      let guestTag = localStorage.getItem('shaktrix_guest_tag');
+      if (!guestTag) {
+        guestTag = `Guest_${Math.floor(1000 + Math.random() * 9000)}`;
+        localStorage.setItem('shaktrix_guest_tag', guestTag);
+      }
+      myGamertag = guestTag;
+      myUid = `guest-${guestTag}`;
+    }
+
+    const myDisplayName = myGamertag;
     setNewMessage('');
     setSending(true);
 
     const localMsg: GlobalMessage = {
       id: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-      uid: user.uid,
+      uid: myUid,
       gamertag: myGamertag,
       displayName: myDisplayName,
       message: messageText,
@@ -220,7 +238,7 @@ export default function GlobalChatWidget() {
     // 3. Write to Cloud Firestore
     try {
       await addDoc(collection(db, "global_chat"), {
-        uid: user.uid,
+        uid: myUid,
         gamertag: myGamertag,
         displayName: myDisplayName,
         message: messageText,
@@ -248,11 +266,8 @@ export default function GlobalChatWidget() {
           if (!isOpen) setUnreadCount(0);
         }}
         aria-label="Toggle Global Lounge Chat"
+        className="global-chat-launcher hover-scale"
         style={{
-          position: 'fixed',
-          bottom: '2rem',
-          right: '2rem',
-          zIndex: 999,
           width: '56px',
           height: '56px',
           borderRadius: '50%',
@@ -266,7 +281,6 @@ export default function GlobalChatWidget() {
           cursor: 'pointer',
           transition: 'transform 0.25s cubic-bezier(0.25, 1, 0.5, 1)'
         }}
-        className="hover-scale"
       >
         {isOpen ? <X size={24} /> : <MessageSquare size={24} />}
         
@@ -290,25 +304,20 @@ export default function GlobalChatWidget() {
 
       {/* FLOATING CHAT DRAWER PANEL */}
       {isOpen && (
-        <div style={{
-          position: 'fixed',
-          bottom: '5.5rem',
-          right: '2rem',
-          zIndex: 999,
-          width: 'min(380px, calc(100vw - 2.5rem))',
-          height: '520px',
-          background: 'rgba(6, 12, 26, 0.92)',
-          backdropFilter: 'blur(20px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-          border: '1px solid rgba(0, 240, 255, 0.25)',
-          borderRadius: '16px',
-          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.7), 0 0 25px rgba(0, 240, 255, 0.15)',
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden'
-        }}
-        className="fade-in"
-        >
+        <div 
+          className="global-chat-drawer fade-in"
+          style={{
+            background: 'rgba(6, 12, 26, 0.92)',
+            backdropFilter: 'blur(20px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+            border: '1px solid rgba(0, 240, 255, 0.25)',
+            borderRadius: '16px',
+            boxShadow: '0 20px 50px rgba(0, 0, 0, 0.7), 0 0 25px rgba(0, 240, 255, 0.15)',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden'
+          }}
+          >
           {/* Header Bar */}
           <div style={{
             padding: '1rem 1.25rem',
@@ -341,14 +350,23 @@ export default function GlobalChatWidget() {
           </div>
 
           {/* Messages Scroll Area */}
-          <div style={{
-            flex: 1,
-            overflowY: 'auto',
-            padding: '1rem',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '0.75rem'
-          }}>
+          <div 
+            ref={chatScrollRef}
+            className="global-chat-scroll"
+            data-lenis-prevent="true"
+            onWheel={(e) => e.stopPropagation()}
+            onTouchMove={(e) => e.stopPropagation()}
+            style={{
+              flex: 1,
+              overflowY: 'auto',
+              overscrollBehavior: 'contain',
+              WebkitOverflowScrolling: 'touch',
+              padding: '1rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.75rem'
+            }}
+          >
             {messages.length === 0 ? (
               <div style={{ margin: 'auto', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
                 <Sparkles size={24} style={{ color: 'var(--neon-blue)', margin: '0 auto 0.5rem auto' }} />
@@ -356,7 +374,9 @@ export default function GlobalChatWidget() {
               </div>
             ) : (
               messages.map((msg) => {
-                const isMe = user?.uid === msg.uid;
+                const currentUid = user ? user.uid : (typeof window !== 'undefined' ? localStorage.getItem('shaktrix_guest_tag') : null);
+                const isMe = user ? (user.uid === msg.uid) : (msg.uid.includes(currentUid || 'guest'));
+
                 return (
                   <div
                     key={msg.id}
@@ -396,58 +416,49 @@ export default function GlobalChatWidget() {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Footer Input Area */}
+          {/* Footer Input Area - Enabled for both Logged In & Guests */}
           <div style={{
             padding: '0.75rem 1rem',
             background: 'rgba(10, 16, 36, 0.95)',
             borderTop: '1px solid rgba(0, 240, 255, 0.15)'
           }}>
-            {user ? (
-              <form onSubmit={handleSendMessage} style={{ display: 'flex', gap: '0.5rem' }}>
-                <input
-                  type="text"
-                  placeholder="Chat with SHAKTRIX players..."
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  disabled={sending}
-                  style={{
-                    flex: 1,
-                    padding: '0.6rem 0.85rem',
-                    borderRadius: '8px',
-                    background: 'rgba(4, 9, 20, 0.8)',
-                    border: '1px solid rgba(0, 240, 255, 0.2)',
-                    color: '#fff',
-                    fontSize: '0.85rem',
-                    outline: 'none'
-                  }}
-                />
-                <button
-                  type="submit"
-                  disabled={!newMessage.trim() || sending}
-                  style={{
-                    padding: '0.6rem 0.85rem',
-                    borderRadius: '8px',
-                    background: 'linear-gradient(135deg, var(--neon-blue) 0%, var(--neon-purple) 100%)',
-                    border: 'none',
-                    color: '#fff',
-                    cursor: newMessage.trim() && !sending ? 'pointer' : 'not-allowed',
-                    opacity: newMessage.trim() && !sending ? 1 : 0.5,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}
-                >
-                  <Send size={16} />
-                </button>
-              </form>
-            ) : (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                <span>Sign in to join global lounge chat</span>
-                <Link href="/login" style={{ color: 'var(--neon-blue)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                  <LogIn size={14} /> Login
-                </Link>
-              </div>
-            )}
+            <form onSubmit={handleSendMessage} style={{ display: 'flex', gap: '0.5rem' }}>
+              <input
+                type="text"
+                placeholder="Chat with SHAKTRIX players..."
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                disabled={sending}
+                style={{
+                  flex: 1,
+                  padding: '0.6rem 0.85rem',
+                  borderRadius: '8px',
+                  background: 'rgba(4, 9, 20, 0.8)',
+                  border: '1px solid rgba(0, 240, 255, 0.2)',
+                  color: '#fff',
+                  fontSize: '0.85rem',
+                  outline: 'none'
+                }}
+              />
+              <button
+                type="submit"
+                disabled={!newMessage.trim() || sending}
+                style={{
+                  padding: '0.6rem 0.85rem',
+                  borderRadius: '8px',
+                  background: 'linear-gradient(135deg, var(--neon-blue) 0%, var(--neon-purple) 100%)',
+                  border: 'none',
+                  color: '#fff',
+                  cursor: newMessage.trim() && !sending ? 'pointer' : 'not-allowed',
+                  opacity: newMessage.trim() && !sending ? 1 : 0.5,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                <Send size={16} />
+              </button>
+            </form>
           </div>
         </div>
       )}

@@ -127,7 +127,9 @@ export default function HomeView() {
   const sectionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    setLoading(true);
+    if (activeTournaments.length === 0) {
+      setLoading(true);
+    }
     const unsub = tournamentService.subscribeRecentTournaments(
       3,
       (list) => {
@@ -146,14 +148,15 @@ export default function HomeView() {
 
   useEffect(() => {
     if (!heroWrapperRef.current) return;
+    const isMobile = typeof window !== 'undefined' && (window.innerWidth < 768 || window.matchMedia('(pointer: coarse)').matches);
 
     const ctx = gsap.context(() => {
       gsap.fromTo('.zentry-reveal-text', 
-        { y: 80, opacity: 0, rotateX: -45 }, 
+        { y: 30, opacity: 0 }, 
         { 
-          y: 0, opacity: 1, rotateX: 0, duration: 1, stagger: 0.1, 
-          ease: 'power3.out', 
-          scrollTrigger: { trigger: sectionRef.current, start: 'top 75%' }
+          y: 0, opacity: 1, duration: isMobile ? 0.5 : 0.8, stagger: 0.1, 
+          ease: 'power2.out', 
+          scrollTrigger: { trigger: sectionRef.current, start: 'top 85%' }
         }
       );
     }, heroWrapperRef);
@@ -320,10 +323,27 @@ export default function HomeView() {
               ))}
             </div>
           ) : (
-            <div style={{ textAlign: 'center', padding: '3rem 1rem', border: '1px dashed var(--border-color)', borderRadius: '8px' }}>
-              <Trophy size={32} style={{ opacity: 0.25, margin: '0 auto 0.75rem auto' }} />
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontStyle: 'italic' }}>No tournaments hosted yet.</p>
-            </div>
+            <GlassCard variant="panel" style={{ 
+              textAlign: 'center', 
+              padding: '3rem 2rem', 
+              border: '1px solid rgba(0, 240, 255, 0.25)',
+              background: 'radial-gradient(circle at center, rgba(0, 240, 255, 0.05) 0%, rgba(6, 12, 28, 0.9) 100%)' 
+            }}>
+              <Trophy size={40} style={{ color: 'var(--accent-cyan)', margin: '0 auto 1rem auto', opacity: 0.8 }} />
+              <h3 style={{ fontSize: '1.4rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.5rem' }}>
+                No Active Championship Arenas Listed
+              </h3>
+              <p style={{ color: 'var(--text-secondary)', maxWidth: '480px', margin: '0 auto 1.5rem auto', fontSize: '0.95rem' }}>
+                Tournament organizers have not scheduled live clashes for this timeslot. Create a roster or host the first tournament.
+              </p>
+              <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                <Link href="/tournaments">
+                  <Button variant="primary" style={{ borderRadius: '9999px', padding: '0.75rem 1.75rem' }}>
+                    Explore All Arenas
+                  </Button>
+                </Link>
+              </div>
+            </GlassCard>
           )}
         </div>
       </section>

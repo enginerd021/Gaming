@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   doc, 
-  getDoc, 
   collection, 
   query, 
   where, 
@@ -12,7 +11,6 @@ import {
   orderBy,
   limit,
   startAfter,
-  getCountFromServer,
   onSnapshot,
   QueryDocumentSnapshot
 } from 'firebase/firestore';
@@ -71,7 +69,6 @@ export default function TeamDetailPublicClient({ id }: { id: string }) {
   useEffect(() => {
     if (!id) return;
 
-    setLoading(true);
     let membersUnsub: (() => void) | null = null;
 
     // 1. Real-time subscription to team document

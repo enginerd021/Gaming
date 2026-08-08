@@ -13,10 +13,23 @@ export const SmoothScrollProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const lenisRef = useRef<Lenis | null>(null);
 
   useEffect(() => {
-    // Respect user's reduced motion preference
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    if (typeof window === 'undefined') return;
+
+    // Helper to check if screen is mobile or touch device
+    const checkIsMobile = () => {
+      const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      const isCoarse = window.matchMedia('(pointer: coarse)').matches;
+      const isSmallScreen = window.innerWidth < 768;
+      return isSmallScreen || (isTouch && isCoarse);
+    };
+
+    // If reduced motion is requested or user is on mobile/touch, use native hardware-accelerated smooth scrolling
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || checkIsMobile()) {
+      document.documentElement.classList.remove('lenis-active');
       return;
     }
+
+    document.documentElement.classList.add('lenis-active');
 
     const lenis = new Lenis({
       duration: 1.0,
@@ -26,6 +39,9 @@ export const SmoothScrollProvider: React.FC<{ children: React.ReactNode }> = ({ 
       smoothWheel: true,
       wheelMultiplier: 1.1,
       touchMultiplier: 1.5,
+      prevent: (node) =>
+        node.classList?.contains('global-chat-scroll') ||
+        Boolean(node.closest?.('.global-chat-scroll')),
     });
 
     lenisRef.current = lenis;
@@ -40,10 +56,26 @@ export const SmoothScrollProvider: React.FC<{ children: React.ReactNode }> = ({ 
     gsap.ticker.add(updateLenis);
     gsap.ticker.lagSmoothing(0);
 
+    const handleResize = () => {
+      if (checkIsMobile() && lenisRef.current) {
+        gsap.ticker.remove(updateLenis);
+        lenisRef.current.destroy();
+        lenisRef.current = null;
+        document.documentElement.classList.remove('lenis-active');
+      }
+    };
+
+    window.addEventListener('resize', handleResize, { passive: true });
+
     return () => {
+      window.removeEventListener('resize', handleResize);
       gsap.ticker.remove(updateLenis);
-      lenis.destroy();
-      lenisRef.current = null;
+      if (lenisRef.current) {
+        lenisRef.current.destroy();
+        lenisRef.current = null;
+      }
+      document.documentElement.classList.remove('lenis-active');
+    };
     };
   }, []);
 

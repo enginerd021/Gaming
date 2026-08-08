@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { leaderboardService } from '@/services/leaderboardService';
 import { Profile, Team } from '@/store/useAppStore';
-import { Trophy, Search, Users, Award } from 'lucide-react';
+import { Trophy, Search, Users, Award, X } from 'lucide-react';
 import Link from 'next/link';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
@@ -26,8 +26,6 @@ export default function LeaderboardView() {
 
   // Real-time snapshot listener via leaderboardService
   useEffect(() => {
-    setLoading(true);
-    
     const unsubProfiles = leaderboardService.subscribeProfiles(
       playerLimit,
       (list) => {
@@ -140,11 +138,31 @@ export default function LeaderboardView() {
                 id="search-query"
                 type="text"
                 className="glass-input"
-                style={{ paddingLeft: '2.5rem', fontSize: '0.9rem' }}
+                style={{ paddingLeft: '2.5rem', paddingRight: searchQuery ? '2.5rem' : '1rem', fontSize: '0.9rem' }}
                 placeholder={activeTab === 'players' ? "Search players by tag..." : "Search team name..."}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  aria-label="Clear search query"
+                  style={{
+                    position: 'absolute',
+                    right: '0.75rem',
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                    padding: '0.25rem',
+                    display: 'flex',
+                    alignItems: 'center'
+                  }}
+                >
+                  <X size={16} />
+                </button>
+              )}
             </div>
 
             {activeTab === 'players' && (

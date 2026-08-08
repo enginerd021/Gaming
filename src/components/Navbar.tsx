@@ -3,8 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useAppStore } from '@/store/useAppStore';
-import { User, LogOut, Menu, X, Bell, ChevronDown, Home, Sun, Moon } from 'lucide-react';
+import { User, LogOut, Menu, X, Bell, ChevronDown, Home, Palette, Check, Sun, Moon, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { 
   collection, 
   query, 
@@ -34,6 +33,7 @@ export default function Navbar() {
   const logout = useAppStore((state) => state.logout);
   const loading = useAppStore((state) => state.loading);
   const isOffline = useAppStore((state) => state.isOffline);
+  const connectionStatus = useAppStore((state) => state.connectionStatus);
   const pathname = usePathname();
   const isHome = pathname === '/';
   const { refreshCount } = useAutoRefresh();
@@ -41,7 +41,47 @@ export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [welcomeToast, setWelcomeToast] = useState<string | null>(null);
   const notifRef = useRef<HTMLDivElement>(null);
+  const aboutRef = useRef<HTMLDivElement>(null);
+  const themeRef = useRef<HTMLDivElement>(null);
+
+  // Check for session welcome message trigger
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const storedMsg = sessionStorage.getItem('shaktrix_welcome_msg');
+    if (storedMsg) {
+      setWelcomeToast(storedMsg);
+      sessionStorage.removeItem('shaktrix_welcome_msg');
+      const timer = setTimeout(() => {
+        setWelcomeToast(null);
+      }, 4500);
+      return () => clearTimeout(timer);
+    }
+  }, [user, pathname]);
+
+  // 2-Theme System (Neon and Light only)
+  type ThemeId = 'neon' | 'light';
+  const THEMES: { id: ThemeId; label: string; desc: string; accentColor: string; swatches: string[] }[] = [
+    { id: 'neon',     label: 'Neon Esports',       desc: 'Deep space · electric cyan',       accentColor: '#00E5FF', swatches: ['#02040a', '#00E5FF', '#D946EF', '#0c1020'] },
+    { id: 'light',    label: 'Minimal Light',       desc: 'Clean white · deep indigo',        accentColor: '#4F46E5', swatches: ['#F8FAFC', '#4F46E5', '#0EA5E9', '#E2E8F0'] },
+  ];
+
+  const [theme, setTheme] = useState<ThemeId>('neon');
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const saved = (localStorage.getItem('shaktrix_theme') as ThemeId) || 'neon';
+    setTheme(saved);
+    document.documentElement.setAttribute('data-theme', saved);
+  }, []);
+
+  const selectTheme = (id: ThemeId) => {
+    setTheme(id);
+    localStorage.setItem('shaktrix_theme', id);
+    document.documentElement.setAttribute('data-theme', id);
+  };
 
   // Single Theme State (Neon Dark vs Minimal Light)
   type ThemeId = 'neon' | 'light';
@@ -85,6 +125,22 @@ export default function Navbar() {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [notifOpen]);
+
+  // Click outside ABOUT menu listener
+  useEffect(() => {
+    const handleClickOutsideAbout = (event: MouseEvent) => {
+      if (aboutRef.current && !aboutRef.current.contains(event.target as Node)) {
+        setAboutOpen(false);
+      }
+    };
+
+    if (aboutOpen) {
+      document.addEventListener('mousedown', handleClickOutsideAbout);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutsideAbout);
+    };
+  }, [aboutOpen]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -152,7 +208,13 @@ export default function Navbar() {
     return () => unsubscribe();
   }, [user, refreshCount]);
 
-  const handleLogout = async () => {
+  const promptLogout = () => {
+    setShowLogoutConfirm(true);
+  };
+
+  const confirmLogout = async () => {
+    setShowLogoutConfirm(false);
+    setMobileMenuOpen(false);
     try {
       await logout();
     } catch (error) {
@@ -201,13 +263,34 @@ export default function Navbar() {
     }
   };
 
+  const showBanner = connectionStatus === 'reconnecting' || connectionStatus === 'offline' || isOffline;
+
   return (
     <>
-      {isOffline && (
+      {connectionStatus === 'reconnecting' && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, zIndex: 110,
+          background: 'linear-gradient(90deg, #ffaa00 0%, #ff6600 100%)', 
+          color: '#fff', textAlign: 'center',
+          fontSize: '0.78rem', fontWeight: 800, padding: '0.4rem', letterSpacing: '0.1em',
+          boxShadow: '0 0 15px rgba(255, 170, 0, 0.4)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem'
+        }}>
+          <div style={{
+            width: '12px', height: '12px', borderRadius: '50%',
+            border: '2px solid #fff', borderTopColor: 'transparent',
+            animation: 'spin 0.8s linear infinite'
+          }} />
+          RECONNECTING... ATTEMPTING TO RESTORE CONNECTION (5S)
+        </div>
+      )}
+
+      {(connectionStatus === 'offline' || (isOffline && connectionStatus !== 'reconnecting')) && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, zIndex: 110,
           background: 'var(--accent-red)', color: '#fff', textAlign: 'center',
-          fontSize: '0.75rem', fontWeight: 800, padding: '0.4rem', letterSpacing: '0.1em',
+          fontSize: '0.78rem', fontWeight: 800, padding: '0.4rem', letterSpacing: '0.1em',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem'
         }}>
           OFFLINE MODE — DISPLAYING CACHED DATA
         </div>
@@ -215,9 +298,11 @@ export default function Navbar() {
 
       {/* HEADER: Clean transparent header on home, glossy glass on inner pages */}
       <header 
+        data-home={isHome}
+        className={isHome ? 'is-home-header' : 'is-inner-header'}
         style={{
           position: 'fixed',
-          top: isOffline ? '2rem' : '0',
+          top: showBanner ? '2.2rem' : '0',
           left: 0,
           right: 0,
           zIndex: 100,
@@ -233,18 +318,18 @@ export default function Navbar() {
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', maxWidth: '1920px', margin: '0 auto' }}>
           
-          {/* LEFT SIDE: Home Icon Link + SHAKTRIX Text (Shifted slightly right, no hyperlink on SHAKTRIX text) */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginLeft: '1.5rem' }}>
+          {/* LEFT SIDE: Home Icon Link + SHAKTRIX Text */}
+          <div className="nav-logo-container" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <Link href="/" aria-label="Home" style={{ color: '#ffffff', display: 'flex', alignItems: 'center', transition: 'opacity 0.2s' }} className="hover-opacity">
-              <Home size={22} />
+              <Home size={20} />
             </Link>
             <div style={{ 
-              fontWeight: 900, fontSize: '1.5rem', fontFamily: 'var(--font-title)', 
+              fontWeight: 900, fontSize: '1.35rem', fontFamily: 'var(--font-title)', 
               letterSpacing: '0.04em', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.15rem',
               userSelect: 'none'
             }}>
-              <span style={{ color: 'var(--neon-blue)', textShadow: '0 0 15px rgba(0, 240, 255, 0.75)' }}>SHAKT</span>
-              <span style={{ color: 'var(--neon-purple)', textShadow: '0 0 15px rgba(176, 38, 255, 0.75)' }}>RIX</span>
+              <span className="logo-shakt" style={{ color: 'var(--neon-blue)', textShadow: '0 0 15px rgba(0, 240, 255, 0.75)' }}>SHAKT</span>
+              <span className="logo-rix" style={{ color: 'var(--neon-purple)', textShadow: '0 0 15px rgba(176, 38, 255, 0.75)' }}>RIX</span>
             </div>
           </div>
 
@@ -252,7 +337,8 @@ export default function Navbar() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '2.5rem' }}>
             
             <nav className="desktop-nav" style={{ display: 'none', alignItems: 'center', gap: '1.75rem' }}>
-                           {/* Single Sun/Moon Icon Theme Toggle Button */}
+              
+              {/* Single Sun/Moon Icon Theme Toggle Button */}
               <button
                 onClick={toggleTheme}
                 aria-label={`Switch to ${theme === 'neon' ? 'Light' : 'Dark'} Mode`}
@@ -274,7 +360,6 @@ export default function Navbar() {
               >
                 {theme === 'neon' ? <Moon size={18} /> : <Sun size={18} />}
               </button>
-
               {/* 1. Notification Symbol */}
               {user && (
                 <div ref={notifRef} style={{ position: 'relative' }}>
@@ -418,48 +503,48 @@ export default function Navbar() {
               )}
 
               {/* 2. LEADERBOARD */}
-              <Link href="/leaderboard" className="zentry-text-link" style={{ color: '#ffffff' }}>
+              <Link href="/leaderboard" className="zentry-text-link">
                 LEADERBOARD
               </Link>
 
               {/* 3. TOURNAMENTS */}
-              <Link href="/tournaments" className="zentry-text-link" style={{ color: '#ffffff' }}>
+              <Link href="/tournaments" className="zentry-text-link">
                 TOURNAMENTS
               </Link>
 
               {/* 4. TEAMS */}
-              <Link href="/teams" className="zentry-text-link" style={{ color: '#ffffff' }}>
+              <Link href="/teams" className="zentry-text-link">
                 TEAMS
               </Link>
 
               {/* 5. ABOUT US */}
-              <div style={{ position: 'relative' }}>
-                <button onClick={() => { setAboutOpen(!aboutOpen); setProductsOpen(false); }} className="zentry-text-link flex items-center gap-1" style={{ color: '#ffffff' }}>
+              <div ref={aboutRef} style={{ position: 'relative' }}>
+                <button onClick={() => { setAboutOpen(!aboutOpen); setProductsOpen(false); }} className="zentry-text-link flex items-center gap-1">
                   ABOUT <ChevronDown size={12} />
                 </button>
                 {aboutOpen && (
                   <div className="zentry-dropdown-menu right-0">
-                    <a href="#about" onClick={() => setAboutOpen(false)} className="dropdown-item">Platform Mission</a>
-                    <a href="#rules" onClick={() => setAboutOpen(false)} className="dropdown-item">Rulebook</a>
+                    <Link href="/about/mission" onClick={() => setAboutOpen(false)} className="dropdown-item">Platform Mission</Link>
+                    <Link href="/about/rulebook" onClick={() => setAboutOpen(false)} className="dropdown-item">Rulebook</Link>
                   </div>
                 )}
               </div>
 
               {/* 6. PROFILE */}
-              <Link href="/profile" className="zentry-text-link" style={{ color: '#ffffff' }}>
+              <Link href="/profile" className="zentry-text-link">
                 PROFILE
               </Link>
 
               {/* 7. LOGOUT / AUTH */}
               {user ? (
-                <button onClick={handleLogout} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', opacity: 0.8 }} className="hover-opacity" aria-label="Log out">
+                <button onClick={promptLogout} style={{ background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', opacity: 0.8 }} className="hover-opacity" aria-label="Log out">
                   <LogOut size={18} />
                 </button>
               ) : (
                 !loading && (
                   <>
-                    <Link href="/login" className="zentry-text-link" style={{ color: '#ffffff' }}>LOGIN</Link>
-                    <Link href="/register" className="zentry-text-link" style={{ color: '#ffffff' }}>JOIN NOW</Link>
+                    <Link href="/login" className="zentry-text-link">LOGIN</Link>
+                    <Link href="/register" className="zentry-text-link">JOIN NOW</Link>
                   </>
                 )
               )}
@@ -469,7 +554,8 @@ export default function Navbar() {
             <button 
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="mobile-toggle"
-              style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer' }}
+              aria-label="Toggle Navigation Menu"
+              style={{ background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', padding: '0.4rem' }}
             >
               {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
@@ -480,13 +566,16 @@ export default function Navbar() {
       {/* MOBILE DROPDOWN */}
       {mobileMenuOpen && (
          <nav style={{
-            position: 'fixed', top: '5rem', left: '1rem', right: '1rem', background: 'rgba(0,0,0,0.95)', 
+            position: 'fixed', top: '4.5rem', left: '1rem', right: '1rem', background: 'rgba(4, 9, 20, 0.98)', 
             backdropFilter: 'blur(20px)', borderRadius: '16px', padding: '1.5rem', zIndex: 99,
-            display: 'flex', flexDirection: 'column', gap: '1rem', border: '1px solid rgba(255,255,255,0.1)'
+            display: 'flex', flexDirection: 'column', gap: '1rem', border: '1px solid rgba(0, 240, 255, 0.2)',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.8)'
          }} className="mobile-dropdown">
             <Link href="/tournaments" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>TOURNAMENTS</Link>
             <Link href="/teams" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>TEAMS</Link>
             <Link href="/leaderboard" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>LEADERBOARD</Link>
+            <Link href="/about/mission" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>PLATFORM MISSION</Link>
+            <Link href="/about/rulebook" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>RULEBOOK</Link>
             <button 
               onClick={() => { toggleTheme(); setMobileMenuOpen(false); }} 
               style={{ 
@@ -504,7 +593,7 @@ export default function Navbar() {
             {user ? (
                <>
                   <Link href="/profile" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700 }}>PROFILE</Link>
-                  <button onClick={handleLogout} style={{ background: 'none', border: 'none', color: 'var(--accent-red)', fontWeight: 700, textAlign: 'left', padding: 0 }}>SIGN OUT</button>
+                  <button onClick={promptLogout} style={{ background: 'none', border: 'none', color: 'var(--accent-red)', fontWeight: 700, textAlign: 'left', padding: 0 }}>SIGN OUT</button>
                </>
             ) : (
                <>
@@ -547,42 +636,49 @@ export default function Navbar() {
           position: absolute;
           top: calc(100% + 0.75rem);
           left: 0;
-          min-width: 180px;
-          background: #111;
-          border: 1px solid rgba(255, 255, 255, 0.15);
-          border-radius: 12px;
-          padding: 0.5rem;
+          min-width: 210px;
+          background: rgba(6, 12, 26, 0.95);
+          backdrop-filter: blur(20px) saturate(180%);
+          -webkit-backdrop-filter: blur(20px) saturate(180%);
+          border: 1px solid rgba(0, 240, 255, 0.25);
+          border-radius: 14px;
+          padding: 0.6rem;
           display: flex;
           flex-direction: column;
-          gap: 0.25rem;
+          gap: 0.35rem;
           z-index: 200;
           animation: dropdownFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-          box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+          box-shadow: 0 15px 35px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 240, 255, 0.15), inset 0 0 12px rgba(176, 38, 255, 0.1);
         }
         .zentry-dropdown-menu.right-0 {
           left: auto;
           right: 0;
         }
         .dropdown-item {
-          font-size: 0.7rem;
-          font-weight: 700;
+          font-size: 0.78rem;
+          font-weight: 800;
           text-transform: uppercase;
           letter-spacing: 0.1em;
-          color: rgba(255, 255, 255, 0.7);
-          padding: 0.6rem 0.8rem;
+          color: rgba(255, 255, 255, 0.85);
+          padding: 0.75rem 1rem;
           border-radius: 8px;
-          transition: background 0.2s, color 0.2s;
+          transition: all 0.2s ease;
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
         }
         .dropdown-item:hover {
-          background: rgba(255, 255, 255, 0.1);
-          color: #fff;
+          background: rgba(0, 240, 255, 0.12);
+          color: var(--neon-blue);
+          box-shadow: inset 0 0 10px rgba(0, 240, 255, 0.1);
+          transform: translateX(4px);
         }
         @keyframes dropdownFadeIn {
           from { opacity: 0; transform: translateY(8px); }
           to { opacity: 1; transform: translateY(0); }
         }
         .zentry-text-link {
-          color: #ffffff;
+          color: var(--text-primary);
           font-size: 0.75rem;
           font-weight: 800;
           text-transform: uppercase;
@@ -604,7 +700,7 @@ export default function Navbar() {
           left: 0;
           width: 0%;
           height: 1px;
-          background: #fff;
+          background: var(--text-primary);
           transition: width 0.3s ease;
         }
         .zentry-text-link:hover::after {
@@ -614,6 +710,128 @@ export default function Navbar() {
           opacity: 1 !important;
         }
       `}</style>
+
+      {/* TOP FLOATING WELCOME TOAST */}
+      {welcomeToast && (
+        <div style={{
+          position: 'fixed',
+          top: isOffline ? '4.5rem' : '2.5rem',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 1100,
+          background: 'rgba(4, 16, 32, 0.95)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          border: '1px solid var(--accent-cyan)',
+          boxShadow: '0 10px 30px rgba(0, 240, 255, 0.35)',
+          borderRadius: '12px',
+          padding: '0.85rem 1.75rem',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.75rem',
+          color: '#ffffff',
+          fontSize: '0.95rem',
+          fontWeight: 700,
+          animation: 'dropdownFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards'
+        }}>
+          <CheckCircle2 size={22} style={{ color: 'var(--accent-cyan)' }} />
+          <span>{welcomeToast}</span>
+        </div>
+      )}
+
+      {/* LOGOUT CONFIRMATION PERMISSION MODAL */}
+      {showLogoutConfirm && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 1000,
+          background: 'rgba(2, 6, 16, 0.85)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '1.5rem',
+          animation: 'dropdownFadeIn 0.2s ease forwards'
+        }}>
+          <div style={{
+            width: '100%',
+            maxWidth: '420px',
+            background: 'rgba(6, 12, 26, 0.95)',
+            border: '1px solid rgba(255, 60, 60, 0.4)',
+            boxShadow: '0 20px 50px rgba(0, 0, 0, 0.8), 0 0 30px rgba(255, 60, 60, 0.2)',
+            borderRadius: '16px',
+            padding: '2rem',
+            textAlign: 'center',
+            position: 'relative'
+          }}>
+            <div style={{
+              width: '56px',
+              height: '56px',
+              borderRadius: '50%',
+              background: 'rgba(255, 60, 60, 0.15)',
+              border: '1px solid rgba(255, 60, 60, 0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 1.25rem auto',
+              color: 'var(--accent-red)'
+            }}>
+              <AlertTriangle size={28} />
+            </div>
+
+            <h3 style={{ fontSize: '1.35rem', fontWeight: 800, marginBottom: '0.5rem', color: '#ffffff' }}>
+              Confirm Logout
+            </h3>
+
+            <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '1.75rem', lineHeight: 1.5 }}>
+              Are you sure you want to log out of your SHAKTRIX account?
+            </p>
+
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+              <button
+                onClick={() => setShowLogoutConfirm(false)}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem 1.25rem',
+                  borderRadius: '8px',
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  color: '#ffffff',
+                  fontWeight: 700,
+                  fontSize: '0.9rem',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={confirmLogout}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem 1.25rem',
+                  borderRadius: '8px',
+                  background: 'linear-gradient(135deg, #ff3c3c 0%, #aa0000 100%)',
+                  border: 'none',
+                  color: '#ffffff',
+                  fontWeight: 700,
+                  fontSize: '0.9rem',
+                  cursor: 'pointer',
+                  boxShadow: '0 0 15px rgba(255, 60, 60, 0.4)',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                Yes, Log Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

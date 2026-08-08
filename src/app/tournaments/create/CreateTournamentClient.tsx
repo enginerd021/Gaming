@@ -55,9 +55,6 @@ export default function CreateTournamentClient() {
         status: 'Upcoming',
         organizerId: user!.uid,
         registeredTeamIds: [],
-        bracket: {
-          matches: []
-        },
         createdAt: Date.now()
       });
 

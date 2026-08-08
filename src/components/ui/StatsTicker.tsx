@@ -1,6 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 export interface StatItem {
   label: string;
@@ -22,18 +24,56 @@ const DEFAULT_STATS: StatItem[] = [
 ];
 
 export const StatsTicker: React.FC<StatsTickerProps> = ({
-  stats = DEFAULT_STATS,
+  stats,
   className = '',
   style = {}
 }) => {
+  const [tickerItems, setTickerItems] = useState<StatItem[]>(stats || DEFAULT_STATS);
+
+  useEffect(() => {
+    // Real-time subscription to matchHistory for live feed ticker
+    const q = query(
+      collection(db, "matchHistory"),
+      orderBy("resolvedAt", "desc"),
+      limit(4)
+    );
+
+    const unsub = onSnapshot(q, (snap) => {
+      if (snap.empty) {
+        setTickerItems(stats || DEFAULT_STATS);
+        return;
+      }
+      
+      const items = snap.docs.map((doc) => {
+        const d = doc.data();
+        const tName = d.tournamentName || "Tournament";
+        const winner = d.winnerId === d.team1Id ? d.team1Name : d.team2Name;
+        const scoreStr = `${d.score1}-${d.score2}`;
+        const labelStr = `${d.team1Name} vs ${d.team2Name} in ${tName}`;
+        
+        return {
+          label: labelStr,
+          value: `🏆 ${winner} (${scoreStr})`,
+          color: 'var(--accent-green)'
+        };
+      });
+      setTickerItems(items);
+    }, (err) => {
+      console.error("StatsTicker match history listener failed, falling back:", err);
+      setTickerItems(stats || DEFAULT_STATS);
+    });
+
+    return () => unsub();
+  }, [stats]);
+
   return (
-    <div className={`glass-panel ${className}`} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '1.5rem', padding: '1.5rem 2rem', borderRadius: '16px', background: 'hsla(223, 20%, 8%, 0.7)', ...style }}>
-      {stats.map((item, i) => (
-        <div key={i}>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: item.color || 'var(--accent-cyan)', fontFamily: 'var(--font-title)' }}>
+    <div className={`glass-panel ${className}`} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1.5rem', padding: '1.5rem 2rem', borderRadius: '16px', background: 'hsla(223, 20%, 8%, 0.7)', ...style }}>
+      {tickerItems.map((item, i) => (
+        <div key={i} className="slide-in-right" style={{ animationDelay: `${i * 100}ms` }}>
+          <div style={{ fontSize: '1.5rem', fontWeight: 800, color: item.color || 'var(--accent-cyan)', fontFamily: 'var(--font-title)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {item.value}
           </div>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {item.label}
           </div>
         </div>

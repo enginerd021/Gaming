@@ -2,7 +2,6 @@ import { create } from "zustand";
 import { User } from "firebase/auth";
 import { 
   doc, 
-  getDoc, 
   collection, 
   query, 
   where, 
@@ -23,7 +22,11 @@ export interface Profile {
     wins: number;
     losses: number;
     points: number;
+    mvps?: number;
+    kda?: string;
+    totalTournaments?: number;
   };
+  achievements?: string[];
   createdAt: number;
 }
 
@@ -44,6 +47,7 @@ interface AppState {
   loading: boolean;
   initialized: boolean;
   isOffline: boolean;
+  connectionStatus: 'online' | 'reconnecting' | 'offline';
   
   // Actions
   setUser: (user: User | null) => void;
@@ -52,6 +56,7 @@ interface AppState {
   setLoading: (loading: boolean) => void;
   setInitialized: (initialized: boolean) => void;
   setIsOffline: (isOffline: boolean) => void;
+  setConnectionStatus: (status: 'online' | 'reconnecting' | 'offline') => void;
   logout: () => Promise<void>;
 }
 
@@ -59,7 +64,7 @@ interface AppState {
 let profileListener: Unsubscribe | null = null;
 let teamListener: Unsubscribe | null = null;
 
-export const useAppStore = create<AppState>((set, get) => ({
+export const useAppStore = create<AppState>((set) => ({
   user: null,
   profile: null,
   team: null,
@@ -67,6 +72,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   loading: true,
   initialized: false,
   isOffline: false,
+  connectionStatus: 'online',
 
   setUser: (user) => set({ user }),
   setProfile: (profile) => set({ profile }),
@@ -74,6 +80,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setLoading: (loading) => set({ loading }),
   setInitialized: (initialized) => set({ initialized }),
   setIsOffline: (isOffline) => set({ isOffline }),
+  setConnectionStatus: (connectionStatus) => set({ connectionStatus }),
   
   logout: async () => {
     stopUserListeners();

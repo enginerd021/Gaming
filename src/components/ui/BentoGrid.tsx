@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Trophy, Users, Shield, Award, Flame, ArrowUpRight, Zap, Play } from 'lucide-react';
+import { Trophy, Users, Award, ArrowUpRight, Zap, Play } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 
