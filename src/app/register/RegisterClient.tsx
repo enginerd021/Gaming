@@ -12,6 +12,7 @@ import {
 } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
+import { isAdmin } from '@/lib/adminConfig';
 import { Gamepad2, User, Mail, Lock, AlertCircle, CheckCircle2, Eye, EyeOff } from 'lucide-react';
 
 const GoogleIcon = () => (
@@ -218,6 +219,8 @@ export default function RegisterClient() {
 
       // 4. Sequential Write: Create the profile document
       const profileRef = doc(db, "profiles", user.uid);
+      // role is for UI display only (e.g. badge). Security enforcement is in firestore.rules.
+      const userRole: 'admin' | 'player' = isAdmin(user.email) ? 'admin' : 'player';
       await setDoc(profileRef, {
         uid: user.uid,
         gamertag: cleanGamertag,
@@ -225,6 +228,7 @@ export default function RegisterClient() {
         registeredGames: [],
         preferredRoles: [],
         skillLevel: 'Intermediate',
+        role: userRole,
         stats: {
           wins: 0,
           losses: 0,

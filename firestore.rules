@@ -1,8 +1,151 @@
 rules_version = '2';
+
+// ============================================================
+// SHAKTRIX FIRESTORE SECURITY RULES
+// ============================================================
+// Admin Management:
+//   The isAdminEmail() function below is the SOURCE OF TRUTH for
+//   admin privileges. Firestore reads request.auth.token.email
+//   directly from the verified Firebase Auth ID token — it cannot
+//   be spoofed by a client.
+//
+//   To add or remove an admin:
+//     1. Edit the email list inside isAdminEmail() here.
+//     2. Mirror the same list in src/lib/adminConfig.ts (for UI display only).
+//     3. Deploy: firebase deploy --only firestore:rules
+//
+//   Known limitation: there is no in-app admin management UI.
+//   Admin assignment is a deploy-time operation.
+// ============================================================
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if true;
+
+    // ----------------------------------------------------------
+    // Helper functions
+    // ----------------------------------------------------------
+
+    function isAuthenticated() {
+      return request.auth != null;
     }
+
+    // SECURITY SOURCE OF TRUTH for admin role.
+    // Client-side adminConfig.ts mirrors this list for UI display ONLY;
+    // it has no effect on actual DB permissions.
+    //
+    // IMPORTANT: Use lowercase emails only. Firebase Auth (Google OAuth) returns
+    // request.auth.token.email in lowercase — mixed-case entries will never match.
+    // Mirror this exact list (lowercase) in src/lib/adminConfig.ts → ADMIN_EMAILS.
+    // To add/remove admins: edit here + adminConfig.ts, then deploy:
+    //   firebase deploy --only firestore:rules
+    function isAdminEmail() {
+      return isAuthenticated() && request.auth.token.email in [
+        'asthaojas30@gmail.com',
+        'vk844504@gmail.com'
+      ];
+    }
+
+    // ----------------------------------------------------------
+    // /gamertags/{gamertag}
+    // Public read so the registration pre-check can run unauthenticated.
+    // ----------------------------------------------------------
+    match /gamertags/{gamertag} {
+      allow read: if true;
+      allow create: if isAuthenticated()
+                    && request.resource.data.uid == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    // ----------------------------------------------------------
+    // /profiles/{userId}
+    // ----------------------------------------------------------
+    match /profiles/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update: if isAuthenticated() && request.auth.uid == userId;
+      allow delete: if false;
+
+      // -- Notifications subcollection --
+      // Players can read/update their own notifications.
+      // Writes come from:
+      //   • team captains (team_invite)
+      //   • tournament organizer / admin (tournament_starting, new_tournament)
+      //   • the profile owner (registration_confirmed, match_result ack)
+      match /notifications/{notificationId} {
+        allow read, update: if isAuthenticated() && request.auth.uid == userId;
+
+        allow create: if isAuthenticated() && (
+          // Owner can write their own notifications (e.g. registration_confirmed)
+          request.auth.uid == userId
+
+          // Team captains can send invites to any user
+          || request.resource.data.type == 'team_invite'
+
+          // Organizer/admin-triggered types: tournament_starting, match_result, new_tournament
+          || request.resource.data.type == 'tournament_starting'
+          || request.resource.data.type == 'match_result'
+
+          // Only admins can broadcast new_tournament notifications
+          || (request.resource.data.type == 'new_tournament' && isAdminEmail())
+        );
+
+        allow delete: if false;
+      }
+    }
+
+    // ----------------------------------------------------------
+    // /teams/{teamId}
+    // ----------------------------------------------------------
+    match /teams/{teamId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated()
+                    && resource.data.captainId == request.auth.uid;
+      allow delete: if isAuthenticated()
+                    && resource.data.captainId == request.auth.uid;
+    }
+
+    // ----------------------------------------------------------
+    // /tournaments/{tournamentId}
+    // CREATE is now restricted to admins only.
+    // Player registration (updating registeredTeamIds) is still open
+    // to any authenticated user — only creation is gated on admin.
+    // ----------------------------------------------------------
+    match /tournaments/{tournamentId} {
+      allow read: if true;
+
+      // ✅ ADMIN-ONLY: Only verified admin emails can create tournaments.
+      allow create: if isAdminEmail();
+
+      // Organizer (admin who created it) can edit/delete.
+      // This covers bracket updates, score saves, and status changes.
+      allow update: if isAuthenticated()
+                    && resource.data.organizerId == request.auth.uid;
+
+      allow delete: if isAuthenticated()
+                    && resource.data.organizerId == request.auth.uid;
+    }
+
+    // ----------------------------------------------------------
+    // /matchHistory/{matchId}
+    // Written by the tournament organizer when resolving a match score.
+    // Public read for leaderboards and profile match history.
+    // ----------------------------------------------------------
+    match /matchHistory/{matchId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update, delete: if false;
+    }
+
+    // ----------------------------------------------------------
+    // /messages/{messageId}  (live chat shoutbox)
+    // ----------------------------------------------------------
+    match /messages/{messageId} {
+      allow read: if true;
+      allow create: if isAuthenticated()
+                    && request.resource.data.uid == request.auth.uid;
+      allow update, delete: if false;
+    }
+
   }
 }
