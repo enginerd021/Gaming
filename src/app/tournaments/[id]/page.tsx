@@ -15,7 +15,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const id = resolvedParams?.id;
   if (!id) {
     return {
-      title: 'Tournament Match Brackets — Shakti Gaming',
+      title: 'Tournament Match Brackets — SHAKTRIX',
       description: 'Browse details, view brackets, and register for community tournaments.',
     };
   }
@@ -25,8 +25,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
       const data = docSnap.data();
-      const title = `${data.name} — ${data.game} Tournament | Shakti Gaming`;
-      const description = `Compete in ${data.name}, a bracket-style ${data.game} tournament on Shakti Gaming. Status: ${data.status}. Register your team roster now!`;
+      const title = `${data.name} — ${data.game} Tournament | SHAKTRIX`;
+      const description = `Compete in ${data.name}, a bracket-style ${data.game} tournament on SHAKTRIX. Status: ${data.status}. Register your team roster now!`;
       return {
         title,
         description,
@@ -34,7 +34,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
           title,
           description,
           type: 'website',
-          url: `https://shakti-gaming.web.app/tournaments/${id}`,
+          url: `https://shakti-gaming-esports.vercel.app/tournaments/${id}`,
         },
       };
     }
@@ -42,7 +42,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     console.error("Error generating tournament metadata:", e);
   }
   return {
-    title: 'Tournament Match Brackets — Shakti Gaming',
+    title: 'Tournament Match Brackets — SHAKTRIX',
     description: 'Browse details, view brackets, and register for community tournaments.',
   };
 }

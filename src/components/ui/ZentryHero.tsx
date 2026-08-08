@@ -20,10 +20,10 @@ export function ZentryHero() {
   const ctaRef = useRef<HTMLDivElement>(null);
   const scrollIndicatorRef = useRef<HTMLDivElement>(null);
 
-  // High quality royalty-free game trailer video clips
+  // High quality local esports trailer video clips
   const VIDEO_SOURCES = [
-    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
-    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4'
+    '/videos/lol.mp4',
+    '/videos/overwatch.mp4'
   ];
 
   const [currentVideoIdx, setCurrentVideoIdx] = useState(0);
@@ -57,30 +57,7 @@ export function ZentryHero() {
   return (
     <section ref={heroRef} className="zentry-hero-wrapper" style={{ height: '100vh', minHeight: '100vh', padding: '0', position: 'relative', overflow: 'hidden' }}>
       
-      {/* Background Full Video Loop */}
-      <video
-        ref={videoRef}
-        autoPlay
-        loop
-        muted={isMuted}
-        playsInline
-        key={VIDEO_SOURCES[currentVideoIdx]}
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          width: '100%',
-          height: '100%',
-          objectFit: 'cover',
-          opacity: 0.35,
-          filter: 'brightness(0.65) contrast(1.15)',
-          zIndex: 1
-        }}
-      >
-        <source src={VIDEO_SOURCES[currentVideoIdx]} type="video/mp4" />
-      </video>
-
-      {/* Cyber Grid & Ambient Dark Overlay */}
+      {/* Cyber Grid & Ambient Glow Background */}
       <div 
         ref={overlayRef}
         style={{
@@ -89,43 +66,14 @@ export function ZentryHero() {
           left: 0,
           width: '100%',
           height: '100%',
-          background: 'radial-gradient(circle at center, hsla(228, 28%, 5%, 0.4) 0%, hsl(228, 28%, 5%) 85%)',
+          background: 'radial-gradient(circle at center, rgba(0, 240, 255, 0.12) 0%, rgba(176, 38, 255, 0.06) 45%, var(--bg-primary) 85%)',
           zIndex: 2,
           pointerEvents: 'none'
         }} 
       />
 
-      <div className="ambient-glow-cyan" style={{ top: '10%', left: '15%', opacity: 0.2 }} />
-      <div className="ambient-glow-violet" style={{ bottom: '10%', right: '15%', opacity: 0.2 }} />
-
-      {/* Fullscreen Cinema Video Overlay when expanded */}
-      {isExpanded && (
-        <div 
-          onClick={toggleExpand}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 999,
-            background: '#000',
-            cursor: 'pointer'
-          }}
-        >
-          <video
-            autoPlay
-            loop
-            muted={isMuted}
-            playsInline
-            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-          >
-            <source src={VIDEO_SOURCES[currentVideoIdx]} type="video/mp4" />
-          </video>
-          <div style={{ position: 'absolute', top: '2rem', right: '2rem', zIndex: 1000 }}>
-            <Button variant="primary" style={{ borderRadius: '9999px', padding: '0.6rem 1.25rem' }}>
-              CLOSE CINEMA MODE
-            </Button>
-          </div>
-        </div>
-      )}
+      <div className="ambient-glow-cyan" style={{ top: '10%', left: '15%', opacity: 0.3 }} />
+      <div className="ambient-glow-violet" style={{ bottom: '10%', right: '15%', opacity: 0.3 }} />
 
       {/* Hero Content Layer */}
       <div className="container" style={{ position: 'relative', zIndex: 10, textAlign: 'center', maxWidth: '960px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>

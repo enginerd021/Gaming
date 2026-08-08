@@ -7,54 +7,52 @@ export function initScrollReveals() {
   if (typeof window === 'undefined') return;
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
-  // Reveal sections with smooth 3D fade, scale, and blur
+  const isMobile = window.innerWidth < 768 || window.matchMedia('(pointer: coarse)').matches;
+
+  // Reveal sections with clean, GPU-accelerated opacity & y-axis motion (no heavy CSS blurs)
   const revealElements = document.querySelectorAll<HTMLElement>(
     '[data-scroll-section], .bento-card, .glass-card, .glass-panel, .podium-card, .section-title, .grid-responsive > div'
   );
 
-  revealElements.forEach((el, index) => {
+  revealElements.forEach((el) => {
     gsap.fromTo(
       el,
       {
         opacity: 0,
-        y: 45,
-        scale: 0.95,
-        rotateX: -6,
-        transformPerspective: 1000,
-        filter: 'blur(8px)'
+        y: isMobile ? 20 : 35,
+        scale: isMobile ? 1 : 0.98,
       },
       {
         opacity: 1,
         y: 0,
         scale: 1,
-        rotateX: 0,
-        filter: 'blur(0px)',
-        duration: 0.85,
-        ease: 'power3.out',
-        stagger: 0.1,
+        duration: isMobile ? 0.45 : 0.75,
+        ease: 'power2.out',
         scrollTrigger: {
           trigger: el,
-          start: 'top 88%',
-          end: 'bottom 15%',
-          toggleActions: 'play none none reverse',
+          start: isMobile ? 'top 94%' : 'top 88%',
+          toggleActions: 'play none none none',
         }
       }
     );
   });
 
-  // Parallax subtle floating effect for ambient background glows
-  const glows = document.querySelectorAll<HTMLElement>('.hero-glow, .ambient-glow-cyan, .ambient-glow-violet');
-  glows.forEach((glow) => {
-    gsap.to(glow, {
-      y: -60,
-      scale: 1.15,
-      ease: 'none',
-      scrollTrigger: {
-        trigger: glow.parentElement || document.body,
-        start: 'top bottom',
-        end: 'bottom top',
-        scrub: 1.5,
-      }
+  // Skip continuous parallax calculations on mobile to save CPU/battery
+  if (!isMobile) {
+    const glows = document.querySelectorAll<HTMLElement>('.hero-glow, .ambient-glow-cyan, .ambient-glow-violet');
+    glows.forEach((glow) => {
+      gsap.to(glow, {
+        y: -40,
+        scale: 1.1,
+        ease: 'none',
+        scrollTrigger: {
+          trigger: glow.parentElement || document.body,
+          start: 'top bottom',
+          end: 'bottom top',
+          scrub: 1,
+        }
+      });
     });
-  });
+  }
 }
+

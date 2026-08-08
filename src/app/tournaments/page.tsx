@@ -2,7 +2,7 @@ import { Metadata } from 'next';
 import TournamentsView from '@/views/TournamentsView';
 
 export const metadata: Metadata = {
-  title: "Tournaments — Shakti Gaming Esports",
+  title: "Tournaments — SHAKTRIX",
   description: "Browse live and upcoming esports bracket tournaments. Register your team roster and compete for prize pools.",
 };
 

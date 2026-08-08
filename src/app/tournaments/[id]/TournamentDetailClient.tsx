@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { createPortal } from 'react-dom';
 import { 
   doc, 
   onSnapshot, 
@@ -12,7 +13,6 @@ import {
   getDocs, 
   arrayUnion,
   getDoc,
-  arrayRemove,
   orderBy,
   limit,
   addDoc,
@@ -22,11 +22,16 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAppStore, Team } from '@/store/useAppStore';
-import { Trophy, Calendar, Shield, Users, Layers, Award, Loader, AlertCircle, Edit3, Save, Play, Check, X, MessageSquare, Send, Trash2, Bell, Clock } from 'lucide-react';
+import { Trophy, Calendar, Shield, Users, Layers, Award, Loader, AlertCircle, Edit3, Save, Play, Check, X, MessageSquare, Send, Trash2, Bell, Clock, ShieldAlert, CheckCircle, Flame } from 'lucide-react';
 import Link from 'next/link';
+import Button from '@/components/ui/Button';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 import { TournamentCountdown } from '@/components/TournamentCountdown';
 import { calculateTournamentTimeWindow, checkPlayerTournamentOverlap } from '@/lib/tournamentUtils';
+import { achievementService } from '@/services/achievementService';
+import { tournamentService } from '@/services/tournamentService';
+import BracketView from '@/components/ui/BracketView';
+import ShareButton from '@/components/ui/ShareButton';
 
 interface Match {
   id: string; // m-r-idx (e.g., m-1-1, m-2-1)
@@ -38,6 +43,15 @@ interface Match {
   score2: number;
   winnerId: string | null;
   nextMatchId: string | null;
+  discordUrl?: string | null;
+  checkIn?: {
+    team1CheckedIn: boolean;
+    team2CheckedIn: boolean;
+    checkInDeadline: number | null;
+    disputed: boolean;
+    disputeReason: string | null;
+    disputedBy: string | null;
+  } | null;
 }
 
 interface Tournament {
@@ -56,6 +70,8 @@ interface Tournament {
   startDate?: number;
   roundDurationMins?: number;
   estimatedEndTime?: number;
+  discordWebhookUrl?: string;
+  discordBotEnabled?: boolean;
 }
 
 interface ChatMessage {
@@ -63,17 +79,20 @@ interface ChatMessage {
   senderId: string;
   senderGamertag: string;
   text: string;
-  createdAt: any;
+  createdAt: unknown;
   teamId?: string | null;
 }
 
 export default function TournamentDetailClient({ id }: { id: string }) {
-  const router = useRouter();
   const user = useAppStore((state) => state.user);
   const team = useAppStore((state) => state.team);
   const profile = useAppStore((state) => state.profile);
-  const loading = useAppStore((state) => state.loading);
   const { refreshCount } = useAutoRefresh();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Tournament state loaded from Firestore snapshot
   const [tournament, setTournament] = useState<Tournament | null>(null);
@@ -84,6 +103,18 @@ export default function TournamentDetailClient({ id }: { id: string }) {
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  // Discord integration status
+  const [discordEnabled, setDiscordEnabled] = useState(false);
+
+  // Time ticking state for real-time forfeit countdowns
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Match score editing states (Organizer only)
   const [editingMatchId, setEditingMatchId] = useState<string | null>(null);
@@ -107,6 +138,7 @@ export default function TournamentDetailClient({ id }: { id: string }) {
       if (docSnap.exists()) {
         const tData = { id: docSnap.id, ...docSnap.data() } as Tournament;
         setTournament(tData);
+        setDiscordEnabled(tData.discordBotEnabled || false);
         
         // Real-time subscription for registered teams names & metadata
         if (tData.registeredTeamIds && tData.registeredTeamIds.length > 0) {
@@ -172,13 +204,8 @@ export default function TournamentDetailClient({ id }: { id: string }) {
 
   // Subscribe to messages subcollection (latency compensation / order by createdAt)
   useEffect(() => {
-    if (!id || !isChatEligible) {
-      setMessages([]);
-      setChatLoading(false);
-      return;
-    }
+    if (!id || !isChatEligible) return;
 
-    setChatLoading(true);
     const messagesRef = collection(db, "tournaments", id, "messages");
     const q = query(
       messagesRef,
@@ -397,6 +424,474 @@ export default function TournamentDetailClient({ id }: { id: string }) {
       setActionLoading(false);
     }
   };
+  // Discord integration channel creation helper
+  const createDiscordLobbyForMatch = async (mId: string, t1Id: string | null, t2Id: string | null) => {
+    if (!tournament) return null;
+    const t1Name = t1Id ? (teamsMap[t1Id] || 'Team 1') : 'TBD';
+    const t2Name = t2Id ? (teamsMap[t2Id] || 'Team 2') : 'TBD';
+    try {
+      const res = await fetch('/api/discord', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'create_channel',
+          matchId: mId,
+          team1Name: t1Name,
+          team2Name: t2Name,
+          tournamentName: tournament.name
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return data.channelUrl || null;
+      }
+    } catch (err) {
+      console.error("Error creating Discord channel:", err);
+    }
+    return null;
+  };
+
+  // Discord bracket announcement helper
+  const postDiscordBracketUpdate = async (msg: string) => {
+    try {
+      await fetch('/api/discord', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'bracket_update',
+          tournamentName: tournament?.name || 'Tournament',
+          message: msg
+        })
+      });
+    } catch (err) {
+      console.error("Failed to post Discord bracket announcement:", err);
+    }
+  };
+
+  // Toggle Discord Bot Lobbies integration
+  const handleToggleDiscord = async (enabled: boolean) => {
+    if (!tournament || !isOrganizer) return;
+    setActionLoading(true);
+    try {
+      const tournamentRef = doc(db, "tournaments", tournament.id);
+      await updateDoc(tournamentRef, {
+        discordBotEnabled: enabled
+      });
+      setDiscordEnabled(enabled);
+      setSuccess(`Discord Bot Lobbies ${enabled ? 'enabled' : 'disabled'}!`);
+    } catch (err) {
+      console.error(err);
+      setError("Failed to update Discord settings.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Team check-in handler
+  const handleCheckIn = async (matchId: string, teamSlot: 'team1' | 'team2') => {
+    if (!tournament || !team) return;
+    clearMessages();
+    setActionLoading(true);
+
+    try {
+      const updatedMatches = [...tournament.bracket.matches];
+      const matchIdx = updatedMatches.findIndex(m => m.id === matchId);
+      if (matchIdx === -1) throw new Error("Match not found.");
+
+      const match = { ...updatedMatches[matchIdx] };
+      if (!match.checkIn) {
+        match.checkIn = {
+          team1CheckedIn: false,
+          team2CheckedIn: false,
+          checkInDeadline: Date.now() + 10 * 60 * 1000,
+          disputed: false,
+          disputeReason: null,
+          disputedBy: null
+        };
+      }
+
+      if (teamSlot === 'team1') {
+        match.checkIn.team1CheckedIn = true;
+      } else {
+        match.checkIn.team2CheckedIn = true;
+      }
+
+      updatedMatches[matchIdx] = match;
+
+      const tournamentRef = doc(db, "tournaments", tournament.id);
+      await updateDoc(tournamentRef, {
+        'bracket.matches': updatedMatches
+      });
+
+      setSuccess(`Successfully checked in for ${team.name}!`);
+    } catch (err: any) {
+      console.error("Failed to check in:", err);
+      setError("Check-in action failed.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Claim Forfeit Win handler
+  const handleClaimForfeitWin = async (matchId: string, winnerSlot: 'team1' | 'team2') => {
+    if (!tournament) return;
+    clearMessages();
+    setActionLoading(true);
+
+    try {
+      const updatedMatches = [...tournament.bracket.matches];
+      const matchIdx = updatedMatches.findIndex(m => m.id === matchId);
+      if (matchIdx === -1) throw new Error("Match not found.");
+
+      const match = { ...updatedMatches[matchIdx] };
+      const team1Name = match.team1Id ? (teamsMap[match.team1Id] || 'Team 1') : 'TBD';
+      const team2Name = match.team2Id ? (teamsMap[match.team2Id] || 'Team 2') : 'TBD';
+
+      if (winnerSlot === 'team1') {
+        match.score1 = 1;
+        match.score2 = 0;
+        match.winnerId = match.team1Id;
+      } else {
+        match.score1 = 0;
+        match.score2 = 1;
+        match.winnerId = match.team2Id;
+      }
+
+      // Mark check-in state completed
+      if (match.checkIn) {
+        match.checkIn.checkInDeadline = null; // Clear deadline
+      }
+
+      updatedMatches[matchIdx] = match;
+
+      const winnerId = match.winnerId;
+      let nextMatchToCreateDiscord: Match | null = null;
+
+      // Logic to advance the team to next match (same as handleSaveMatchScore)
+      if (match.nextMatchId) {
+        const nextIdx = updatedMatches.findIndex(m => m.id === match.nextMatchId);
+        if (nextIdx !== -1) {
+          const nextMatch = { ...updatedMatches[nextIdx] };
+          
+          if (match.matchIndex % 2 === 1) {
+            nextMatch.team1Id = winnerId;
+          } else {
+            nextMatch.team2Id = winnerId;
+          }
+
+          // If both slots now ready, initialize check-in timer
+          if (nextMatch.team1Id && nextMatch.team2Id) {
+            nextMatch.checkIn = {
+              team1CheckedIn: false,
+              team2CheckedIn: false,
+              checkInDeadline: Date.now() + 10 * 60 * 1000,
+              disputed: false,
+              disputeReason: null,
+              disputedBy: null
+            };
+            nextMatchToCreateDiscord = nextMatch;
+          }
+          updatedMatches[nextIdx] = nextMatch;
+        }
+      } else {
+        // Tournament completed!
+        const tournamentRef = doc(db, "tournaments", tournament.id);
+        await updateDoc(tournamentRef, {
+          status: 'Completed'
+        });
+
+        // Award UNDEFEATED SEASON achievement to champion members
+        if (winnerId) {
+          try {
+            const teamRef = doc(db, "teams", winnerId);
+            const teamSnap = await getDoc(teamRef);
+            if (teamSnap.exists()) {
+              const teamData = teamSnap.data() as Team;
+              for (const memberUid of teamData.members) {
+                const pRef = doc(db, "profiles", memberUid);
+                const pSnap = await getDoc(pRef);
+                if (pSnap.exists()) {
+                  const pData = pSnap.data();
+                  const achievements = pData.achievements || [];
+                  await achievementService.unlockAchievement(memberUid, 'undefeated', achievements);
+                }
+              }
+            }
+          } catch (achievementErr) {
+            console.error("Failed to award undefeated season badge:", achievementErr);
+          }
+        }
+      }
+
+      // Save to firebase
+      const tournamentRef = doc(db, "tournaments", tournament.id);
+      await updateDoc(tournamentRef, {
+        'bracket.matches': updatedMatches
+      });
+
+      // Write match record and notify players
+      try {
+        const team1Members: string[] = [];
+        const team2Members: string[] = [];
+        const membersToNotify: string[] = [];
+
+        const fetchTeamMembers = async (tId: string | null, listDest: string[]) => {
+          if (!tId) return;
+          const snap = await getDoc(doc(db, "teams", tId));
+          if (snap.exists()) {
+            const tData = snap.data();
+            if (tData.members) {
+              tData.members.forEach((mId: string) => {
+                listDest.push(mId);
+                if (!membersToNotify.includes(mId)) {
+                  membersToNotify.push(mId);
+                }
+              });
+            }
+          }
+        };
+
+        await fetchTeamMembers(match.team1Id, team1Members);
+        await fetchTeamMembers(match.team2Id, team2Members);
+
+        const historyRef = doc(collection(db, "matchHistory"));
+        const participantIds = [match.team1Id, match.team2Id, ...membersToNotify].filter(Boolean) as string[];
+
+        const notifyBatch = writeBatch(db);
+        
+        notifyBatch.set(historyRef, {
+          matchId: match.id,
+          tournamentId: tournament.id,
+          tournamentName: tournament.name,
+          game: tournament.game,
+          team1Id: match.team1Id || '',
+          team1Name,
+          team2Id: match.team2Id || '',
+          team2Name,
+          score1: match.score1,
+          score2: match.score2,
+          winnerId,
+          resolvedAt: serverTimestamp(),
+          team1Members,
+          team2Members,
+          participantIds,
+          forfeited: true
+        });
+
+        membersToNotify.forEach((mUid) => {
+          const nRef = doc(collection(db, "profiles", mUid, "notifications"));
+          notifyBatch.set(nRef, {
+            type: 'match_result',
+            message: `Match forfeited: ${team1Name} vs ${team2Name} in ${tournament.name}. Result declared.`,
+            relatedId: tournament.id,
+            read: false,
+            createdAt: serverTimestamp()
+          });
+        });
+        
+        await notifyBatch.commit();
+      } catch (notifyErr) {
+        console.error("Forfeit history log failed:", notifyErr);
+      }
+
+      // Post to discord
+      if (discordEnabled) {
+        const winningTeamName = winnerSlot === 'team1' ? team1Name : team2Name;
+        const losingTeamName = winnerSlot === 'team1' ? team2Name : team1Name;
+        await postDiscordBracketUpdate(`🏳️ **Forfeit declared!** Team **${losingTeamName}** failed to check in on time. **${winningTeamName}** claims the forfeit victory and advances!`);
+      }
+
+      // Unlock FIRST BLOOD achievement for winner team members
+      if (winnerId) {
+        try {
+          const teamRef = doc(db, "teams", winnerId);
+          const teamSnap = await getDoc(teamRef);
+          if (teamSnap.exists()) {
+            const teamData = teamSnap.data() as Team;
+            for (const memberUid of teamData.members) {
+              const pRef = doc(db, "profiles", memberUid);
+              const pSnap = await getDoc(pRef);
+              if (pSnap.exists()) {
+                const pData = pSnap.data();
+                const achievements = pData.achievements || [];
+                await achievementService.unlockAchievement(memberUid, 'first_blood', achievements);
+              }
+            }
+          }
+        } catch (err) {
+          console.error("Unlock achievement failed:", err);
+        }
+      }
+
+      // If next match is ready, asynchronously create Discord lobby
+      if (discordEnabled && nextMatchToCreateDiscord) {
+        const channelUrl = await createDiscordLobbyForMatch(
+          nextMatchToCreateDiscord.id, 
+          nextMatchToCreateDiscord.team1Id, 
+          nextMatchToCreateDiscord.team2Id
+        );
+        if (channelUrl) {
+          const finalMatchesSnap = await getDoc(tournamentRef);
+          if (finalMatchesSnap.exists()) {
+            const finalMatches = finalMatchesSnap.data().bracket?.matches || [];
+            const idxToUp = finalMatches.findIndex((m: any) => m.id === nextMatchToCreateDiscord!.id);
+            if (idxToUp !== -1) {
+              finalMatches[idxToUp].discordUrl = channelUrl;
+              await updateDoc(tournamentRef, {
+                'bracket.matches': finalMatches
+              });
+            }
+          }
+        }
+      }
+
+      setSuccess("Forfeit victory recorded and bracket advanced!");
+    } catch (err: any) {
+      console.error(err);
+      setError("Failed to record forfeit win.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Flag Dispute handler
+  const handleFlagDispute = async (matchId: string) => {
+    if (!tournament || !team) return;
+    const reason = window.prompt("Enter dispute details for the tournament admins/organizers:");
+    if (!reason || !reason.trim()) return;
+
+    clearMessages();
+    setActionLoading(true);
+
+    try {
+      const updatedMatches = [...tournament.bracket.matches];
+      const matchIdx = updatedMatches.findIndex(m => m.id === matchId);
+      if (matchIdx === -1) throw new Error("Match not found.");
+
+      const match = { ...updatedMatches[matchIdx] };
+      if (!match.checkIn) {
+        match.checkIn = {
+          team1CheckedIn: false,
+          team2CheckedIn: false,
+          checkInDeadline: null,
+          disputed: false,
+          disputeReason: null,
+          disputedBy: null
+        };
+      }
+
+      match.checkIn.disputed = true;
+      match.checkIn.disputeReason = reason.trim();
+      match.checkIn.disputedBy = team.name;
+
+      updatedMatches[matchIdx] = match;
+
+      const tournamentRef = doc(db, "tournaments", tournament.id);
+      await updateDoc(tournamentRef, {
+        'bracket.matches': updatedMatches
+      });
+
+      // Post to discord
+      if (discordEnabled) {
+        await postDiscordBracketUpdate(`⚠️ **Dispute flagged!** Match ${match.matchIndex} has been flagged for dispute by **${team.name}**: "${reason.trim()}". Admins have been alerted.`);
+      }
+
+      setSuccess("Dispute successfully flagged. Tournament host has been notified.");
+    } catch (err) {
+      console.error("Error flagging dispute:", err);
+      setError("Failed to flag dispute.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Admin Dispute resolver
+  const handleResolveDispute = async (matchId: string, actionType: 'win_t1' | 'win_t2' | 'reset_timer' | 'clear') => {
+    if (!tournament || !isOrganizer) return;
+    clearMessages();
+    setActionLoading(true);
+
+    try {
+      const updatedMatches = [...tournament.bracket.matches];
+      const matchIdx = updatedMatches.findIndex(m => m.id === matchId);
+      if (matchIdx === -1) throw new Error("Match not found.");
+
+      const match = { ...updatedMatches[matchIdx] };
+
+      if (actionType === 'win_t1' || actionType === 'win_t2') {
+        const winnerSlot = actionType === 'win_t1' ? 'team1' : 'team2';
+        setActionLoading(false);
+        
+        await handleClaimForfeitWin(matchId, winnerSlot);
+
+        // Award COMEBACK KING badge to winning team members of a resolved dispute
+        const winnerId = winnerSlot === 'team1' ? match.team1Id : match.team2Id;
+        if (winnerId) {
+          try {
+            const teamRef = doc(db, "teams", winnerId);
+            const teamSnap = await getDoc(teamRef);
+            if (teamSnap.exists()) {
+              const teamData = teamSnap.data() as Team;
+              for (const memberUid of teamData.members) {
+                const pRef = doc(db, "profiles", memberUid);
+                const pSnap = await getDoc(pRef);
+                if (pSnap.exists()) {
+                  const pData = pSnap.data();
+                  await achievementService.unlockAchievement(memberUid, 'comeback_king', pData.achievements || []);
+                }
+              }
+            }
+          } catch (e) {
+            console.error("Failed to unlock comeback king:", e);
+          }
+        }
+        return;
+      }
+
+      if (actionType === 'reset_timer') {
+        if (!match.checkIn) {
+          match.checkIn = {
+            team1CheckedIn: false,
+            team2CheckedIn: false,
+            checkInDeadline: Date.now() + 10 * 60 * 1000,
+            disputed: false,
+            disputeReason: null,
+            disputedBy: null
+          };
+        } else {
+          match.checkIn.checkInDeadline = Date.now() + 10 * 60 * 1000;
+          match.checkIn.disputed = false;
+          match.checkIn.disputeReason = null;
+          match.checkIn.disputedBy = null;
+        }
+      } else if (actionType === 'clear') {
+        if (match.checkIn) {
+          match.checkIn.disputed = false;
+          match.checkIn.disputeReason = null;
+          match.checkIn.disputedBy = null;
+        }
+      }
+
+      updatedMatches[matchIdx] = match;
+
+      const tournamentRef = doc(db, "tournaments", tournament.id);
+      await updateDoc(tournamentRef, {
+        'bracket.matches': updatedMatches
+      });
+
+      // Post to discord
+      if (discordEnabled) {
+        await postDiscordBracketUpdate(`🛠️ **Dispute resolved!** Match ${match.matchIndex} dispute cleared by organizer. check-in timer reset to 10 minutes.`);
+      }
+
+      setSuccess("Dispute resolved successfully.");
+    } catch (err) {
+      console.error("Error resolving dispute:", err);
+      setError("Failed to resolve dispute.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   // Generate Brackets and Start Tournament (Organizer only)
   const handleStartTournament = async () => {
@@ -411,95 +906,11 @@ export default function TournamentDetailClient({ id }: { id: string }) {
     setActionLoading(true);
 
     try {
-      const max = tournament.maxTeams;
-      const registered = tournament.registeredTeamIds;
-      const matches: Match[] = [];
-      
-      const totalRounds = Math.log2(max);
-
-      // Loop through each round to pre-generate matches
-      for (let r = 1; r <= totalRounds; r++) {
-        const matchesInRound = max / Math.pow(2, r);
-
-        for (let idx = 1; idx <= matchesInRound; idx++) {
-          const matchId = `m-${r}-${idx}`;
-          let team1Id: string | null = null;
-          let team2Id: string | null = null;
-          
-          if (r === 1) {
-            const team1Index = (idx - 1) * 2;
-            const team2Index = team1Index + 1;
-            
-            team1Id = registered[team1Index] || null;
-            team2Id = registered[team2Index] || null;
-          }
-
-          const nextMatchId = r === totalRounds ? null : `m-${r + 1}-${Math.ceil(idx / 2)}`;
-
-          matches.push({
-            id: matchId,
-            round: r,
-            matchIndex: idx,
-            team1Id,
-            team2Id,
-            score1: 0,
-            score2: 0,
-            winnerId: null,
-            nextMatchId
-          });
-        }
-      }
-
-      const tournamentRef = doc(db, "tournaments", tournament.id);
-      await updateDoc(tournamentRef, {
-        status: 'Active',
-        'bracket.matches': matches
-      });
-
-      // Write tournament_starting notifications to all members of registered teams
-      try {
-        const membersToNotify: string[] = [];
-        if (tournament.registeredTeamIds && tournament.registeredTeamIds.length > 0) {
-          const teamsRef = collection(db, "teams");
-          const q = query(teamsRef, where("id", "in", tournament.registeredTeamIds));
-          const teamSnap = await getDocs(q);
-          
-          teamSnap.docs.forEach((docSnap) => {
-            const tData = docSnap.data();
-            if (tData.members) {
-              tData.members.forEach((mId: string) => {
-                if (!membersToNotify.includes(mId)) {
-                  membersToNotify.push(mId);
-                }
-              });
-            }
-          });
-        }
-
-        const notifyBatch = writeBatch(db);
-        membersToNotify.forEach((mUid) => {
-          const nRef = doc(collection(db, "profiles", mUid, "notifications"));
-          notifyBatch.set(nRef, {
-            type: 'tournament_starting',
-            message: `Tournament ${tournament.name} has started! Check the bracket.`,
-            relatedId: tournament.id,
-            read: false,
-            createdAt: serverTimestamp()
-          });
-        });
-        await notifyBatch.commit();
-      } catch (notifyErr) {
-        console.error("Failed to write tournament_starting notifications:", notifyErr);
-      }
-
+      await tournamentService.generateBracket(tournament.id, tournament.registeredTeamIds);
       setSuccess("Brackets generated! Tournament is now Live.");
     } catch (err: any) {
-      console.error(err);
-      if (err.code === 'permission-denied') {
-        setError("Action failed: Only the tournament organizer has permission to generate brackets and start the tournament.");
-      } else {
-        setError("Failed to start tournament brackets.");
-      }
+      console.error("Error starting tournament:", err);
+      setError(err.message || "Failed to start tournament brackets.");
     } finally {
       setActionLoading(false);
     }
@@ -539,7 +950,12 @@ export default function TournamentDetailClient({ id }: { id: string }) {
       }
 
       match.winnerId = winnerId;
+      if (match.checkIn) {
+        match.checkIn.checkInDeadline = null; // Clear check-in deadline
+      }
       updatedMatches[matchIdx] = match;
+
+      let nextMatchToCreateDiscord: Match | null = null;
 
       if (match.nextMatchId) {
         const nextIdx = updatedMatches.findIndex(m => m.id === match.nextMatchId);
@@ -551,6 +967,20 @@ export default function TournamentDetailClient({ id }: { id: string }) {
           } else {
             nextMatch.team2Id = winnerId;
           }
+
+          // If next match is now ready, initialize check-in
+          if (nextMatch.team1Id && nextMatch.team2Id) {
+            nextMatch.checkIn = {
+              team1CheckedIn: false,
+              team2CheckedIn: false,
+              checkInDeadline: Date.now() + 10 * 60 * 1000,
+              disputed: false,
+              disputeReason: null,
+              disputedBy: null
+            };
+            nextMatchToCreateDiscord = nextMatch;
+          }
+
           updatedMatches[nextIdx] = nextMatch;
         }
       } else {
@@ -558,6 +988,27 @@ export default function TournamentDetailClient({ id }: { id: string }) {
         await updateDoc(tournamentRef, {
           status: 'Completed'
         });
+
+        // Award UNDEFEATED SEASON achievement to champion members
+        if (winnerId) {
+          try {
+            const teamRef = doc(db, "teams", winnerId);
+            const teamSnap = await getDoc(teamRef);
+            if (teamSnap.exists()) {
+              const teamData = teamSnap.data() as Team;
+              for (const memberUid of teamData.members) {
+                const pRef = doc(db, "profiles", memberUid);
+                const pSnap = await getDoc(pRef);
+                if (pSnap.exists()) {
+                  const pData = pSnap.data();
+                  await achievementService.unlockAchievement(memberUid, 'undefeated', pData.achievements || []);
+                }
+              }
+            }
+          } catch (achievementErr) {
+            console.error("Failed to award undefeated season badge:", achievementErr);
+          }
+        }
 
         if (winnerId) {
           try {
@@ -623,7 +1074,7 @@ export default function TournamentDetailClient({ id }: { id: string }) {
 
         const notifyBatch = writeBatch(db);
         
-        // 1. Write the Match History log (denormalized, query-friendly)
+        // 1. Write the Match History log
         notifyBatch.set(historyRef, {
           matchId: match.id,
           tournamentId: tournament.id,
@@ -657,6 +1108,61 @@ export default function TournamentDetailClient({ id }: { id: string }) {
         await notifyBatch.commit();
       } catch (notifyErr) {
         console.error("Failed to write match_result notifications and history:", notifyErr);
+      }
+
+      // Post match result update to Discord
+      if (discordEnabled) {
+        const t1Name = match.team1Id ? (teamsMap[match.team1Id] || 'T1') : 'T1';
+        const t2Name = match.team2Id ? (teamsMap[match.team2Id] || 'T2') : 'T2';
+        const winnerName = winnerId === match.team1Id ? t1Name : t2Name;
+        await postDiscordBracketUpdate(`⚔️ **Match Complete!** **${t1Name}** [${editScore1}] vs [${editScore2}] **${t2Name}** in **${tournament.name}**. Winner: **${winnerName}**!`);
+        
+        if (!match.nextMatchId) {
+          await postDiscordBracketUpdate(`🏆 **Championship Complete!** Team **${winnerName}** has won the **${tournament.name}** tournament! Congratulations Champions! 👑`);
+        }
+      }
+
+      // Check and unlock FIRST BLOOD achievement for winning team members
+      if (winnerId) {
+        try {
+          const teamRef = doc(db, "teams", winnerId);
+          const teamSnap = await getDoc(teamRef);
+          if (teamSnap.exists()) {
+            const teamData = teamSnap.data() as Team;
+            for (const memberUid of teamData.members) {
+              const pRef = doc(db, "profiles", memberUid);
+              const pSnap = await getDoc(pRef);
+              if (pSnap.exists()) {
+                const pData = pSnap.data();
+                await achievementService.unlockAchievement(memberUid, 'first_blood', pData.achievements || []);
+              }
+            }
+          }
+        } catch (achievementErr) {
+          console.error("Failed to unlock first blood:", achievementErr);
+        }
+      }
+
+      // If next match is ready, asynchronously create Discord lobby
+      if (discordEnabled && nextMatchToCreateDiscord) {
+        const channelUrl = await createDiscordLobbyForMatch(
+          nextMatchToCreateDiscord.id, 
+          nextMatchToCreateDiscord.team1Id, 
+          nextMatchToCreateDiscord.team2Id
+        );
+        if (channelUrl) {
+          const finalMatchesSnap = await getDoc(tournamentRef);
+          if (finalMatchesSnap.exists()) {
+            const finalMatches = finalMatchesSnap.data().bracket?.matches || [];
+            const idxToUp = finalMatches.findIndex((m: any) => m.id === nextMatchToCreateDiscord!.id);
+            if (idxToUp !== -1) {
+              finalMatches[idxToUp].discordUrl = channelUrl;
+              await updateDoc(tournamentRef, {
+                'bracket.matches': finalMatches
+              });
+            }
+          }
+        }
       }
 
       setEditingMatchId(null);
@@ -702,14 +1208,48 @@ export default function TournamentDetailClient({ id }: { id: string }) {
 
   if (error || !tournament) {
     return (
-      <main style={{ display: 'flex', minHeight: 'calc(100vh - 4.5rem)', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}>
-        <div className="glass-panel" style={{ padding: '2.5rem', maxWidth: '480px', textAlign: 'center' }}>
-          <AlertCircle size={48} style={{ color: 'var(--accent-red)', margin: '0 auto 1.5rem auto' }} />
-          <h1 style={{ fontSize: '1.75rem', marginBottom: '0.75rem' }}>Tournament Error</h1>
-          <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>{error || 'Tournament not found.'}</p>
-          <Link href="/tournaments" className="btn btn-primary" style={{ width: '100%' }}>
-            Browse Tournaments
-          </Link>
+      <main style={{ display: 'flex', minHeight: 'calc(100vh - 4.5rem)', alignItems: 'center', justifyContent: 'center', padding: '3rem 1.5rem' }}>
+        <div className="glass-panel" style={{ 
+          padding: '3rem 2.5rem', 
+          maxWidth: '520px', 
+          textAlign: 'center',
+          border: '1px solid rgba(255, 42, 109, 0.4)',
+          background: 'radial-gradient(circle at center, rgba(255, 42, 109, 0.08) 0%, rgba(6, 12, 28, 0.95) 100%)',
+          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.6)'
+        }}>
+          <div style={{
+            width: '64px', height: '64px', borderRadius: '50%',
+            background: 'rgba(255, 42, 109, 0.15)', border: '1px solid var(--accent-red)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            margin: '0 auto 1.5rem auto', color: 'var(--accent-red)'
+          }}>
+            <AlertCircle size={36} />
+          </div>
+
+          <h1 style={{ fontSize: '1.8rem', fontWeight: 900, marginBottom: '0.75rem', textTransform: 'uppercase' }}>
+            Tournament Unavailable
+          </h1>
+
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem', lineHeight: 1.6, fontSize: '0.98rem' }}>
+            {error || `The tournament bracket ID "${id}" could not be located in our live Firestore database. It may have been archived, removed, or the link is invalid.`}
+          </p>
+
+          <div style={{ background: 'rgba(0, 0, 0, 0.4)', padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '2rem', fontFamily: 'monospace' }}>
+            Target ID: {id}
+          </div>
+
+          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+            <Link href="/tournaments" style={{ flex: '1 1 180px' }}>
+              <Button variant="primary" style={{ width: '100%', justifyContent: 'center', borderRadius: '9999px', padding: '0.8rem 1.5rem' }}>
+                Browse All Arenas
+              </Button>
+            </Link>
+            <Link href="/" style={{ flex: '1 1 140px' }}>
+              <Button variant="outline" style={{ width: '100%', justifyContent: 'center', borderRadius: '9999px', padding: '0.8rem 1.5rem' }}>
+                Return Home
+              </Button>
+            </Link>
+          </div>
         </div>
       </main>
     );
@@ -738,7 +1278,7 @@ export default function TournamentDetailClient({ id }: { id: string }) {
       <div className="container" style={{ position: 'relative', zIndex: 1 }}>
         
         {/* Top Info Panel */}
-        <div className="glass-panel" style={{ padding: '2.5rem', marginBottom: '2rem' }}>
+        <div className="glass-panel" style={{ padding: '2.5rem', marginBottom: '2rem', position: 'relative', zIndex: 10 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.5rem' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
@@ -747,6 +1287,21 @@ export default function TournamentDetailClient({ id }: { id: string }) {
                   tournament.status === 'Active' ? 'badge-violet' : 'badge-gold'
                 }`}>
                   {tournament.status}
+                  {tournament.status === 'Upcoming' && (
+                    <span 
+                      style={{ 
+                        width: '8px', 
+                        height: '8px', 
+                        borderRadius: '50%', 
+                        backgroundColor: '#00ff88', 
+                        boxShadow: '0 0 8px #00ff88',
+                        display: 'inline-block',
+                        marginLeft: '0.4rem',
+                        verticalAlign: 'middle'
+                      }} 
+                      aria-hidden="true" 
+                    />
+                  )}
                 </span>
                 <span className="badge badge-cyan">{tournament.game}</span>
                 <span className="badge badge-violet">{tournament.entryType} Entry</span>
@@ -763,9 +1318,28 @@ export default function TournamentDetailClient({ id }: { id: string }) {
               </p>
             </div>
 
-            {/* Registration / Start / Broadcast Actions */}
+            {/* Registration / Start / Broadcast / Share Actions */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', alignItems: 'flex-end' }}>
-              <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                <ShareButton
+                  title={tournament.name}
+                  description={`${tournament.game} • ${tournament.status} • ${tournament.registeredTeamIds.length}/${tournament.maxTeams} teams`}
+                />
+                {isOrganizer && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--bg-secondary)', padding: '0.4rem 0.8rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                      💬 Discord Integration
+                    </span>
+                    <input 
+                      type="checkbox" 
+                      id="discord-bot-toggle"
+                      checked={discordEnabled}
+                      onChange={(e) => handleToggleDiscord(e.target.checked)}
+                      style={{ cursor: 'pointer', accentColor: 'var(--accent-cyan)' }}
+                      disabled={actionLoading}
+                    />
+                  </div>
+                )}
                 {tournament.status === 'Upcoming' && (
                   <>
                     {isOrganizer ? (
@@ -902,187 +1476,45 @@ export default function TournamentDetailClient({ id }: { id: string }) {
               </div>
             </div>
           ) : (
-            /* BRACKET LAYOUT (Rounds Side-by-Side) */
-            <div style={{ display: 'flex', gap: '2.5rem', minWidth: '800px', padding: '1rem 0' }}>
-              {roundsArray.map((rNum) => {
-                const roundMatches = matchesByRound[rNum] || [];
-                const roundTitle = rNum === roundsCount ? "Championship Finals" : 
-                                   rNum === roundsCount - 1 ? "Semifinals" : `Round ${rNum}`;
-                
-                return (
-                  <div key={rNum} style={{ display: 'flex', flexDirection: 'column', width: '260px', flexShrink: 0 }}>
-                    <h3 style={{ fontSize: '1.1rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary)' }}>
-                      {roundTitle}
-                    </h3>
-                    
-                    <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-around', flexGrow: 1, gap: '2rem' }}>
-                      {roundMatches.map((m) => {
-                        const t1Name = m.team1Id ? (teamsMap[m.team1Id] || 'Team Roster') : 'TBD';
-                        const t2Name = m.team2Id ? (teamsMap[m.team2Id] || 'Team Roster') : 'TBD';
-                        const isT1Winner = m.winnerId && m.winnerId === m.team1Id;
-                        const isT2Winner = m.winnerId && m.winnerId === m.team2Id;
-
-                        return (
-                          <article 
-                            key={m.id} 
-                            style={{ 
-                              background: 'hsla(223, 20%, 8%, 0.8)',
-                              borderRadius: '8px', 
-                              border: m.winnerId ? '1px solid var(--border-color)' : '1px solid hsla(186, 100%, 48%, 0.2)',
-                              boxShadow: m.winnerId ? 'none' : '0 0 10px hsla(186, 100%, 48%, 0.05)',
-                              padding: '0.8rem',
-                              position: 'relative'
-                            }}
-                          >
-                            <span style={{ position: 'absolute', top: '-0.6rem', right: '0.5rem', background: 'var(--bg-secondary)', fontSize: '0.65rem', padding: '0.1rem 0.4rem', border: '1px solid var(--border-color)', borderRadius: '4px', color: 'var(--text-muted)' }}>
-                              Match {m.matchIndex}
-                            </span>
-
-                            {editingMatchId === m.id ? (
-                              <div style={{ marginTop: '0.5rem' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                                  <label htmlFor={`edit-score-t1-${m.id}`} style={{ fontSize: '0.85rem', maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t1Name}</label>
-                                  <input 
-                                    id={`edit-score-t1-${m.id}`}
-                                    type="number" 
-                                    className="glass-input" 
-                                    style={{ width: '50px', padding: '0.2rem 0.4rem', fontSize: '0.85rem' }} 
-                                    value={editScore1} 
-                                    onChange={(e) => setEditScore1(Number(e.target.value))} 
-                                  />
-                                </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                                  <label htmlFor={`edit-score-t2-${m.id}`} style={{ fontSize: '0.85rem', maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t2Name}</label>
-                                  <input 
-                                    id={`edit-score-t2-${m.id}`}
-                                    type="number" 
-                                    className="glass-input" 
-                                    style={{ width: '50px', padding: '0.2rem 0.4rem', fontSize: '0.85rem' }} 
-                                    value={editScore2} 
-                                    onChange={(e) => setEditScore2(Number(e.target.value))} 
-                                  />
-                                </div>
-                                <div style={{ display: 'flex', gap: '0.4rem' }}>
-                                  <button 
-                                    onClick={() => handleSaveMatchScore(m.id)} 
-                                    className="btn btn-primary touch-target" 
-                                    style={{ flex: 1, padding: '0.3rem', fontSize: '0.75rem' }}
-                                    disabled={actionLoading}
-                                  >
-                                    Save
-                                  </button>
-                                  <button 
-                                    onClick={() => setEditingMatchId(null)} 
-                                    className="btn btn-outline touch-target" 
-                                    style={{ padding: '0.3rem', fontSize: '0.75rem' }}
-                                    aria-label="Cancel editing score"
-                                  >
-                                    <X size={12} />
-                                  </button>
-                                </div>
-                              </div>
-                            ) : (
-                              /* Standard match slot rendering */
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.3rem' }}>
-                                {/* Team 1 Slot */}
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                  {m.team1Id ? (
-                                    <Link 
-                                      href={`/teams/${m.team1Id}`}
-                                      className="slide-in-right hover-cyan"
-                                      style={{ 
-                                        fontSize: '0.9rem', 
-                                        fontWeight: isT1Winner ? 700 : 500,
-                                        color: isT1Winner ? 'var(--accent-green)' : (m.winnerId && !isT1Winner ? 'var(--text-muted)' : 'var(--text-primary)'),
-                                        maxWidth: '160px',
-                                        overflow: 'hidden',
-                                        textOverflow: 'ellipsis',
-                                        whiteSpace: 'nowrap',
-                                        textDecoration: 'none'
-                                      }}
-                                    >
-                                      {t1Name}
-                                    </Link>
-                                  ) : (
-                                    <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>{t1Name}</span>
-                                  )}
-                                  <span style={{ fontSize: '0.9rem', fontWeight: 800, color: isT1Winner ? 'var(--accent-green)' : 'var(--text-secondary)' }}>
-                                    {m.score1}
-                                  </span>
-                                </div>
-                                {/* Team 2 Slot */}
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                  {m.team2Id ? (
-                                    <Link 
-                                      href={`/teams/${m.team2Id}`}
-                                      className="slide-in-right hover-cyan"
-                                      style={{ 
-                                        fontSize: '0.9rem', 
-                                        fontWeight: isT2Winner ? 700 : 500,
-                                        color: isT2Winner ? 'var(--accent-green)' : (m.winnerId && !isT2Winner ? 'var(--text-muted)' : 'var(--text-primary)'),
-                                        maxWidth: '160px',
-                                        overflow: 'hidden',
-                                        textOverflow: 'ellipsis',
-                                        whiteSpace: 'nowrap',
-                                        textDecoration: 'none'
-                                      }}
-                                    >
-                                      {t2Name}
-                                    </Link>
-                                  ) : (
-                                    <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>{t2Name}</span>
-                                  )}
-                                  <span style={{ fontSize: '0.9rem', fontWeight: 800, color: isT2Winner ? 'var(--accent-green)' : 'var(--text-secondary)' }}>
-                                    {m.score2}
-                                  </span>
-                                </div>
-
-                                {/* Score update triggers for organizer */}
-                                {isOrganizer && tournament.status === 'Active' && !m.winnerId && m.team1Id && m.team2Id && (
-                                  <button 
-                                    onClick={() => startEditMatch(m)}
-                                    className="btn btn-outline touch-target"
-                                    style={{ marginTop: '0.4rem', padding: '0.2rem', fontSize: '0.75rem', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.2rem' }}
-                                    aria-label={`Record score for match ${m.matchIndex} between ${t1Name} and ${t2Name}`}
-                                  >
-                                    <Edit3 size={10} /> Edit Score
-                                  </button>
-                                )}
-                              </div>
-                            )}
-                          </article>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            <BracketView
+              tournamentId={tournament.id}
+              organizerId={tournament.organizerId}
+              maxTeams={tournament.maxTeams}
+              registeredTeamIds={tournament.registeredTeamIds}
+              teamsMap={teamsMap}
+              userUid={user?.uid}
+              team={team}
+              actionLoading={actionLoading}
+              setActionLoading={setActionLoading}
+              setError={setError}
+              setSuccess={setSuccess}
+            />
           )}
         </div>
 
       </div>
 
-      {/* CHAT DRAWER PANEL */}
-      <div 
-        className="glass-panel"
-        style={{
-          position: 'fixed',
-          right: isChatExpanded ? '0' : '-350px',
-          top: '4.5rem',
-          height: 'calc(100vh - 4.5rem)',
-          width: '350px',
-          zIndex: 90,
-          borderLeft: '1px solid hsla(186, 100%, 48%, 0.15)',
-          borderRadius: '0',
-          background: 'hsla(223, 20%, 5%, 0.85)',
-          display: 'flex',
-          flexDirection: 'column',
-          transition: 'right 200ms ease',
-          padding: '1.5rem',
-          boxShadow: '-10px 0 30px rgba(0, 0, 0, 0.5)'
-        }}
-      >
+      {/* CHAT DRAWER PANEL (Rendered outside transform element to fix position:fixed scrolling bug) */}
+      {mounted && typeof document !== 'undefined' ? createPortal(
+        <div 
+          className="glass-panel"
+          style={{
+            position: 'fixed',
+            right: isChatExpanded ? '0' : '-350px',
+            top: '4.5rem',
+            height: 'calc(100vh - 4.5rem)',
+            width: '350px',
+            zIndex: 90,
+            borderLeft: '1px solid hsla(186, 100%, 48%, 0.15)',
+            borderRadius: '0',
+            background: 'hsla(223, 20%, 5%, 0.85)',
+            display: 'flex',
+            flexDirection: 'column',
+            transition: 'right 200ms ease',
+            padding: '1.5rem',
+            boxShadow: '-10px 0 30px rgba(0, 0, 0, 0.5)'
+          }}
+        >
         {/* Toggle handle button on left edge */}
         <button
           onClick={() => setIsChatExpanded(!isChatExpanded)}
@@ -1098,7 +1530,7 @@ export default function TournamentDetailClient({ id }: { id: string }) {
             width: '48px',
             borderRadius: '8px 0 0 8px',
             borderRight: 'none',
-            borderColor: 'hsla(186, 100%, 48%, 0.15)',
+            borderColor: 'var(--border-color)',
             background: 'var(--bg-primary)',
             color: 'var(--accent-cyan)',
             display: 'flex',
@@ -1284,7 +1716,9 @@ export default function TournamentDetailClient({ id }: { id: string }) {
             </form>
           </>
         )}
-      </div>
+      </div>,
+      document.body
+    ) : null}
     </main>
   );
 }

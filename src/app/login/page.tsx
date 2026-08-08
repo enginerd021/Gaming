@@ -2,8 +2,8 @@ import { Metadata } from 'next';
 import LoginClient from './LoginClient';
 
 export const metadata: Metadata = {
-  title: "Sign In — Shakti Gaming",
-  description: "Log in to your Shakti Gaming player account.",
+  title: "Sign In — SHAKTRIX",
+  description: "Log in to your SHAKTRIX player account.",
   robots: {
     index: false,
     follow: true
