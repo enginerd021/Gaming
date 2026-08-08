@@ -206,7 +206,7 @@ export default function HomeView() {
                 <span style={{ color: 'var(--neon-purple)', textShadow: '0 0 35px rgba(176, 38, 255, 0.85)' }}>RIX</span>
               </h1>
             </div>
-            <div style={{ display: 'flex', gap: '1rem' }}>
+            <div className="hero-actions-wrapper" style={{ display: 'flex', gap: '1rem' }}>
               {user ? (
                 <Link href="/tournaments" className="btn btn-primary glow-pulse" style={{ padding: '0.85rem 1.75rem', borderRadius: '12px' }}><ArrowDownRight size={18} /> Enter Arena</Link>
               ) : (

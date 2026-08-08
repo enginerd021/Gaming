@@ -1358,3 +1358,18 @@ h3 {
   }
 }
 
+/* Fix cockpit hero action buttons and floating chat widget overlap */
+@media (max-width: 1500px) {
+  .hero-actions-wrapper {
+    margin-right: 4.5rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .hero-actions-wrapper {
+    margin-right: 0;
+    margin-bottom: 4.5rem;
+  }
+}
+
+
