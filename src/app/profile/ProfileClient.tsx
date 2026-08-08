@@ -40,6 +40,8 @@ import { recommendGames } from '@/lib/recommendGames';
 import { ACHIEVEMENTS } from '@/lib/achievements';
 import { achievementService } from '@/services/achievementService';
 import StatsCharts from '@/components/ui/StatsCharts';
+import { detectTeamScheduleConflicts, ConflictGroup } from '@/services/scheduleConflictService';
+import ScheduleConflictModal from '@/components/ui/ScheduleConflictModal';
 
 const AVAILABLE_GAMES = ["Valorant", "League of Legends", "CS:GO", "Apex Legends", "Rocket League", "Overwatch 2"];
 const POPULAR_ROLES = ["Duelist", "Sentinel", "Mid Laner", "Jungler", "IGL (In-Game Leader)", "Entry Fragger", "Support", "Sniper", "Flex"];
@@ -76,6 +78,7 @@ export default function ProfileClient() {
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const [shake, setShake] = useState(false);
   const [loadedProfileUid, setLoadedProfileUid] = useState<string | null>(null);
+  const [conflictGroup, setConflictGroup] = useState<ConflictGroup | null>(null);
 
   const triggerShake = () => {
     setShake(true);
@@ -101,6 +104,18 @@ export default function ProfileClient() {
       router.push('/login');
     }
   }, [user, loading, router]);
+
+  // Check for team tournament schedule conflicts
+  useEffect(() => {
+    if (!team?.id) return;
+    detectTeamScheduleConflicts(team.id).then((groups) => {
+      if (groups.length > 0) {
+        setConflictGroup(groups[0]);
+      } else {
+        setConflictGroup(null);
+      }
+    });
+  }, [team?.id]);
 
   // Subscribe to match history and VODs
   useEffect(() => {
@@ -947,6 +962,23 @@ export default function ProfileClient() {
         })()}
 
       </div>
+      {/* Schedule Conflict Selection Modal */}
+      {conflictGroup && team && (
+        <ScheduleConflictModal
+          conflictGroup={conflictGroup}
+          teamId={team.id}
+          isCaptain={team.captainId === user?.uid}
+          onResolved={() => {
+            setConflictGroup(null);
+            if (team?.id) {
+              detectTeamScheduleConflicts(team.id).then(groups => {
+                setConflictGroup(groups.length > 0 ? groups[0] : null);
+              });
+            }
+          }}
+          onClose={() => setConflictGroup(null)}
+        />
+      )}
     </main>
   );
 }

@@ -2,11 +2,23 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAppStore } from '@/store/useAppStore';
-import { Trophy, Gamepad2, Users, UserPlus, CheckCircle, AlertTriangle, Lock } from 'lucide-react';
+import { Trophy, Users, UserPlus, CheckCircle, AlertTriangle, Lock } from 'lucide-react';
 import Button from '../ui/Button';
 import Badge from '../ui/Badge';
 import { db } from '@/lib/firebase';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { 
+  doc, 
+  onSnapshot, 
+  getDoc, 
+  updateDoc, 
+  setDoc, 
+  getDocs, 
+  collection, 
+  query, 
+  where, 
+  arrayUnion, 
+  serverTimestamp 
+} from 'firebase/firestore';
 
 interface InviteCardProps {
   inviteData: {
@@ -91,31 +103,60 @@ export default function InviteCard({ inviteData, senderGamertag, senderId, onJoi
   const isDisabled = isExpired || isFull || isAlreadyInThisTeam || !user || joining;
 
   const handleJoin = async () => {
-    if (isDisabled) return;
+    if (isDisabled || !user) return;
     setJoining(true);
 
     try {
-      const idToken = await user.getIdToken();
-      const res = await fetch('/api/teams/join-via-invite', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`
-        },
-        body: JSON.stringify({ teamId, tournamentId, senderId })
+      // 1. Verify recruiter is a member or captain of the target team
+      const teamSnap = await getDoc(doc(db, "teams", teamId));
+      if (!teamSnap.exists()) {
+        throw new Error("Target team not found.");
+      }
+      const teamData = teamSnap.data() || {};
+      const teamMembers = teamData.members || [];
+      const captainId = teamData.captainId || '';
+      
+      const isRecruiterValid = teamMembers.includes(senderId) || captainId === senderId;
+      if (!isRecruiterValid) {
+        throw new Error("Sender isn't a member/captain of the team they're inviting to.");
+      }
+
+      // 2. Check if the player is already in a team in this tournament
+      const regsRef = collection(db, "tournamentRegistrations");
+      const q = query(
+        regsRef,
+        where("userId", "==", user.uid),
+        where("tournamentId", "==", tournamentId)
+      );
+      const regSnap = await getDocs(q);
+      if (!regSnap.empty) {
+        throw new Error("You're already on a team in this tournament.");
+      }
+
+      // 3. Check live slots availability
+      if (teamMembers.length >= currentSizeLimit) {
+        throw new Error("Roster is full. Join request rejected.");
+      }
+
+      // 4. Update team members list
+      await updateDoc(doc(db, "teams", teamId), {
+        members: arrayUnion(user.uid)
       });
 
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to join team.');
-      }
+      // 5. Create tournament registration mapping doc
+      await setDoc(doc(db, "tournamentRegistrations", `${user.uid}_${tournamentId}`), {
+        userId: user.uid,
+        tournamentId,
+        teamId,
+        joinedAt: serverTimestamp()
+      });
 
       setLocalJoined(true);
       if (onJoinSuccess) {
-        onJoinSuccess(data.message || `Joined ${teamName}!`, data.team);
+        onJoinSuccess(`Joined ${teamName} successfully!`, { id: teamId, name: teamName });
       }
     } catch (err: any) {
-      console.error(err);
+      console.error("Client-side join error:", err);
       if (onJoinError) {
         onJoinError(err.message || 'Failed to join team.');
       }
@@ -133,13 +174,13 @@ export default function InviteCard({ inviteData, senderGamertag, senderId, onJoi
         border: isExpired 
           ? '1px solid var(--border-color)' 
           : isAlreadyInThisTeam 
-            ? '1px solid rgba(0, 240, 255, 0.4)' 
-            : '1px solid rgba(176, 38, 255, 0.3)',
+          ? '1px solid rgba(0, 240, 255, 0.4)' 
+          : '1px solid rgba(176, 38, 255, 0.3)',
         background: isExpired 
           ? 'rgba(4, 9, 20, 0.40)' 
           : isAlreadyInThisTeam 
-            ? 'linear-gradient(135deg, rgba(0, 240, 255, 0.05) 0%, rgba(4, 9, 20, 0.8) 100%)' 
-            : 'linear-gradient(135deg, rgba(176, 38, 255, 0.04) 0%, rgba(4, 9, 20, 0.85) 100%)',
+          ? 'linear-gradient(135deg, rgba(0, 240, 255, 0.05) 0%, rgba(4, 9, 20, 0.8) 100%)' 
+          : 'linear-gradient(135deg, rgba(176, 38, 255, 0.04) 0%, rgba(4, 9, 20, 0.85) 100%)',
         boxShadow: isExpired ? 'none' : '0 8px 32px 0 rgba(0, 0, 0, 0.25)',
         display: 'flex',
         flexDirection: 'column',

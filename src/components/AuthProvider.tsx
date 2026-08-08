@@ -1,18 +1,38 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useAppStore, startUserListeners, stopUserListeners } from '@/store/useAppStore';
 
 export default function AuthProvider({ children }: { children: React.ReactNode }) {
+  const user = useAppStore((state) => state.user);
+  const profile = useAppStore((state) => state.profile);
+  const loading = useAppStore((state) => state.loading);
   const setUser = useAppStore((state) => state.setUser);
   const setInitialized = useAppStore((state) => state.setInitialized);
   const setIsOffline = useAppStore((state) => state.setIsOffline);
   const setConnectionStatus = useAppStore((state) => state.setConnectionStatus);
   const router = useRouter();
+  const pathname = usePathname();
   const reconnectTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Auto redirect logged-in users who do not have a Firestore profile yet to /setup-gamer-id
+  useEffect(() => {
+    if (
+      user &&
+      user.emailVerified &&
+      !loading &&
+      profile === null &&
+      pathname !== '/setup-gamer-id' &&
+      pathname !== '/login' &&
+      pathname !== '/register' &&
+      pathname !== '/verify-email'
+    ) {
+      router.push('/setup-gamer-id');
+    }
+  }, [user, profile, loading, pathname, router]);
 
   useEffect(() => {
     // Initial status check

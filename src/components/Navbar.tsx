@@ -41,24 +41,8 @@ export default function Navbar() {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [notifOpen, setNotifOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [welcomeToast, setWelcomeToast] = useState<string | null>(null);
   const notifRef = useRef<HTMLDivElement>(null);
   const aboutRef = useRef<HTMLDivElement>(null);
-  const themeRef = useRef<HTMLDivElement>(null);
-
-  // Check for session welcome message trigger
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const storedMsg = sessionStorage.getItem('shaktrix_welcome_msg');
-    if (storedMsg) {
-      setWelcomeToast(storedMsg);
-      sessionStorage.removeItem('shaktrix_welcome_msg');
-      const timer = setTimeout(() => {
-        setWelcomeToast(null);
-      }, 4500);
-      return () => clearTimeout(timer);
-    }
-  }, [user, pathname]);
 
   // 2-Theme System (Neon Dark and Minimal Light)
   type ThemeId = 'neon' | 'light';
@@ -698,34 +682,6 @@ export default function Navbar() {
           opacity: 1 !important;
         }
       `}</style>
-
-      {/* TOP FLOATING WELCOME TOAST */}
-      {welcomeToast && (
-        <div style={{
-          position: 'fixed',
-          top: isOffline ? '4.5rem' : '2.5rem',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          zIndex: 1100,
-          background: 'rgba(4, 16, 32, 0.95)',
-          backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)',
-          border: '1px solid var(--accent-cyan)',
-          boxShadow: '0 10px 30px rgba(0, 240, 255, 0.35)',
-          borderRadius: '12px',
-          padding: '0.85rem 1.75rem',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.75rem',
-          color: '#ffffff',
-          fontSize: '0.95rem',
-          fontWeight: 700,
-          animation: 'dropdownFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards'
-        }}>
-          <CheckCircle2 size={22} style={{ color: 'var(--accent-cyan)' }} />
-          <span>{welcomeToast}</span>
-        </div>
-      )}
 
       {/* LOGOUT CONFIRMATION PERMISSION MODAL */}
       {showLogoutConfirm && (

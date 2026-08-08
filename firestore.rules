@@ -225,7 +225,8 @@ service cloud.firestore {
     // ----------------------------------------------------------
     match /tournamentRegistrations/{regId} {
       allow read: if isAuthenticated();
-      allow write: if isAdminEmail();
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAdminEmail();
     }
 
   }
