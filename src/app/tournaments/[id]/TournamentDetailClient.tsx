@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { createPortal } from 'react-dom';
 import { 
   doc, 
   onSnapshot, 
@@ -82,6 +83,11 @@ export default function TournamentDetailClient({ id }: { id: string }) {
   const team = useAppStore((state) => state.team);
   const profile = useAppStore((state) => state.profile);
   const { refreshCount } = useAutoRefresh();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Tournament state loaded from Firestore snapshot
   const [tournament, setTournament] = useState<Tournament | null>(null);
@@ -1359,26 +1365,27 @@ export default function TournamentDetailClient({ id }: { id: string }) {
 
       </div>
 
-      {/* CHAT DRAWER PANEL */}
-      <div 
-        className="glass-panel"
-        style={{
-          position: 'fixed',
-          right: isChatExpanded ? '0' : '-350px',
-          top: '4.5rem',
-          height: 'calc(100vh - 4.5rem)',
-          width: '350px',
-          zIndex: 90,
-          borderLeft: '1px solid hsla(186, 100%, 48%, 0.15)',
-          borderRadius: '0',
-          background: 'hsla(223, 20%, 5%, 0.85)',
-          display: 'flex',
-          flexDirection: 'column',
-          transition: 'right 200ms ease',
-          padding: '1.5rem',
-          boxShadow: '-10px 0 30px rgba(0, 0, 0, 0.5)'
-        }}
-      >
+      {/* CHAT DRAWER PANEL (Rendered outside transform element to fix position:fixed scrolling bug) */}
+      {mounted && typeof document !== 'undefined' ? createPortal(
+        <div 
+          className="glass-panel"
+          style={{
+            position: 'fixed',
+            right: isChatExpanded ? '0' : '-350px',
+            top: '4.5rem',
+            height: 'calc(100vh - 4.5rem)',
+            width: '350px',
+            zIndex: 90,
+            borderLeft: '1px solid hsla(186, 100%, 48%, 0.15)',
+            borderRadius: '0',
+            background: 'hsla(223, 20%, 5%, 0.85)',
+            display: 'flex',
+            flexDirection: 'column',
+            transition: 'right 200ms ease',
+            padding: '1.5rem',
+            boxShadow: '-10px 0 30px rgba(0, 0, 0, 0.5)'
+          }}
+        >
         {/* Toggle handle button on left edge */}
         <button
           onClick={() => setIsChatExpanded(!isChatExpanded)}
@@ -1580,7 +1587,9 @@ export default function TournamentDetailClient({ id }: { id: string }) {
             </form>
           </>
         )}
-      </div>
+      </div>,
+      document.body
+    ) : null}
     </main>
   );
 }

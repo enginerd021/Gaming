@@ -627,6 +627,7 @@ export default function Navbar() {
           .desktop-actions { display: flex !important; }
           .mobile-toggle { display: none !important; }
           .mobile-dropdown { display: none !important; }
+          .mobile-theme-btn { display: none !important; }
         }
         .zentry-pill-btn {
           display: flex;

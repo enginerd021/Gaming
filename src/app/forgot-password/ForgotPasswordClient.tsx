@@ -102,8 +102,9 @@ export default function ForgotPasswordClient() {
       }
 
       const code = createNewOtp();
+      console.log('Demo OTP Code:', code);
       setOtp(['', '', '', '', '', '']);
-      setSuccessMsg(`OTP has been sent to your email address! (Demo OTP: ${code})`);
+      setSuccessMsg('OTP has been sent to your email address!');
       setStep('verify');
       setTimer(60);
       setCanResend(false);
@@ -137,8 +138,9 @@ export default function ForgotPasswordClient() {
       }
 
       const code = createNewOtp();
+      console.log('Demo OTP Code:', code);
       setOtp(['', '', '', '', '', '']);
-      setSuccessMsg(`New OTP sent successfully! (Demo OTP: ${code})`);
+      setSuccessMsg('New OTP sent successfully!');
       setTimer(60);
       setCanResend(false);
 

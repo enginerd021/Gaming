@@ -39,7 +39,7 @@ export default function LoginClient() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [acceptedTerms, setAcceptedTerms] = useState(true);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [welcomeMsg, setWelcomeMsg] = useState('');
@@ -394,7 +394,7 @@ export default function LoginClient() {
             type="submit"
             className="btn btn-primary"
             style={{ width: '100%', marginTop: '0.75rem', height: '3rem' }}
-            disabled={loading}
+            disabled={loading || !acceptedTerms}
           >
             {loading ? 'Signing In...' : 'Log In'}
           </button>

@@ -16,7 +16,7 @@ export default function ShareButton({ title, description, url, style }: ShareBut
   const popoverRef = useRef<HTMLDivElement>(null);
 
   const shareUrl = url || (typeof window !== 'undefined'
-    ? `https://shakti-gaming-esports.vercel.app${window.location.pathname}${window.location.search}`
+    ? `${window.location.origin}${window.location.pathname}${window.location.search}`
     : 'https://shakti-gaming-esports.vercel.app');
   const shareText = description
     ? `${title} — ${description}`
