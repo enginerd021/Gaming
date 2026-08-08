@@ -37,6 +37,8 @@ export interface Profile {
   };
   achievements?: string[];
   createdAt: number;
+  chatStrikes?: number;
+  mutedUntil?: number;
 }
 
 export interface Team {
