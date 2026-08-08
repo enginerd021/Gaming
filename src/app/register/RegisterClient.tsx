@@ -12,6 +12,7 @@ import {
 } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
+import { isAdmin } from '@/lib/adminConfig';
 import { Gamepad2, User, Mail, Lock, AlertCircle, CheckCircle2, Eye, EyeOff } from 'lucide-react';
 
 const GoogleIcon = () => (
@@ -197,6 +198,8 @@ export default function RegisterClient() {
 
       // 4. Sequential Write: Create the profile document
       const profileRef = doc(db, "profiles", user.uid);
+      // role is for UI display only (e.g. badge). Security enforcement is in firestore.rules.
+      const userRole: 'admin' | 'player' = isAdmin(user.email) ? 'admin' : 'player';
       await setDoc(profileRef, {
         uid: user.uid,
         gamertag: cleanGamertag,
@@ -204,6 +207,7 @@ export default function RegisterClient() {
         registeredGames: [],
         preferredRoles: [],
         skillLevel: 'Intermediate',
+        role: userRole,
         stats: {
           wins: 0,
           losses: 0,
@@ -212,16 +216,11 @@ export default function RegisterClient() {
         createdAt: Date.now()
       });
 
-      const welcomeStr = `Welcome to SHAKTRIX, ${cleanGamertag}! Your account was created successfully.`;
-      setWelcomeMsg(welcomeStr);
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem('shaktrix_welcome_msg', welcomeStr);
-      }
-
-      // Redirect to profile setup after a brief moment
+      // Registration complete — redirect to email verification gate.
+      // The user cannot access the full app until they verify their email.
       setTimeout(() => {
-        router.push('/profile');
-      }, 1500);
+        router.push('/verify-email');
+      }, 800);
     } catch (err: unknown) {
       console.error('Registration error:', err);
       triggerShake();

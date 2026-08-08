@@ -6,9 +6,11 @@ import {
   query, 
   where, 
   onSnapshot,
+  updateDoc,
   Unsubscribe
 } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
+import { isAdmin } from "@/lib/adminConfig";
 
 export interface Profile {
   uid: string;
@@ -18,6 +20,13 @@ export interface Profile {
   preferredRoles: string[];
   skillLevel: 'Beginner' | 'Intermediate' | 'Advanced';
   riotId?: string;
+  /**
+   * Display-only role field. Set at registration based on admin email list.
+   * ⚠️ NOT used for security enforcement — the real gate is isAdminEmail()
+   * in firestore.rules, which reads request.auth.token.email from the verified
+   * Firebase Auth ID token.
+   */
+  role?: 'admin' | 'player';
   stats: {
     wins: number;
     losses: number;
@@ -103,6 +112,21 @@ export const startUserListeners = (uid: string) => {
     if (docSnap.exists()) {
       const profileData = { uid, ...docSnap.data() } as Profile;
       useAppStore.setState({ profile: profileData, loading: false });
+
+      // Role self-heal: if the stored role disagrees with the current admin list
+      // (e.g. account registered before being added as admin, or admin removed),
+      // silently patch the Firestore doc so it stays accurate for display purposes.
+      // This does NOT affect security — enforcement is in firestore.rules.
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        const correctRole: 'admin' | 'player' = isAdmin(currentUser.email) ? 'admin' : 'player';
+        if (profileData.role !== correctRole) {
+          // Fire-and-forget: don't await, don't block the UI on this write.
+          updateDoc(doc(db, "profiles", uid), { role: correctRole }).catch(() => {
+            // Non-critical — silently ignore if the write fails.
+          });
+        }
+      }
 
       // 2. Real-time Team Listener (querying teams where user is a member)
       const teamsRef = collection(db, "teams");

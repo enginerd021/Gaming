@@ -4,6 +4,7 @@ import AuthProvider from "@/components/AuthProvider";
 import Navbar from "@/components/Navbar";
 import GlobalChatWidget from "@/components/GlobalChatWidget";
 import SmoothScrollProvider from "@/providers/SmoothScrollProvider";
+import InteractiveEmberBackground from "@/components/ui/InteractiveEmberBackground";
 
 export const metadata: Metadata = {
   title: "SHAKTRIX | Esports & Gaming Community Hub",
@@ -20,7 +21,8 @@ export default function RootLayout({
       <body>
         <AuthProvider>
           <SmoothScrollProvider>
-            <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+            <InteractiveEmberBackground />
+            <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', position: 'relative', zIndex: 2 }}>
               <Navbar />
               <main style={{ flex: '1 0 auto' }}>
                 {children}

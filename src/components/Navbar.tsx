@@ -21,7 +21,7 @@ import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 
 interface AppNotification {
   id: string;
-  type: 'team_invite' | 'tournament_starting' | 'match_result' | 'registration_confirmed';
+  type: 'team_invite' | 'tournament_starting' | 'match_result' | 'registration_confirmed' | 'new_tournament';
   message: string;
   relatedId: string;
   read: boolean;
@@ -299,7 +299,17 @@ export default function Navbar() {
           
           {/* LEFT SIDE: Home Icon Link + SHAKTRIX Text */}
           <div className="nav-logo-container" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <Link href="/" aria-label="Home" style={{ color: '#ffffff', display: 'flex', alignItems: 'center', transition: 'opacity 0.2s' }} className="hover-opacity">
+            <Link 
+              href="/" 
+              aria-label="Home" 
+              style={{ 
+                color: theme === 'light' && (!isHome || isScrolled) ? '#0F172A' : '#ffffff', 
+                display: 'flex', 
+                alignItems: 'center', 
+                transition: 'color 0.2s, opacity 0.2s' 
+              }} 
+              className="hover-opacity nav-home-symbol"
+            >
               <Home size={20} />
             </Link>
             <div style={{ 
