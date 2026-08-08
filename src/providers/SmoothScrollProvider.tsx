@@ -76,7 +76,6 @@ export const SmoothScrollProvider: React.FC<{ children: React.ReactNode }> = ({ 
       }
       document.documentElement.classList.remove('lenis-active');
     };
-    };
   }, []);
 
   return <>{children}</>;
