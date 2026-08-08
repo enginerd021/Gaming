@@ -79,7 +79,7 @@ export default function InviteCard({ inviteData, senderGamertag, senderId, onJoi
     return () => unsub();
   }, [teamId]);
 
-  // 2. Listen to target tournament in real-time
+  // 2. Listen to target tournament in real-time (only if tournamentId is present)
   useEffect(() => {
     if (!tournamentId) return;
     const unsub = onSnapshot(doc(db, 'tournaments', tournamentId), (snap) => {
@@ -93,13 +93,13 @@ export default function InviteCard({ inviteData, senderGamertag, senderId, onJoi
   }, [tournamentId]);
 
   // Dynamic calculations based on live snapshot data
-  const currentGame = liveGame || game;
-  const currentSizeLimit = getGameTeamSizeLimit(currentGame);
+  const currentGame = tournamentId ? (liveGame || game) : 'General';
+  const currentSizeLimit = tournamentId ? getGameTeamSizeLimit(currentGame) : 5;
   const currentSlotsLeft = Math.max(0, currentSizeLimit - liveTeamMembers.length);
 
   const isAlreadyInThisTeam = team?.id === teamId || localJoined || liveTeamMembers.includes(user?.uid || '');
   const isFull = currentSlotsLeft <= 0;
-  const isExpired = liveTournamentStatus !== 'Upcoming';
+  const isExpired = tournamentId ? (liveTournamentStatus !== 'Upcoming') : false;
   const isDisabled = isExpired || isFull || isAlreadyInThisTeam || !user || joining;
 
   const handleJoin = async () => {
@@ -121,16 +121,18 @@ export default function InviteCard({ inviteData, senderGamertag, senderId, onJoi
         throw new Error("Sender isn't a member/captain of the team they're inviting to.");
       }
 
-      // 2. Check if the player is already in a team in this tournament
-      const regsRef = collection(db, "tournamentRegistrations");
-      const q = query(
-        regsRef,
-        where("userId", "==", user.uid),
-        where("tournamentId", "==", tournamentId)
-      );
-      const regSnap = await getDocs(q);
-      if (!regSnap.empty) {
-        throw new Error("You're already on a team in this tournament.");
+      // 2. Check if the player is already in a team in this tournament (only if tournamentId is set)
+      if (tournamentId) {
+        const regsRef = collection(db, "tournamentRegistrations");
+        const q = query(
+          regsRef,
+          where("userId", "==", user.uid),
+          where("tournamentId", "==", tournamentId)
+        );
+        const regSnap = await getDocs(q);
+        if (!regSnap.empty) {
+          throw new Error("You're already on a team in this tournament.");
+        }
       }
 
       // 3. Check live slots availability
@@ -143,13 +145,15 @@ export default function InviteCard({ inviteData, senderGamertag, senderId, onJoi
         members: arrayUnion(user.uid)
       });
 
-      // 5. Create tournament registration mapping doc
-      await setDoc(doc(db, "tournamentRegistrations", `${user.uid}_${tournamentId}`), {
-        userId: user.uid,
-        tournamentId,
-        teamId,
-        joinedAt: serverTimestamp()
-      });
+      // 5. Create tournament registration mapping doc (only if tournamentId is set)
+      if (tournamentId) {
+        await setDoc(doc(db, "tournamentRegistrations", `${user.uid}_${tournamentId}`), {
+          userId: user.uid,
+          tournamentId,
+          teamId,
+          joinedAt: serverTimestamp()
+        });
+      }
 
       setLocalJoined(true);
       if (onJoinSuccess) {
@@ -198,11 +202,11 @@ export default function InviteCard({ inviteData, senderGamertag, senderId, onJoi
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
             <Trophy size={14} style={{ color: 'var(--accent-gold)' }} />
             <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', fontWeight: 700 }}>
-              Tournament Recruitment
+              {tournamentId ? 'Tournament Recruitment' : 'Roster Recruitment'}
             </span>
           </div>
           <h4 style={{ fontSize: '0.98rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)', lineHeight: 1.2 }}>
-            {tournamentName}
+            {tournamentId ? tournamentName : 'General Team Invitation'}
           </h4>
         </div>
         <Badge variant={isAlreadyInThisTeam ? 'cyan' : isFull ? 'red' : isExpired ? undefined : 'violet'} style={{ fontSize: '0.65rem' }}>
