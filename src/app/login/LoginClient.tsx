@@ -103,26 +103,8 @@ export default function LoginClient() {
       const rawName = user.displayName || user.email?.split('@')[0] || 'Gamer';
 
       if (!profileSnap.exists()) {
-        const baseTag = rawName.replace(/[^a-zA-Z0-9_]/g, '') || 'Gamer';
-        const cleanGamertag = `${baseTag.toLowerCase()}_${Math.floor(1000 + Math.random() * 9000)}`;
-
-        const claimRef = doc(db, "gamertags", cleanGamertag);
-        await setDoc(claimRef, { uid: user.uid, rawGamertag: rawName });
-
-        await setDoc(profileRef, {
-          uid: user.uid,
-          gamertag: cleanGamertag,
-          displayName: rawName,
-          registeredGames: [],
-          preferredRoles: [],
-          skillLevel: 'Intermediate',
-          stats: {
-            wins: 0,
-            losses: 0,
-            points: 1000
-          },
-          createdAt: Date.now()
-        });
+        router.push('/setup-gamer-id');
+        return;
       }
 
       const welcomeStr = `Welcome back, ${rawName}!`;

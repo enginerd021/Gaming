@@ -7,6 +7,7 @@ import {
   query, 
   where, 
   getDocs, 
+  getDoc,
   addDoc, 
   updateDoc, 
   doc, 
@@ -24,6 +25,7 @@ import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import GlassCard from '@/components/ui/GlassCard';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
+import { transferLeaderOrDisband } from '@/services/teamService';
 
 export default function TeamsView() {
   const user = useAppStore((state) => state.user);
@@ -83,26 +85,36 @@ export default function TeamsView() {
     return () => unsubs.forEach(fn => fn());
   }, [team?.members, refreshCount]);
 
-  // Real-time stream of pending invitations for this user
+  // Real-time stream of pending invitations for this user (handles case variations)
   useEffect(() => {
     if (!profile?.gamertag) {
       setReceivedInvites([]);
       return;
     }
 
-    const q = query(
-      collection(db, "teams"), 
-      where("pendingInvites", "array-contains", profile.gamertag)
-    );
+    const tag = profile.gamertag;
+    const tagLower = profile.gamertag.toLowerCase();
 
-    const unsub = onSnapshot(q, (snap) => {
-      const invitesList = snap.docs.map(d => ({ id: d.id, ...d.data() } as Team));
-      setReceivedInvites(invitesList);
+    const q1 = query(collection(db, "teams"), where("pendingInvites", "array-contains", tag));
+    const q2 = query(collection(db, "teams"), where("pendingInvites", "array-contains", tagLower));
+
+    const unsub1 = onSnapshot(q1, (snap1) => {
+      const list1 = snap1.docs.map(d => ({ id: d.id, ...d.data() } as Team));
+      onSnapshot(q2, (snap2) => {
+        const list2 = snap2.docs.map(d => ({ id: d.id, ...d.data() } as Team));
+        const combined = [...list1, ...list2].reduce((acc: Team[], current) => {
+          if (!acc.some(t => t.id === current.id)) {
+            acc.push(current);
+          }
+          return acc;
+        }, []);
+        setReceivedInvites(combined);
+      }, () => {});
     }, (err) => {
       console.error("Error streaming received invites:", err);
     });
 
-    return () => unsub();
+    return () => unsub1();
   }, [profile?.gamertag, team, refreshCount]);
 
   const clearMessages = () => {
@@ -140,13 +152,13 @@ export default function TeamsView() {
     }
   };
 
-  // Send invite action
+  // Send invite action (Resolves gamertags accurately & handles casing)
   const handleSendInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     clearMessages();
 
-    const cleanGamertag = inviteGamertag.trim().toLowerCase();
-    if (!cleanGamertag) {
+    const inputTag = inviteGamertag.trim().replace(/^@/, '');
+    if (!inputTag) {
       setError("Please enter a gamertag.");
       return;
     }
@@ -159,47 +171,71 @@ export default function TeamsView() {
     setActionLoading(true);
 
     try {
-      const profilesRef = collection(db, "profiles");
-      const q = query(profilesRef, where("gamertag", "==", cleanGamertag));
-      const snap = await getDocs(q);
+      // 1. Look up gamertag document in /gamertags collection
+      const tagDocRef = doc(db, "gamertags", inputTag.toLowerCase());
+      const tagDocSnap = await getDoc(tagDocRef);
 
-      if (snap.empty) {
-        setError(`Player @${cleanGamertag} does not exist.`);
+      let targetUid: string | null = null;
+      let targetGamertag: string = inputTag;
+
+      if (tagDocSnap.exists()) {
+        targetUid = tagDocSnap.data().uid;
+      } else {
+        // Fallback: Query profiles collection
+        const profilesRef = collection(db, "profiles");
+        const q = query(profilesRef, where("gamertag", "==", inputTag));
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          targetUid = snap.docs[0].id;
+        }
+      }
+
+      if (!targetUid) {
+        setError(`Player @${inputTag} does not exist.`);
         setActionLoading(false);
         return;
       }
 
-      const invitedPlayer = snap.docs[0].data() as Profile;
+      // Fetch target profile for official casing
+      const targetProfileSnap = await getDoc(doc(db, "profiles", targetUid));
+      if (targetProfileSnap.exists()) {
+        targetGamertag = targetProfileSnap.data().gamertag || inputTag;
+      }
 
-      if (team.members.includes(invitedPlayer.uid)) {
-        setError(`@${cleanGamertag} is already a member of your team.`);
+      if (team.members.includes(targetUid)) {
+        setError(`@${targetGamertag} is already a member of your team.`);
         setActionLoading(false);
         return;
       }
 
-      if (team.pendingInvites.includes(cleanGamertag)) {
-        setError(`An invitation is already pending for @${cleanGamertag}.`);
+      const isAlreadyPending = (team.pendingInvites || []).some(
+        g => g.toLowerCase() === targetGamertag.toLowerCase() || g.toLowerCase() === inputTag.toLowerCase()
+      );
+      if (isAlreadyPending) {
+        setError(`An invitation is already pending for @${targetGamertag}.`);
         setActionLoading(false);
         return;
       }
 
       const teamRef = doc(db, "teams", team.id);
+      // Store both exact gamertag and lowercase representation for reliable matching
       await updateDoc(teamRef, {
-        pendingInvites: arrayUnion(cleanGamertag)
+        pendingInvites: arrayUnion(targetGamertag, targetGamertag.toLowerCase())
       });
 
       // Write notification document to the invited player's notifications subcollection
-      const notificationRef = collection(db, "profiles", invitedPlayer.uid, "notifications");
+      const notificationRef = collection(db, "profiles", targetUid, "notifications");
       await addDoc(notificationRef, {
         type: 'team_invite',
         message: `You have been invited to join team ${team.name}.`,
         relatedId: team.id,
         read: false,
-        createdAt: serverTimestamp()
+        createdAt: serverTimestamp(),
+        teamId: team.id
       });
 
       setInviteGamertag('');
-      setSuccess(`Invited @${cleanGamertag} to join your team.`);
+      setSuccess(`Invited @${targetGamertag} to join your team.`);
     } catch (err: any) {
       console.error(err);
       if (err.code === 'permission-denied') {
@@ -218,8 +254,11 @@ export default function TeamsView() {
     clearMessages();
     try {
       const teamRef = doc(db, "teams", team.id);
+      const updatedPending = (team.pendingInvites || []).filter(
+        g => g.toLowerCase() !== gamertag.toLowerCase()
+      );
       await updateDoc(teamRef, {
-        pendingInvites: arrayRemove(gamertag)
+        pendingInvites: updatedPending
       });
       setSuccess(`Revoked invitation for @${gamertag}.`);
     } catch (err: any) {
@@ -234,28 +273,30 @@ export default function TeamsView() {
 
   // Accept invite
   const handleAcceptInvite = async (invitingTeam: Team) => {
-    if (!profile) return;
+    if (!profile || !user) {
+      setError("You must be logged in with an active profile to accept invitations.");
+      return;
+    }
     clearMessages();
     setActioningInviteId(invitingTeam.id);
     setActionLoading(true);
 
-    await new Promise(resolve => setTimeout(resolve, 200));
-
     try {
       const teamRef = doc(db, "teams", invitingTeam.id);
+      // Cleanly remove any case variation of user's gamertag from pendingInvites
+      const updatedPending = (invitingTeam.pendingInvites || []).filter(
+        g => g.toLowerCase() !== profile.gamertag.toLowerCase()
+      );
+
       await updateDoc(teamRef, {
-        members: arrayUnion(user!.uid),
-        pendingInvites: arrayRemove(profile.gamertag)
+        members: arrayUnion(user.uid),
+        pendingInvites: updatedPending
       });
       
       setSuccess(`Successfully joined team ${invitingTeam.name}!`);
     } catch (err: any) {
-      console.error(err);
-      if (err.code === 'permission-denied') {
-        setError("Action failed: Invite acceptance rejected. Verify you are the target player.");
-      } else {
-        setError("Failed to accept team invitation.");
-      }
+      console.error("Invite acceptance error:", err);
+      setError(err.message || "Failed to accept team invitation.");
     } finally {
       setActioningInviteId(null);
       setActionLoading(false);
@@ -269,52 +310,66 @@ export default function TeamsView() {
     setActioningInviteId(invitingTeam.id);
     setActionLoading(true);
 
-    await new Promise(resolve => setTimeout(resolve, 200));
-    
     try {
       const teamRef = doc(db, "teams", invitingTeam.id);
+      const updatedPending = (invitingTeam.pendingInvites || []).filter(
+        g => g.toLowerCase() !== profile.gamertag.toLowerCase()
+      );
+
       await updateDoc(teamRef, {
-        pendingInvites: arrayRemove(profile.gamertag)
+        pendingInvites: updatedPending
       });
       setSuccess(`Declined invitation from team ${invitingTeam.name}.`);
     } catch (err: any) {
-      console.error(err);
-      if (err.code === 'permission-denied') {
-        setError("Action failed: Rejection failed. Verify your profile match.");
-      } else {
-        setError("Failed to reject invitation.");
-      }
+      console.error("Invite rejection error:", err);
+      setError(err.message || "Failed to reject invitation.");
     } finally {
       setActioningInviteId(null);
       setActionLoading(false);
     }
   };
 
-  // Leave Team
+  // Leave Team (with automatic Leader Succession)
   const handleLeaveTeam = async () => {
     if (!team || !user) return;
-    if (team.captainId === user.uid) {
-      setError("Captains cannot leave. Disband the team instead.");
-      return;
+    const isCaptain = team.captainId === user.uid;
+    const remainingCount = (team.members || []).filter(id => id !== user.uid).length;
+
+    let confirmMsg = "Are you sure you want to leave this team?";
+    if (isCaptain) {
+      if (remainingCount > 0) {
+        confirmMsg = "👑 You are currently the Team Captain. Leaving will automatically transfer Captaincy to the next roster member. Proceed?";
+      } else {
+        confirmMsg = "⚠️ You are the last remaining member of this team. Leaving will disband the team. Proceed?";
+      }
     }
-    
-    if (!window.confirm("Are you sure you want to leave this team?")) return;
+
+    if (!window.confirm(confirmMsg)) return;
 
     clearMessages();
     setActionLoading(true);
 
     try {
-      const teamRef = doc(db, "teams", team.id);
-      await updateDoc(teamRef, {
-        members: arrayRemove(user.uid)
-      });
-      setSuccess("Successfully left the team.");
+      if (isCaptain) {
+        const res = await transferLeaderOrDisband(team, user.uid);
+        if (res.disbanded) {
+          setSuccess("You have left the team. The team organization has been disbanded.");
+        } else {
+          setSuccess("You have left the team. Captaincy has been automatically transferred to the next roster member!");
+        }
+      } else {
+        const teamRef = doc(db, "teams", team.id);
+        await updateDoc(teamRef, {
+          members: arrayRemove(user.uid)
+        });
+        setSuccess("Successfully left the team.");
+      }
     } catch (err: any) {
       console.error(err);
       if (err.code === 'permission-denied') {
         setError("Action failed: Database rejected exit. Verify you are still on the roster.");
       } else {
-        setError("Failed to leave team.");
+        setError(err.message || "Failed to leave team.");
       }
     } finally {
       setActionLoading(false);
@@ -525,26 +580,27 @@ export default function TeamsView() {
                   <Badge variant="cyan" style={{ marginBottom: '0.3rem' }}>ACTIVE ROSTER</Badge>
                   <h2 style={{ fontSize: '1.75rem' }}>{team.name}</h2>
                 </div>
-                {isCaptain ? (
-                  <Button 
-                    onClick={handleDisbandTeam}
-                    variant="outline"
-                    style={{ fontSize: '0.85rem', color: 'var(--accent-red)', padding: '0.4rem 0.8rem' }}
-                    disabled={actionLoading}
-                  >
-                    Disband Team
-                  </Button>
-                ) : (
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                   <Button 
                     onClick={handleLeaveTeam}
                     variant="outline"
-                    style={{ fontSize: '0.85rem', color: 'var(--accent-red)', padding: '0.4rem 0.8rem' }}
+                    style={{ fontSize: '0.85rem', color: 'var(--neon-blue)', borderColor: 'rgba(0, 240, 255, 0.4)', padding: '0.4rem 0.8rem' }}
                     disabled={actionLoading}
                   >
                     <LogOut size={14} style={{ marginRight: '0.2rem' }} />
-                    Leave Team
+                    {isCaptain ? 'Leave & Transfer Leadership' : 'Leave Team'}
                   </Button>
-                )}
+                  {isCaptain && (
+                    <Button 
+                      onClick={handleDisbandTeam}
+                      variant="outline"
+                      style={{ fontSize: '0.85rem', color: 'var(--accent-red)', padding: '0.4rem 0.8rem' }}
+                      disabled={actionLoading}
+                    >
+                      Disband Team
+                    </Button>
+                  )}
+                </div>
               </div>
 
               {/* Roster list */}

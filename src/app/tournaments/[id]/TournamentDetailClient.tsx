@@ -12,6 +12,7 @@ import {
   where, 
   getDocs, 
   arrayUnion,
+  arrayRemove,
   getDoc,
   orderBy,
   limit,
@@ -23,6 +24,8 @@ import {
 import { db } from '@/lib/firebase';
 import { useAppStore, Team } from '@/store/useAppStore';
 import { Trophy, Calendar, Shield, Users, Layers, Award, Loader, AlertCircle, Edit3, Save, Play, Check, X, MessageSquare, Send, Trash2, Clock, ShieldAlert, CheckCircle, Flame } from 'lucide-react';
+import { detectTeamScheduleConflicts, ConflictGroup } from '@/services/scheduleConflictService';
+import ScheduleConflictModal from '@/components/ui/ScheduleConflictModal';
 import Link from 'next/link';
 import Button from '@/components/ui/Button';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
@@ -84,6 +87,7 @@ export default function TournamentDetailClient({ id }: { id: string }) {
   const profile = useAppStore((state) => state.profile);
   const { refreshCount } = useAutoRefresh();
   const [mounted, setMounted] = useState(false);
+  const [conflictGroup, setConflictGroup] = useState<ConflictGroup | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -312,6 +316,14 @@ export default function TournamentDetailClient({ id }: { id: string }) {
       return;
     }
 
+    // Check for schedule conflicts with existing active tournament registrations
+    const existingConflicts = await detectTeamScheduleConflicts(team.id);
+    if (existingConflicts.length > 0) {
+      setConflictGroup(existingConflicts[0]);
+      setError("⚠️ Schedule Conflict Detected: Your team is already registered for another tournament at this time slot. Resolve the conflict below to proceed.");
+      return;
+    }
+
     setActionLoading(true);
     try {
       const tournamentRef = doc(db, "tournaments", tournament.id);
@@ -345,6 +357,56 @@ export default function TournamentDetailClient({ id }: { id: string }) {
       } else {
         setError(err.message || "Failed to register for tournament.");
       }
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Withdraw Team Roster from Tournament (Captain Only)
+  const handleWithdrawTournament = async () => {
+    clearMessages();
+    if (!tournament || !team || !user) return;
+
+    if (team.captainId !== user.uid) {
+      setError("Only the Team Captain can withdraw the roster from the tournament.");
+      return;
+    }
+
+    if (tournament.status !== 'Upcoming') {
+      setError("Cannot withdraw. The tournament has already started or completed.");
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to withdraw ${team.name} from ${tournament.name}?`)) return;
+
+    setActionLoading(true);
+    try {
+      const tournamentRef = doc(db, "tournaments", tournament.id);
+      await updateDoc(tournamentRef, {
+        registeredTeamIds: arrayRemove(team.id)
+      });
+
+      // Send notifications to team members
+      const nBatch = writeBatch(db);
+      if (team.members) {
+        team.members.forEach((mId) => {
+          const nRef = doc(collection(db, "profiles", mId, "notifications"));
+          nBatch.set(nRef, {
+            type: 'registration_withdrawn',
+            message: `Your team ${team.name} has withdrawn from tournament ${tournament.name}.`,
+            relatedId: tournament.id,
+            read: false,
+            createdAt: serverTimestamp(),
+            teamId: team.id
+          });
+        });
+      }
+      await nBatch.commit();
+
+      setSuccess("Your team roster has withdrawn from the tournament.");
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "Failed to withdraw from tournament.");
     } finally {
       setActionLoading(false);
     }
@@ -1271,9 +1333,21 @@ export default function TournamentDetailClient({ id }: { id: string }) {
                       <Play size={16} /> Generate Bracket & Start
                     </button>
                   ) : isRegistered ? (
-                    <button className="btn btn-outline" style={{ borderColor: 'var(--accent-green)', color: 'var(--accent-green)' }} disabled>
-                      <Check size={16} /> Roster Registered
-                    </button>
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      <button className="btn btn-outline" style={{ borderColor: 'var(--accent-green)', color: 'var(--accent-green)' }} disabled>
+                        <Check size={16} /> Roster Registered
+                      </button>
+                      {team?.captainId === user?.uid && (
+                        <button 
+                          onClick={handleWithdrawTournament}
+                          className="btn btn-outline"
+                          disabled={actionLoading}
+                          style={{ borderColor: 'var(--accent-red)', color: 'var(--accent-red)', fontSize: '0.85rem' }}
+                        >
+                          Withdraw Roster
+                        </button>
+                      )}
+                    </div>
                   ) : (
                     <button 
                       onClick={handleJoinTournament}
@@ -1590,6 +1664,20 @@ export default function TournamentDetailClient({ id }: { id: string }) {
       </div>,
       document.body
     ) : null}
+
+      {/* Schedule Conflict Selection Modal */}
+      {conflictGroup && team && (
+        <ScheduleConflictModal
+          conflictGroup={conflictGroup}
+          teamId={team.id}
+          isCaptain={team.captainId === user?.uid}
+          onResolved={() => {
+            setConflictGroup(null);
+            handleJoinTournament();
+          }}
+          onClose={() => setConflictGroup(null)}
+        />
+      )}
     </main>
   );
 }

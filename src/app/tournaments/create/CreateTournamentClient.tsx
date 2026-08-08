@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { collection, addDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/store/useAppStore';
-import { Trophy, Gamepad2, Layers, DollarSign, ArrowLeft, Loader, AlertCircle } from 'lucide-react';
+import { Trophy, Gamepad2, Layers, DollarSign, ArrowLeft, Loader, AlertCircle, Calendar, Clock } from 'lucide-react';
 import Link from 'next/link';
 
 export default function CreateTournamentClient() {
@@ -18,6 +18,8 @@ export default function CreateTournamentClient() {
   const [game, setGame] = useState('Valorant');
   const [entryType, setEntryType] = useState<'Free' | 'Paid'>('Free');
   const [maxTeams, setMaxTeams] = useState<number>(4);
+  const [scheduledDate, setScheduledDate] = useState(new Date(Date.now() + 86400000).toISOString().split('T')[0]);
+  const [timeSlot, setTimeSlot] = useState('18:00 - 21:00 EST');
   
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,6 +54,8 @@ export default function CreateTournamentClient() {
         game,
         entryType,
         maxTeams: Number(maxTeams),
+        scheduledDate,
+        timeSlot,
         status: 'Upcoming',
         organizerId: user!.uid,
         registeredTeamIds: [],
@@ -194,6 +198,47 @@ export default function CreateTournamentClient() {
               >
                 <option value="Free">Free to Join</option>
                 <option value="Paid">Paid Entry (Ticket/Pass Required)</option>
+              </select>
+            </div>
+
+          </div>
+
+          {/* Schedule Date & Time Slot */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginTop: '1.5rem' }} className="grid-2-col">
+            
+            {/* Scheduled Date */}
+            <div className="form-group">
+              <label htmlFor="create-tourney-date" className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <Calendar size={16} style={{ color: 'var(--accent-cyan)' }} />
+                Match Date
+              </label>
+              <input
+                id="create-tourney-date"
+                type="date"
+                className="glass-input"
+                value={scheduledDate}
+                onChange={(e) => setScheduledDate(e.target.value)}
+                disabled={actionLoading}
+                required
+              />
+            </div>
+
+            {/* Time Slot */}
+            <div className="form-group">
+              <label htmlFor="create-tourney-timeslot" className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <Clock size={16} style={{ color: 'var(--neon-purple)' }} />
+                Time Slot Window
+              </label>
+              <select
+                id="create-tourney-timeslot"
+                className="glass-input glass-select"
+                value={timeSlot}
+                onChange={(e) => setTimeSlot(e.target.value)}
+                disabled={actionLoading}
+              >
+                <option value="15:00 - 18:00 EST">Afternoon (15:00 - 18:00 EST)</option>
+                <option value="18:00 - 21:00 EST">Prime Evening (18:00 - 21:00 EST)</option>
+                <option value="21:00 - 00:00 EST">Night Tournament (21:00 - 00:00 EST)</option>
               </select>
             </div>
 
