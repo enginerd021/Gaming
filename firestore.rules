@@ -185,18 +185,6 @@ service cloud.firestore {
     }
 
     // ----------------------------------------------------------
-    // /global_chat/{messageId} (live global chat shoutbox)
-    // ----------------------------------------------------------
-    match /global_chat/{messageId} {
-      allow read: if true;
-      allow create: if isEmailVerified()
-                    && request.resource.data.senderId == request.auth.uid
-                    && !(request.resource.data.text.matches('(?i).*https?://.*') || request.resource.data.text.matches('(?i).*www\\..*') || request.resource.data.text.matches('(?i).*data:image/.*base64.*'));
-      allow update: if false;
-      allow delete: if isAdminEmail();
-    }
-
-    // ----------------------------------------------------------
     // /chatReports/{reportId}
     // ----------------------------------------------------------
     match /chatReports/{reportId} {
