@@ -62,13 +62,8 @@ export default function Navbar() {
     }
   }, [user, pathname]);
 
-  // 2-Theme System (Neon and Light only)
+  // 2-Theme System (Neon Dark and Minimal Light)
   type ThemeId = 'neon' | 'light';
-  const THEMES: { id: ThemeId; label: string; desc: string; accentColor: string; swatches: string[] }[] = [
-    { id: 'neon',     label: 'Neon Esports',       desc: 'Deep space · electric cyan',       accentColor: '#00E5FF', swatches: ['#02040a', '#00E5FF', '#D946EF', '#0c1020'] },
-    { id: 'light',    label: 'Minimal Light',       desc: 'Clean white · deep indigo',        accentColor: '#4F46E5', swatches: ['#F8FAFC', '#4F46E5', '#0EA5E9', '#E2E8F0'] },
-  ];
-
   const [theme, setTheme] = useState<ThemeId>('neon');
 
   useEffect(() => {
@@ -78,10 +73,11 @@ export default function Navbar() {
     document.documentElement.setAttribute('data-theme', saved);
   }, []);
 
-  const selectTheme = (id: ThemeId) => {
-    setTheme(id);
-    localStorage.setItem('shaktrix_theme', id);
-    document.documentElement.setAttribute('data-theme', id);
+  const toggleTheme = () => {
+    const nextTheme = theme === 'neon' ? 'light' : 'neon';
+    setTheme(nextTheme);
+    localStorage.setItem('shaktrix_theme', nextTheme);
+    document.documentElement.setAttribute('data-theme', nextTheme);
   };
 
   // Dropdown states for the inner-page black bar
@@ -316,79 +312,32 @@ export default function Navbar() {
             </div>
           </div>
 
-          {/* RIGHT SIDE: Theme Toggle -> Notification -> Nav Links */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          {/* RIGHT SIDE: Single Theme Toggle -> Notification -> Nav Links */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '2.5rem' }}>
             
-            {/* Quick Mobile Theme Toggle */}
-            <button
-              onClick={() => selectTheme(theme === 'neon' ? 'light' : 'neon')}
-              aria-label={`Switch to ${theme === 'neon' ? 'light' : 'dark'} mode`}
-              title={`Switch to ${theme === 'neon' ? 'Light' : 'Dark'} Mode`}
-              style={{
-                padding: '0.45rem',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: 'rgba(255, 255, 255, 0.08)',
-                border: '1px solid rgba(0, 240, 255, 0.25)',
-                borderRadius: '8px',
-                color: theme === 'neon' ? 'var(--neon-blue)' : 'var(--accent-gold)',
-                cursor: 'pointer',
-                transition: 'all 0.25s ease'
-              }}
-              className="mobile-theme-btn"
-            >
-              {theme === 'neon' ? <Moon size={18} /> : <Sun size={18} />}
-            </button>
-
             <nav className="desktop-nav" style={{ display: 'none', alignItems: 'center', gap: '1.75rem' }}>
               
-              {/* ── Theme Toggle Switch (Neon vs Minimal Light) ── */}
+              {/* Single Sun/Moon Icon Theme Toggle Button */}
               <button
-                onClick={() => selectTheme(theme === 'neon' ? 'light' : 'neon')}
-                aria-label="Toggle visual theme between Dark and Light"
-                title={`Switch to ${theme === 'neon' ? 'Light Theme' : 'Neon Esports'}`}
+                onClick={toggleTheme}
+                aria-label={`Switch to ${theme === 'neon' ? 'Light' : 'Dark'} Mode`}
+                title={`Switch to ${theme === 'neon' ? 'Light' : 'Dark'} Mode`}
                 style={{
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: '20px',
-                  width: '56px',
-                  height: '28px',
-                  position: 'relative',
-                  cursor: 'pointer',
+                  width: '38px',
+                  height: '38px',
                   display: 'flex',
                   alignItems: 'center',
-                  padding: '2px',
-                  transition: 'all 0.3s ease',
-                  boxShadow: theme === 'neon' ? 'none' : 'inset 0 2px 5px rgba(0,0,0,0.05)'
+                  justifyContent: 'center',
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '8px',
+                  color: theme === 'neon' ? 'var(--neon-blue)' : 'var(--accent-gold)',
+                  cursor: 'pointer',
+                  transition: 'all 0.25s ease',
+                  boxSizing: 'border-box'
                 }}
               >
-                <div
-                  style={{
-                    width: '22px',
-                    height: '22px',
-                    borderRadius: '50%',
-                    background: theme === 'neon' ? 'var(--accent-cyan)' : 'var(--neon-blue)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    position: 'absolute',
-                    left: theme === 'neon' ? '4px' : '28px',
-                    transition: 'left 0.25s cubic-bezier(0.23, 1, 0.32, 1), background-color 0.25s ease',
-                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)'
-                  }}
-                >
-                  {theme === 'neon' ? (
-                    <Moon size={12} color="#02040a" />
-                  ) : (
-                    <Sun size={12} color="#ffffff" />
-                  )}
-                </div>
-                {/* Secondary static icons inside path */}
-                <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', padding: '0 6px', opacity: 0.3 }}>
-                  <Moon size={11} style={{ visibility: theme === 'neon' ? 'hidden' : 'visible' }} />
-                  <Sun size={11} style={{ visibility: theme === 'neon' ? 'visible' : 'hidden' }} />
-                </div>
+                {theme === 'neon' ? <Moon size={18} /> : <Sun size={18} />}
               </button>
               {/* 1. Notification Symbol */}
               {user && (
@@ -398,21 +347,22 @@ export default function Navbar() {
                       e.stopPropagation();
                       setNotifOpen(!notifOpen);
                     }}
-                    className="btn btn-outline touch-target"
                     aria-label={`Notifications, ${notifications.length} unread`}
                     aria-expanded={notifOpen}
                     style={{
                       position: 'relative',
-                      padding: '0.5rem',
+                      width: '38px',
+                      height: '38px',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      background: notifOpen ? 'hsla(186, 100%, 48%, 0.1)' : 'none',
+                      background: notifOpen ? 'hsla(186, 100%, 48%, 0.1)' : 'rgba(255, 255, 255, 0.08)',
                       border: notifOpen ? '1px solid var(--accent-cyan)' : '1px solid var(--border-color)',
-                      borderRadius: '6px',
+                      borderRadius: '8px',
                       color: notifOpen ? 'var(--accent-cyan)' : 'var(--text-primary)',
                       cursor: 'pointer',
-                      transition: 'all 0.2s ease'
+                      transition: 'all 0.25s ease',
+                      boxSizing: 'border-box'
                     }}
                   >
                     <Bell size={18} />
@@ -605,6 +555,19 @@ export default function Navbar() {
             <Link href="/leaderboard" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>LEADERBOARD</Link>
             <Link href="/about/mission" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>PLATFORM MISSION</Link>
             <Link href="/about/rulebook" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>RULEBOOK</Link>
+            <button 
+              onClick={() => { toggleTheme(); setMobileMenuOpen(false); }} 
+              style={{ 
+                background: 'rgba(255,255,255,0.08)', border: '1px solid var(--border-color)', borderRadius: '8px', 
+                padding: '0.5rem', color: theme === 'neon' ? 'var(--neon-blue)' : 'var(--accent-gold)', 
+                display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                cursor: 'pointer', width: 'fit-content'
+              }}
+              aria-label={`Switch to ${theme === 'neon' ? 'Light' : 'Dark'} Mode`}
+              title={`Switch to ${theme === 'neon' ? 'Light' : 'Dark'} Mode`}
+            >
+              {theme === 'neon' ? <Moon size={18} /> : <Sun size={18} />}
+            </button>
             <hr style={{ borderColor: 'rgba(255,255,255,0.1)' }}/>
             {user ? (
                <>

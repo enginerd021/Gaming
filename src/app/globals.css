@@ -39,7 +39,7 @@
 }
 
 /* ══════════════════════════════════════════════════════
-   THEME: NEON ESPORTS (explicit alias — same as :root)
+   THEME: NEON ESPORTS (Default / Explicit alias)
    Deep space black · Electric cyan · Vivid purple
 ══════════════════════════════════════════════════════ */
 [data-theme="neon"] {
@@ -67,6 +67,7 @@
   --glow-cyan:         0 0 30px rgba(0, 240, 255, 0.55);
   --glow-violet:       0 0 30px rgba(189, 16, 255, 0.55);
 }
+
 [data-theme="neon"] body {
   background-color: #02040a;
   background-image:
@@ -76,22 +77,26 @@
   color: #EDF4FF;
   transition: background-color 0.4s ease, color 0.3s ease;
 }
+
 [data-theme="neon"] header.is-inner-header {
   background: rgba(2, 4, 10, 0.88) !important;
   border-bottom: 1px solid rgba(0, 240, 255, 0.18) !important;
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.6), 0 0 40px rgba(0, 240, 255, 0.05) !important;
 }
+
 [data-theme="neon"] .glass-panel,
 [data-theme="neon"] .glass-card {
   background: rgba(7, 10, 20, 0.80) !important;
   border: 1px solid rgba(0, 240, 255, 0.16) !important;
   backdrop-filter: blur(16px) !important;
 }
+
 [data-theme="neon"] .glass-panel:hover,
 [data-theme="neon"] .glass-card:hover {
   border-color: rgba(0, 240, 255, 0.45) !important;
   box-shadow: 0 0 32px rgba(0, 240, 255, 0.18) !important;
 }
+
 [data-theme="neon"] .btn-primary {
   background: linear-gradient(135deg, #00F0FF 0%, #0070CC 100%) !important;
   color: #02040a !important;
@@ -100,43 +105,8 @@
 }
 
 /* ══════════════════════════════════════════════════════
-   UNIVERSAL LIGHT THEME HEADER OVERRIDES
- ══════════════════════════════════════════════════════ */
-[data-theme="light"] header .zentry-text-link {
-  color: var(--text-primary) !important;
-}
-[data-theme="light"] header a,
-[data-theme="light"] header button {
-  color: var(--text-primary) !important;
-}
-[data-theme="light"] header a:hover,
-[data-theme="light"] header button:hover {
-  color: var(--neon-blue) !important;
-}
-[data-theme="light"] .logo-shakt {
-  color: #4F46E5 !important;
-  text-shadow: none !important;
-}
-[data-theme="light"] .logo-rix {
-  color: #7C3AED !important;
-  text-shadow: none !important;
-}
-
-
-
-/* Home Header Transparency Enforcement (Dark & Light Modes) */
-header.is-home-header,
-header[data-home="true"] {
-  background: transparent !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  border-bottom: none !important;
-  box-shadow: none !important;
-}
-
-/* ══════════════════════════════════════════════════════
    THEME: MINIMAL LIGHT
-   Clean white · Deep indigo accent · Warm slate text
+   Clean white · Deep indigo accent · Slate text
 ══════════════════════════════════════════════════════ */
 [data-theme="light"] {
   --bg-primary:        #F8FAFC;
@@ -173,7 +143,6 @@ header[data-home="true"] {
   transition: background-color 0.4s ease, color 0.3s ease;
 }
 
-/* Light Mode Inner Header Only */
 [data-theme="light"] header.is-inner-header {
   background: rgba(255, 255, 255, 0.95) !important;
   backdrop-filter: blur(16px) !important;
@@ -182,7 +151,8 @@ header[data-home="true"] {
   box-shadow: 0 4px 20px rgba(15, 23, 42, 0.04) !important;
 }
 
-[data-theme="light"] header.is-home-header {
+[data-theme="light"] header.is-home-header,
+[data-theme="light"] header[data-home="true"] {
   background: transparent !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
@@ -194,7 +164,6 @@ header[data-home="true"] {
   color: #0F172A !important;
 }
 
-/* Light Mode Panels & Cards */
 [data-theme="light"] .glass-panel,
 [data-theme="light"] .glass-card,
 [data-theme="light"] .bento-card,
@@ -213,7 +182,6 @@ header[data-home="true"] {
   box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08), 0 3px 6px rgba(0, 0, 0, 0.03) !important;
 }
 
-/* Light Mode Dropdown Menu */
 [data-theme="light"] .zentry-dropdown-menu {
   background: #FFFFFF !important;
   backdrop-filter: blur(16px) !important;
@@ -230,7 +198,6 @@ header[data-home="true"] {
   color: #4F46E5 !important;
 }
 
-/* Light Mode Inputs & Controls */
 [data-theme="light"] input,
 [data-theme="light"] select,
 [data-theme="light"] textarea {
@@ -252,7 +219,6 @@ header[data-home="true"] {
   color: #94A3B8 !important;
 }
 
-/* Light Mode Primary Buttons */
 [data-theme="light"] .btn-primary {
   background: linear-gradient(135deg, #4F46E5 0%, #3730A3 100%) !important;
   color: #FFFFFF !important;
@@ -271,95 +237,6 @@ header[data-home="true"] {
   border-color: #94A3B8 !important;
 }
 
-/* Light Mode specific element resets & overrides */
-[data-theme="light"] .zentry-hero-wrapper,
-[data-theme="light"] .cockpit-hero-section {
-  --bg-primary:        #02040a;
-  --bg-secondary:      #070a14;
-  --bg-tertiary:       #0d1121;
-  --bg-card:           rgba(7, 10, 20, 0.85);
-  --neon-blue:         #00F0FF;
-  --neon-blue-glow:    rgba(0, 240, 255, 0.55);
-  --neon-purple:       #BD10FF;
-  --neon-purple-glow:  rgba(189, 16, 255, 0.55);
-  --accent-cyan:       #00F0FF;
-  --accent-cyan-rgb:   0, 240, 255;
-  --accent-violet:     #BD10FF;
-  --accent-violet-rgb: 189, 16, 255;
-  --accent-gold:       #FFD60A;
-  --accent-red:        #FF2A6D;
-  --accent-green:      #00FF88;
-  --text-primary:      #EDF4FF;
-  --text-secondary:    #8BA3C7;
-  --text-muted:        #4F6585;
-  --border-color:      rgba(0, 240, 255, 0.18);
-  --border-glow:       0 0 22px rgba(0, 240, 255, 0.4);
-  --border-glow-violet:0 0 22px rgba(189, 16, 255, 0.4);
-  --glow-cyan:         0 0 30px rgba(0, 240, 255, 0.55);
-  --glow-violet:       0 0 30px rgba(189, 16, 255, 0.55);
-}
-
-/* For transparent headers in light mode, force white text/neon logo colors */
-[data-theme="light"] header.is-home-header a,
-[data-theme="light"] header.is-home-header button,
-[data-theme="light"] header.is-home-header .zentry-text-link,
-[data-theme="light"] header[data-home="true"] a,
-[data-theme="light"] header[data-home="true"] button,
-[data-theme="light"] header[data-home="true"] .zentry-text-link {
-  color: #EDF4FF !important;
-}
-
-[data-theme="light"] header.is-home-header .zentry-text-link::after,
-[data-theme="light"] header[data-home="true"] .zentry-text-link::after {
-  background: #EDF4FF !important;
-}
-
-[data-theme="light"] header.is-home-header .logo-shakt,
-[data-theme="light"] header[data-home="true"] .logo-shakt {
-  color: #00F0FF !important;
-  text-shadow: 0 0 15px rgba(0, 240, 255, 0.6) !important;
-}
-
-[data-theme="light"] header.is-home-header .logo-rix,
-[data-theme="light"] header[data-home="true"] .logo-rix {
-  color: #B026FF !important;
-  text-shadow: 0 0 15px rgba(176, 38, 255, 0.6) !important;
-}
-
-[data-theme="light"] header.is-home-header .mobile-toggle,
-[data-theme="light"] header[data-home="true"] .mobile-toggle {
-  color: #EDF4FF !important;
-}
-
-[data-theme="light"] .mobile-toggle {
-  color: var(--text-primary) !important;
-}
-
-/* Ensure bento cards and hero bento cards with videos remain dark/high-contrast in light mode */
-[data-theme="light"] .bento-card:has(video),
-[data-theme="light"] .zentry-bento-card {
-  background: hsla(225, 24%, 9%, 0.85) !important;
-  border-color: rgba(255, 255, 255, 0.1) !important;
-  color: #EDF4FF !important;
-}
-
-[data-theme="light"] .bento-card:has(video) h1,
-[data-theme="light"] .bento-card:has(video) h2,
-[data-theme="light"] .bento-card:has(video) h3,
-[data-theme="light"] .bento-card:has(video) p,
-[data-theme="light"] .zentry-bento-card h1,
-[data-theme="light"] .zentry-bento-card h2,
-[data-theme="light"] .zentry-bento-card h3,
-[data-theme="light"] .zentry-bento-card p {
-  color: #EDF4FF !important;
-}
-
-[data-theme="light"] .bento-card:has(video) p,
-[data-theme="light"] .zentry-bento-card p {
-  color: #8BA3C7 !important;
-}
-
-/* Text Gradients in light mode */
 [data-theme="light"] .text-gradient-cyan {
   background: linear-gradient(135deg, #1E1B4B 0%, var(--accent-cyan) 100%) !important;
   -webkit-background-clip: text !important;

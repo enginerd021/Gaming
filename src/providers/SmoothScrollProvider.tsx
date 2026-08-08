@@ -2,6 +2,12 @@
 
 import React, { useEffect, useRef } from 'react';
 import Lenis from 'lenis';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
+if (typeof window !== 'undefined') {
+  gsap.registerPlugin(ScrollTrigger);
+}
 
 export const SmoothScrollProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const lenisRef = useRef<Lenis | null>(null);
@@ -31,8 +37,8 @@ export const SmoothScrollProvider: React.FC<{ children: React.ReactNode }> = ({ 
       orientation: 'vertical',
       gestureOrientation: 'vertical',
       smoothWheel: true,
-      wheelMultiplier: 1,
-      touchMultiplier: 1,
+      wheelMultiplier: 1.1,
+      touchMultiplier: 1.5,
       prevent: (node) =>
         node.classList?.contains('global-chat-scroll') ||
         Boolean(node.closest?.('.global-chat-scroll')),
@@ -40,17 +46,19 @@ export const SmoothScrollProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
     lenisRef.current = lenis;
 
-    let animationFrameId: number;
-    function raf(time: number) {
-      lenis.raf(time);
-      animationFrameId = requestAnimationFrame(raf);
-    }
+    // Connect Lenis scroll updates to GSAP ScrollTrigger
+    lenis.on('scroll', ScrollTrigger.update);
 
-    animationFrameId = requestAnimationFrame(raf);
+    const updateLenis = (time: number) => {
+      lenis.raf(time * 1000);
+    };
+
+    gsap.ticker.add(updateLenis);
+    gsap.ticker.lagSmoothing(0);
 
     const handleResize = () => {
       if (checkIsMobile() && lenisRef.current) {
-        cancelAnimationFrame(animationFrameId);
+        gsap.ticker.remove(updateLenis);
         lenisRef.current.destroy();
         lenisRef.current = null;
         document.documentElement.classList.remove('lenis-active');
@@ -61,7 +69,7 @@ export const SmoothScrollProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
     return () => {
       window.removeEventListener('resize', handleResize);
-      cancelAnimationFrame(animationFrameId);
+      gsap.ticker.remove(updateLenis);
       if (lenisRef.current) {
         lenisRef.current.destroy();
         lenisRef.current = null;
