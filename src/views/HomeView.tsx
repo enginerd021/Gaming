@@ -165,7 +165,7 @@ export default function HomeView() {
   }, []);
 
   return (
-    <main style={{ position: 'relative', overflowX: 'hidden', backgroundColor: 'var(--bg-primary)' }}>
+    <main style={{ position: 'relative', overflowX: 'hidden', background: 'transparent' }}>
       
       {/* UNLEASH THE GAME HERO SECTION */}
       <section 
@@ -246,7 +246,7 @@ export default function HomeView() {
         ref={sectionRef} 
         className="section-padding"
         style={{ 
-          background: 'linear-gradient(180deg, var(--bg-primary) 0%, var(--bg-secondary) 50%, var(--bg-primary) 100%)', 
+          background: 'linear-gradient(180deg, rgba(2, 4, 10, 0.40) 0%, rgba(10, 13, 24, 0.50) 50%, rgba(2, 4, 10, 0.40) 100%)', 
           position: 'relative', 
           zIndex: 2,
           borderTop: '1px solid var(--border-color)',
@@ -436,19 +436,19 @@ export default function HomeView() {
           text-transform: uppercase;
           line-height: 0.9;
           letter-spacing: -0.02em;
-          color: var(--text-primary);
-          text-shadow: 0 2px 15px rgba(0,0,0,0.8);
+          color: #FFFFFF !important;
+          text-shadow: 0 2px 20px rgba(0,0,0,0.95), 0 0 10px rgba(0,0,0,0.8);
           margin-bottom: 0.75rem;
           transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
         }
 
         .zentry-bento-desc {
           font-size: 0.95rem;
-          color: var(--text-secondary);
+          color: rgba(237, 244, 255, 0.92) !important;
           line-height: 1.5;
           max-width: 420px;
           margin-bottom: 1rem;
-          text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+          text-shadow: 0 1px 8px rgba(0,0,0,0.95);
         }
 
         .zentry-bento-footer {
@@ -477,12 +477,12 @@ export default function HomeView() {
           text-transform: uppercase;
           letter-spacing: 0.1em;
           padding: 0.4rem 0.85rem;
-          background: hsla(210, 100%, 55%, 0.15);
+          background: rgba(0, 240, 255, 0.18) !important;
           backdrop-filter: blur(12px);
-          border: 1px solid var(--border-color);
+          border: 1px solid rgba(0, 240, 255, 0.4) !important;
           border-radius: 9999px;
-          color: var(--text-primary);
-          box-shadow: 0 0 15px var(--border-glow);
+          color: #FFFFFF !important;
+          box-shadow: 0 0 15px rgba(0, 240, 255, 0.25);
         }
       `}</style>
     </main>
