@@ -16,7 +16,6 @@ import {
   where
 } from 'firebase/firestore';
 import { MessageSquare, X, Send, Sparkles, LogIn, UserPlus, AlertTriangle, CheckCircle2 } from 'lucide-react';
-import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 import InviteCard from './chat/InviteCard';
 import Button from './ui/Button';
 
@@ -51,7 +50,6 @@ export default function GlobalChatWidget() {
   const user = useAppStore((state) => state.user);
   const profile = useAppStore((state) => state.profile);
   const team = useAppStore((state) => state.team);
-  const { refreshCount } = useAutoRefresh();
 
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -123,7 +121,7 @@ export default function GlobalChatWidget() {
     });
 
     return () => unsubscribe();
-  }, [refreshCount, isOpen]);
+  }, [isOpen]);
 
   // Fetch registered tournaments for team recruitment list
   useEffect(() => {

@@ -10,7 +10,6 @@ import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import GlassCard from '@/components/ui/GlassCard';
 import { TournamentCountdown } from '@/components/TournamentCountdown';
-import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 
 export default function TournamentsView() {
   const user    = useAppStore((state) => state.user);
@@ -19,7 +18,6 @@ export default function TournamentsView() {
   const userIsAdmin = !!user && isAdmin(user.email);
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [loading, setLoading] = useState(true);
-  const { refreshCount } = useAutoRefresh();
 
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
@@ -39,7 +37,7 @@ export default function TournamentsView() {
     return () => {
       unsub();
     };
-  }, [refreshCount]);
+  }, []);
 
   const getStatusBadge = (status: Tournament['status']) => {
     switch (status) {
