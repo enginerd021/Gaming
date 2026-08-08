@@ -65,7 +65,7 @@ export default function GlobalChatWidget() {
   // Recruitment states
   const [showRecruitForm, setShowRecruitForm] = useState(false);
   const [userTournaments, setUserTournaments] = useState<MiniTournament[]>([]);
-  const [selectedTournamentId, setSelectedTournamentId] = useState('');
+  const [selectedTournamentId, setSelectedTournamentId] = useState('general');
   const [recruitLoading, setRecruitLoading] = useState(false);
 
   // Toast status feedback
@@ -158,9 +158,6 @@ export default function GlobalChatWidget() {
         });
         
         setUserTournaments(tList);
-        if (tList.length > 0) {
-          setSelectedTournamentId(tList[0].id);
-        }
       } catch (err) {
         console.error("Failed to load user tournaments in widget:", err);
       }
@@ -368,32 +365,38 @@ export default function GlobalChatWidget() {
     setErrorToast(null);
 
     try {
-      const tSnap = await getDoc(doc(db, "tournaments", selectedTournamentId));
-      if (!tSnap.exists()) {
-        throw new Error("Selected tournament not found.");
-      }
-      const tData = tSnap.data();
+      let inviteData: any = {
+        tournamentId: '',
+        tournamentName: '',
+        game: 'General',
+        teamId: team.id,
+        teamName: team.name,
+        slotsLeft: 5 - (team.members || []).length,
+        slotsTotal: 5,
+        status: 'active'
+      };
 
-      // Determine size limit
-      const gameStr = tData.game || '';
-      const gameLower = gameStr.toLowerCase();
-      let sizeLimit = 5;
-      if (gameLower.includes('apex') || gameLower.includes('rocket')) {
-        sizeLimit = 3;
-      }
+      if (selectedTournamentId !== 'general') {
+        const tSnap = await getDoc(doc(db, "tournaments", selectedTournamentId));
+        if (!tSnap.exists()) {
+          throw new Error("Selected tournament not found.");
+        }
+        const tData = tSnap.data();
 
-      const slotsLeft = sizeLimit - (team.members || []).length;
-      if (slotsLeft <= 0) {
-        throw new Error("Your team roster is already full.");
-      }
+        // Determine size limit
+        const gameStr = tData.game || '';
+        const gameLower = gameStr.toLowerCase();
+        let sizeLimit = 5;
+        if (gameLower.includes('apex') || gameLower.includes('rocket')) {
+          sizeLimit = 3;
+        }
 
-      await addDoc(collection(db, "globalChatMessages"), {
-        senderId: user.uid,
-        senderGamertag: profile?.gamertag || 'Player',
-        senderAvatarUrl: user.photoURL || '',
-        text: `Team Recruitment for ${tData.name || tData.title || 'Tournament'}`,
-        type: 'invite',
-        inviteData: {
+        const slotsLeft = sizeLimit - (team.members || []).length;
+        if (slotsLeft <= 0) {
+          throw new Error("Your team roster is already full.");
+        }
+
+        inviteData = {
           tournamentId: selectedTournamentId,
           tournamentName: tData.name || tData.title || 'Tournament',
           game: gameStr,
@@ -402,7 +405,22 @@ export default function GlobalChatWidget() {
           slotsLeft,
           slotsTotal: sizeLimit,
           status: 'active'
-        },
+        };
+      } else {
+        if (inviteData.slotsLeft <= 0) {
+          throw new Error("Your team roster is already full.");
+        }
+      }
+
+      await addDoc(collection(db, "globalChatMessages"), {
+        senderId: user.uid,
+        senderGamertag: profile?.gamertag || 'Player',
+        senderAvatarUrl: user.photoURL || '',
+        text: selectedTournamentId === 'general'
+          ? `Join team roster for ${team.name}`
+          : `Team Recruitment for ${inviteData.tournamentName}`,
+        type: 'invite',
+        inviteData,
         createdAt: serverTimestamp()
       });
 
@@ -637,39 +655,34 @@ export default function GlobalChatWidget() {
                 <button type="button" onClick={() => setShowRecruitForm(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1rem' }}>&times;</button>
               </div>
               
-              {userTournaments.length === 0 ? (
-                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: 0 }}>
-                  Your team isn't registered in any upcoming tournaments. Register on the Tournaments page first!
-                </p>
-              ) : (
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                  <select 
-                    value={selectedTournamentId}
-                    onChange={e => setSelectedTournamentId(e.target.value)}
-                    style={{
-                      flex: 1,
-                      fontSize: '0.8rem',
-                      padding: '0.4rem',
-                      background: 'rgba(4, 9, 20, 0.8)',
-                      border: '1px solid rgba(0, 240, 255, 0.2)',
-                      color: '#fff',
-                      borderRadius: '6px'
-                    }}
-                  >
-                    {userTournaments.map(t => (
-                      <option key={t.id} value={t.id}>{t.name} ({t.game})</option>
-                    ))}
-                  </select>
-                  <Button 
-                    variant="primary" 
-                    type="submit" 
-                    disabled={recruitLoading}
-                    style={{ padding: '0.4rem 0.85rem', fontSize: '0.78rem', borderRadius: '6px', minHeight: 'auto' }}
-                  >
-                    {recruitLoading ? 'Posting...' : 'Post'}
-                  </Button>
-                </div>
-              )}
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                <select 
+                  value={selectedTournamentId}
+                  onChange={e => setSelectedTournamentId(e.target.value)}
+                  style={{
+                    flex: 1,
+                    fontSize: '0.8rem',
+                    padding: '0.4rem',
+                    background: 'rgba(4, 9, 20, 0.8)',
+                    border: '1px solid rgba(0, 240, 255, 0.2)',
+                    color: '#fff',
+                    borderRadius: '6px'
+                  }}
+                >
+                  <option value="general">General Join (Roster)</option>
+                  {userTournaments.map(t => (
+                    <option key={t.id} value={t.id}>{t.name} ({t.game})</option>
+                  ))}
+                </select>
+                <Button 
+                  variant="primary" 
+                  type="submit" 
+                  disabled={recruitLoading}
+                  style={{ padding: '0.4rem 0.85rem', fontSize: '0.78rem', borderRadius: '6px', minHeight: 'auto' }}
+                >
+                  {recruitLoading ? 'Posting...' : 'Post'}
+                </Button>
+              </div>
             </form>
           )}
 
