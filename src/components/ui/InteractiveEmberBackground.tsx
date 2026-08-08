@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 interface NodeParticle {
   x: number;
@@ -10,11 +10,31 @@ interface NodeParticle {
   radius: number;
   baseAlpha: number;
   pulseOffset: number;
-  color: string;
+  colorDark: string;
+  colorLight: string;
 }
 
 export default function InteractiveEmberBackground() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [isLight, setIsLight] = useState(false);
+
+  useEffect(() => {
+    // 1. Observe Theme Attribute Changes (light vs neon)
+    const checkTheme = () => {
+      const currentTheme = document.documentElement.getAttribute('data-theme');
+      setIsLight(currentTheme === 'light');
+    };
+
+    checkTheme();
+
+    const observer = new MutationObserver(checkTheme);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme']
+    });
+
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -34,21 +54,25 @@ export default function InteractiveEmberBackground() {
 
     window.addEventListener('resize', handleResize, { passive: true });
 
-    // Initialize Autonomous Constellation Node Network (NO cursor circles/connections)
+    // Node Colors for Dark (Neon) & Light Theme
+    const darkColors = ['#00F0FF', '#BD10FF', '#0070CC', '#38BDF8', '#C084FC'];
+    const lightColors = ['#0284C7', '#6366F1', '#8B5CF6', '#0369A1', '#7C3AED'];
+
     const nodes: NodeParticle[] = [];
     const nodeCount = Math.min(Math.floor((width * height) / 16000), 80);
-    const nodeColors = ['#00F0FF', '#BD10FF', '#0070CC', '#38BDF8', '#C084FC'];
 
     for (let i = 0; i < nodeCount; i++) {
+      const colorIndex = Math.floor(Math.random() * darkColors.length);
       nodes.push({
         x: Math.random() * width,
         y: Math.random() * height,
         vx: (Math.random() - 0.5) * 0.4,
         vy: (Math.random() - 0.5) * 0.4,
         radius: Math.random() * 2 + 1.2,
-        baseAlpha: Math.random() * 0.4 + 0.2,
+        baseAlpha: Math.random() * 0.4 + 0.25,
         pulseOffset: Math.random() * Math.PI * 2,
-        color: nodeColors[Math.floor(Math.random() * nodeColors.length)]
+        colorDark: darkColors[colorIndex],
+        colorLight: lightColors[colorIndex]
       });
     }
 
@@ -58,7 +82,10 @@ export default function InteractiveEmberBackground() {
       frameCount++;
       ctx.clearRect(0, 0, width, height);
 
-      // 1. Update Node Positions & Boundary Reflection
+      // Check current active theme
+      const lightActive = document.documentElement.getAttribute('data-theme') === 'light';
+
+      // 1. Update Node Positions & Bounds
       nodes.forEach((node) => {
         node.x += node.vx;
         node.y += node.vy;
@@ -77,35 +104,45 @@ export default function InteractiveEmberBackground() {
           const dist = Math.sqrt(dx * dx + dy * dy);
 
           if (dist < connectionDist) {
-            const alpha = (1 - dist / connectionDist) * 0.28;
+            const rawAlpha = (1 - dist / connectionDist);
+            const alpha = lightActive ? (rawAlpha * 0.35).toFixed(2) : (rawAlpha * 0.28).toFixed(2);
+            
             ctx.save();
             ctx.beginPath();
             ctx.moveTo(nodes[i].x, nodes[i].y);
             ctx.lineTo(nodes[j].x, nodes[j].y);
 
             const grad = ctx.createLinearGradient(nodes[i].x, nodes[i].y, nodes[j].x, nodes[j].y);
-            grad.addColorStop(0, `rgba(0, 240, 255, ${alpha})`);
-            grad.addColorStop(1, `rgba(189, 16, 255, ${alpha})`);
+
+            if (lightActive) {
+              grad.addColorStop(0, `rgba(2, 132, 199, ${alpha})`);
+              grad.addColorStop(1, `rgba(124, 58, 237, ${alpha})`);
+              ctx.lineWidth = 1.0;
+            } else {
+              grad.addColorStop(0, `rgba(0, 240, 255, ${alpha})`);
+              grad.addColorStop(1, `rgba(189, 16, 255, ${alpha})`);
+              ctx.lineWidth = 0.9;
+            }
 
             ctx.strokeStyle = grad;
-            ctx.lineWidth = 0.9;
             ctx.stroke();
             ctx.restore();
           }
         }
       }
 
-      // 3. Draw Ambient Node Particles (Pure ambient pulse, NO cursor circles/lines)
+      // 3. Draw Ambient Node Particles
       nodes.forEach((node) => {
         const alpha = node.baseAlpha + Math.sin(frameCount * 0.03 + node.pulseOffset) * 0.15;
+        const color = lightActive ? node.colorLight : node.colorDark;
 
         ctx.save();
         ctx.beginPath();
         ctx.arc(node.x, node.y, Math.max(1, node.radius), 0, Math.PI * 2);
-        ctx.fillStyle = node.color;
-        ctx.globalAlpha = Math.max(0.1, alpha);
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = node.color;
+        ctx.fillStyle = color;
+        ctx.globalAlpha = lightActive ? Math.min(0.9, alpha * 1.3) : Math.max(0.1, alpha);
+        ctx.shadowBlur = lightActive ? 4 : 10;
+        ctx.shadowColor = color;
         ctx.fill();
         ctx.restore();
       });
@@ -129,7 +166,7 @@ export default function InteractiveEmberBackground() {
         pointerEvents: 'none',
         zIndex: 1,
         overflow: 'hidden',
-        background: '#02040a'
+        background: isLight ? 'var(--bg-primary)' : '#02040a'
       }}
     >
       {/* Soft Ambient Corner Cyber Glows */}
@@ -140,7 +177,9 @@ export default function InteractiveEmberBackground() {
           left: '5%',
           width: '50vw',
           height: '550px',
-          background: 'radial-gradient(circle at center, rgba(0, 240, 255, 0.14) 0%, transparent 70%)',
+          background: isLight
+            ? 'radial-gradient(circle at center, rgba(79, 70, 229, 0.07) 0%, transparent 70%)'
+            : 'radial-gradient(circle at center, rgba(0, 240, 255, 0.14) 0%, transparent 70%)',
           filter: 'blur(80px)',
           pointerEvents: 'none'
         }}
@@ -152,7 +191,9 @@ export default function InteractiveEmberBackground() {
           right: '5%',
           width: '50vw',
           height: '550px',
-          background: 'radial-gradient(circle at center, rgba(189, 16, 255, 0.14) 0%, transparent 70%)',
+          background: isLight
+            ? 'radial-gradient(circle at center, rgba(124, 58, 237, 0.07) 0%, transparent 70%)'
+            : 'radial-gradient(circle at center, rgba(189, 16, 255, 0.14) 0%, transparent 70%)',
           filter: 'blur(80px)',
           pointerEvents: 'none'
         }}
