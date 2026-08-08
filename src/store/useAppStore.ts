@@ -51,6 +51,8 @@ export interface Team {
 interface AppState {
   user: User | null;
   profile: Profile | null;
+  teams: Team[];
+  activeTeamId: string | null;
   team: Team | null;
   teamLoading: boolean;
   loading: boolean;
@@ -61,6 +63,8 @@ interface AppState {
   // Actions
   setUser: (user: User | null) => void;
   setProfile: (profile: Profile | null) => void;
+  setTeams: (teams: Team[]) => void;
+  setActiveTeamId: (activeTeamId: string | null) => void;
   setTeam: (team: Team | null) => void;
   setLoading: (loading: boolean) => void;
   setInitialized: (initialized: boolean) => void;
@@ -73,9 +77,11 @@ interface AppState {
 let profileListener: Unsubscribe | null = null;
 let teamListener: Unsubscribe | null = null;
 
-export const useAppStore = create<AppState>((set) => ({
+export const useAppStore = create<AppState>((set, get) => ({
   user: null,
   profile: null,
+  teams: [],
+  activeTeamId: null,
   team: null,
   teamLoading: false,
   loading: true,
@@ -85,6 +91,16 @@ export const useAppStore = create<AppState>((set) => ({
 
   setUser: (user) => set({ user }),
   setProfile: (profile) => set({ profile }),
+  setTeams: (teams) => {
+    const currentActiveId = get().activeTeamId;
+    const activeTeam = teams.find(t => t.id === currentActiveId) || teams[0] || null;
+    set({ teams, team: activeTeam, activeTeamId: activeTeam ? activeTeam.id : null });
+  },
+  setActiveTeamId: (activeTeamId) => {
+    const teams = get().teams;
+    const activeTeam = teams.find(t => t.id === activeTeamId) || null;
+    set({ activeTeamId, team: activeTeam });
+  },
   setTeam: (team) => set({ team }),
   setLoading: (loading) => set({ loading }),
   setInitialized: (initialized) => set({ initialized }),
@@ -94,7 +110,7 @@ export const useAppStore = create<AppState>((set) => ({
   logout: async () => {
     stopUserListeners();
     await auth.signOut();
-    set({ user: null, profile: null, team: null, loading: false });
+    set({ user: null, profile: null, teams: [], activeTeamId: null, team: null, loading: false });
   }
 }));
 
@@ -128,7 +144,7 @@ export const startUserListeners = (uid: string) => {
         }
       }
 
-      // 2. Real-time Team Listener (querying teams where user is a member)
+      // 2. Real-time Team Listener (querying all teams where user is a member)
       const teamsRef = collection(db, "teams");
       const q = query(teamsRef, where("members", "array-contains", uid));
       
@@ -139,17 +155,16 @@ export const startUserListeners = (uid: string) => {
 
       useAppStore.setState({ teamLoading: true });
       teamListener = onSnapshot(q, (querySnap) => {
-        if (!querySnap.empty) {
-          // User is a member of a team (take the first one they belong to)
-          const teamDoc = querySnap.docs[0];
-          useAppStore.setState({ 
-            team: { id: teamDoc.id, ...teamDoc.data() } as Team,
-            teamLoading: false 
-          });
-        } else {
-          // User is not in any team
-          useAppStore.setState({ team: null, teamLoading: false });
-        }
+        const userTeams = querySnap.docs.map((tDoc) => ({ id: tDoc.id, ...tDoc.data() }) as Team);
+        const currentActiveId = useAppStore.getState().activeTeamId;
+        const activeTeam = userTeams.find(t => t.id === currentActiveId) || userTeams[0] || null;
+
+        useAppStore.setState({ 
+          teams: userTeams,
+          activeTeamId: activeTeam ? activeTeam.id : null,
+          team: activeTeam,
+          teamLoading: false 
+        });
       }, (error) => {
         console.error("Team listener error:", error);
         useAppStore.setState({ teamLoading: false });
@@ -157,7 +172,7 @@ export const startUserListeners = (uid: string) => {
 
     } else {
       // Profile doc doesn't exist yet (needs setup)
-      useAppStore.setState({ profile: null, team: null, loading: false });
+      useAppStore.setState({ profile: null, teams: [], activeTeamId: null, team: null, loading: false });
     }
   }, (error) => {
     console.error("Profile listener error:", error);

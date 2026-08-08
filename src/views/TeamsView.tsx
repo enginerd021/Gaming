@@ -29,6 +29,9 @@ import { transferLeaderOrDisband, transferCaptainToSelectedMember } from '@/serv
 export default function TeamsView() {
   const user = useAppStore((state) => state.user);
   const profile = useAppStore((state) => state.profile);
+  const teams = useAppStore((state) => state.teams);
+  const activeTeamId = useAppStore((state) => state.activeTeamId);
+  const setActiveTeamId = useAppStore((state) => state.setActiveTeamId);
   const team = useAppStore((state) => state.team);
   const teamLoading = useAppStore((state) => state.teamLoading);
   const loading = useAppStore((state) => state.loading);
@@ -136,7 +139,7 @@ export default function TeamsView() {
 
     setActionLoading(true);
     try {
-      await addDoc(collection(db, "teams"), {
+      const docRef = await addDoc(collection(db, "teams"), {
         name: newTeamName.trim(),
         captainId: user!.uid,
         members: [user!.uid],
@@ -145,6 +148,7 @@ export default function TeamsView() {
       });
 
       setNewTeamName('');
+      setActiveTeamId(docRef.id);
       setSuccess(`Team "${newTeamName}" created successfully!`);
     } catch (err: any) {
       console.error(err);
@@ -295,6 +299,7 @@ export default function TeamsView() {
         pendingInvites: updatedPending
       });
       
+      setActiveTeamId(invitingTeam.id);
       setSuccess(`Successfully joined team ${invitingTeam.name}!`);
     } catch (err: any) {
       console.error("Invite acceptance error:", err);
@@ -497,10 +502,57 @@ export default function TeamsView() {
 
       <div className="container" style={{ maxWidth: '900px', position: 'relative', zIndex: 1 }}>
         
-        {/* Title */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2rem' }}>
-          <Users size={32} style={{ color: 'var(--accent-cyan)' }} />
-          <h1 style={{ fontSize: '2.25rem' }}>Team Management</h1>
+        {/* Title & Multi-Team Tabs Bar */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', marginBottom: '2rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <Users size={32} style={{ color: 'var(--accent-cyan)' }} />
+            <div>
+              <h1 style={{ fontSize: '2.25rem', fontWeight: 900, lineHeight: 1.1 }}>Team Management</h1>
+              <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                Create, join, and manage multiple competitive esports teams.
+              </span>
+            </div>
+          </div>
+
+          {/* Active Team Switcher Pills */}
+          {teams.length > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              {teams.map((t) => {
+                const isCap = t.captainId === user?.uid;
+                const isSelected = team?.id === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setActiveTeamId(t.id)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.4rem',
+                      padding: '0.45rem 0.9rem',
+                      borderRadius: '9999px',
+                      fontWeight: 700,
+                      fontSize: '0.85rem',
+                      background: isSelected 
+                        ? 'linear-gradient(135deg, rgba(0, 240, 255, 0.25), rgba(112, 0, 255, 0.25))' 
+                        : 'var(--bg-secondary, rgba(15, 23, 42, 0.6))',
+                      border: isSelected ? '1.5px solid #00f0ff' : '1px solid var(--border-color, rgba(255, 255, 255, 0.12))',
+                      color: isSelected ? '#00f0ff' : 'var(--text-primary)',
+                      cursor: 'pointer',
+                      boxShadow: isSelected ? '0 0 15px rgba(0, 240, 255, 0.2)' : 'none',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    {isCap ? <Crown size={14} style={{ color: '#f59e0b' }} /> : <Shield size={14} style={{ color: '#00f0ff' }} />}
+                    <span>{t.name}</span>
+                    <span style={{ fontSize: '0.675rem', opacity: 0.8, background: 'rgba(255,255,255,0.12)', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>
+                      {isCap ? 'CAPTAIN' : 'MEMBER'}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Global Notifications */}
@@ -522,17 +574,213 @@ export default function TeamsView() {
           </div>
         )}
 
-        {/* CASE 1: USER IS NOT IN A TEAM */}
-        {!team ? (
+        {/* SECTION 1: SELECTED ACTIVE TEAM MANAGEMENT */}
+        {team && (
+          <div style={{ marginBottom: '3rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: '2rem' }} className="grid-2-col">
+              
+              {/* Roster & Members list */}
+              <GlassCard variant="panel" style={{ padding: '2.5rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '2rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.3rem' }}>
+                      <Badge variant="cyan">ACTIVE ROSTER</Badge>
+                      {isCaptain && <Badge variant="gold">CAPTAIN VIEW</Badge>}
+                    </div>
+                    <h2 style={{ fontSize: '1.75rem' }}>{team.name}</h2>
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <Button 
+                      onClick={handleLeaveTeam}
+                      variant="outline"
+                      style={{ fontSize: '0.85rem', color: 'var(--neon-blue)', borderColor: 'rgba(0, 240, 255, 0.4)', padding: '0.4rem 0.8rem' }}
+                      disabled={actionLoading}
+                    >
+                      <LogOut size={14} style={{ marginRight: '0.2rem' }} />
+                      {isCaptain ? 'Leave & Transfer Leadership' : 'Leave Team'}
+                    </Button>
+                    {isCaptain && (
+                      <Button 
+                        onClick={handleDisbandTeam}
+                        variant="outline"
+                        style={{ fontSize: '0.85rem', color: 'var(--accent-red)', padding: '0.4rem 0.8rem' }}
+                        disabled={actionLoading}
+                      >
+                        Disband Team
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Roster list */}
+                <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: 'var(--text-secondary)' }}>Roster Members ({memberProfiles.length})</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  {memberProfiles.map((member) => {
+                    const memberIsCaptain = member.uid === team.captainId;
+                    return (
+                      <GlassCard key={member.uid} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                          <div style={{ 
+                            width: '40px', 
+                            height: '40px', 
+                            borderRadius: '50%', 
+                            background: 'var(--bg-secondary)', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center',
+                            fontWeight: 700,
+                            border: '1px solid var(--border-color)'
+                          }}>
+                            {member.displayName.substring(0, 2).toUpperCase()}
+                          </div>
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                              <Link href={`/players/${member.gamertag}`} style={{ fontWeight: 700, color: 'var(--text-primary)' }} className="hover-cyan">
+                                {member.displayName}
+                              </Link>
+                              {memberIsCaptain && (
+                                <span style={{ color: 'var(--accent-gold)', display: 'flex', alignItems: 'center', gap: '0.1rem' }} title="Captain">
+                                  <Shield size={12} />
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>@{member.gamertag} &bull; {member.skillLevel}</div>
+                          </div>
+                        </div>
+
+                        {/* Captain actions */}
+                        {isCaptain && !memberIsCaptain && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            <button 
+                              onClick={() => handleTransferCaptaincy(member.uid, member.gamertag)}
+                              className="btn btn-outline"
+                              style={{ 
+                                padding: '0.35rem 0.65rem', 
+                                fontSize: '0.75rem', 
+                                fontWeight: 700,
+                                color: '#f59e0b', 
+                                borderColor: 'rgba(245, 158, 11, 0.35)', 
+                                background: 'rgba(245, 158, 11, 0.08)',
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: '0.3rem' 
+                              }}
+                              title="Promote to Team Captain"
+                            >
+                              <Crown size={14} /> Make Captain
+                            </button>
+                            <button 
+                              onClick={() => handleRemoveMember(member.uid, member.gamertag)}
+                              className="btn btn-outline"
+                              style={{ padding: '0.35rem 0.5rem', color: 'var(--accent-red)', borderColor: 'rgba(239, 68, 68, 0.3)' }}
+                              title="Remove Player"
+                            >
+                              <UserMinus size={16} />
+                            </button>
+                          </div>
+                        )}
+                      </GlassCard>
+                    );
+                  })}
+                </div>
+              </GlassCard>
+
+              {/* Captain Actions Panel */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                {isCaptain ? (
+                  <>
+                    {/* Invite Panel */}
+                    <GlassCard variant="panel" style={{ padding: '2rem' }}>
+                      <h2 style={{ fontSize: '1.25rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <UserPlus size={18} style={{ color: 'var(--accent-cyan)' }} />
+                        Recruit Teammate
+                      </h2>
+                      <form onSubmit={handleSendInvite}>
+                        <div className="form-group">
+                          <label htmlFor="invite-gamertag" className="form-label">Search Gamertag</label>
+                          <div className="input-glow-wrapper">
+                            <span style={{ position: 'absolute', left: '1rem', color: 'var(--accent-cyan)', fontWeight: 600 }}>@</span>
+                            <input
+                              id="invite-gamertag"
+                              type="text"
+                              className="glass-input"
+                              style={{ paddingLeft: '2.25rem' }}
+                              placeholder="gamertag..."
+                              value={inviteGamertag}
+                              onChange={(e) => setInviteGamertag(e.target.value)}
+                              disabled={actionLoading}
+                            />
+                          </div>
+                        </div>
+                        <Button 
+                          type="submit" 
+                          variant="primary" 
+                          style={{ width: '100%', height: '2.6rem' }}
+                          disabled={actionLoading}
+                        >
+                          Send Roster Invite
+                        </Button>
+                      </form>
+                    </GlassCard>
+
+                    {/* Pending Outbound Invites */}
+                    <GlassCard variant="panel" style={{ padding: '2rem' }}>
+                      <h2 style={{ fontSize: '1.25rem', marginBottom: '1rem' }}>Pending Outbound Invites</h2>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1rem' }}>
+                        {team.pendingInvites && team.pendingInvites.map((pGamertag) => (
+                          <div key={pGamertag} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.6rem 0.8rem', background: 'var(--bg-secondary)', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '0.9rem' }}>
+                            <span style={{ color: 'var(--text-secondary)' }}>@{pGamertag}</span>
+                            <button 
+                              onClick={() => handleRevokeInvite(pGamertag)}
+                              style={{ background: 'none', border: 'none', color: 'var(--accent-red)', cursor: 'pointer' }}
+                              title="Cancel Invite"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        ))}
+
+                        {(!team.pendingInvites || team.pendingInvites.length === 0) && (
+                          <p style={{ fontStyle: 'italic', color: 'var(--text-muted)', fontSize: '0.85rem' }}>No pending outbound invites.</p>
+                        )}
+                      </div>
+                    </GlassCard>
+                  </>
+                ) : (
+                  <GlassCard variant="panel" style={{ padding: '2rem' }}>
+                    <h2 style={{ fontSize: '1.25rem', marginBottom: '1rem' }}>Role Info</h2>
+                    <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                      You are a registered roster member of <strong style={{ color: 'var(--text-primary)' }}>{team.name}</strong>.
+                    </p>
+                    <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.75rem' }}>
+                      Only the captain can modify team rosters, invite new players, or sign up the team for bracket tournaments.
+                    </p>
+                  </GlassCard>
+                )}
+              </div>
+
+            </div>
+          </div>
+        )}
+
+        {/* SECTION 2: CREATE NEW TEAM & ACTIVE INVITATIONS (ALWAYS ACCESSIBLE) */}
+        <div style={{ marginTop: team ? '2rem' : '0' }}>
+          {team && (
+            <h2 style={{ fontSize: '1.4rem', fontWeight: 800, marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem', borderTop: '1px solid var(--border-color)', paddingTop: '2rem' }}>
+              <PlusCircle size={20} style={{ color: 'var(--accent-cyan)' }} />
+              Create Another Team or Join Teams
+            </h2>
+          )}
+
           <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '2rem' }} className="grid-2-col">
             {/* Create Team Card */}
             <GlassCard variant="panel" style={{ padding: '2.5rem' }}>
-              <h2 style={{ fontSize: '1.5rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <PlusCircle size={22} style={{ color: 'var(--accent-cyan)' }} />
-                Create a Roster
-              </h2>
-              <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem', fontSize: '0.95rem' }}>
-                Establish a new competitive team. As Captain, you will invite members, manage the roster, and register for tournaments.
+              <h3 style={{ fontSize: '1.35rem', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <PlusCircle size={20} style={{ color: 'var(--accent-cyan)' }} />
+                {teams.length > 0 ? 'Create Additional Team' : 'Create a Roster'}
+              </h3>
+              <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
+                Establish a new competitive roster. As Captain, you will invite members, manage the team, and register for tournaments.
               </p>
 
               <form onSubmit={handleCreateTeam}>
@@ -561,12 +809,12 @@ export default function TeamsView() {
 
             {/* Received Invitations Card */}
             <GlassCard variant="panel" style={{ padding: '2.5rem' }}>
-              <h2 style={{ fontSize: '1.5rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <UserPlus size={22} style={{ color: 'var(--accent-violet)' }} />
-                Active Invites
-              </h2>
+              <h3 style={{ fontSize: '1.35rem', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <UserPlus size={20} style={{ color: 'var(--accent-violet)' }} />
+                Pending Team Invites ({receivedInvites.length})
+              </h3>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1.5rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1.25rem' }}>
                 {receivedInvites.map((invTeam) => {
                   const isActioning = actioningInviteId === invTeam.id;
                   return (
@@ -622,189 +870,7 @@ export default function TeamsView() {
               </div>
             </GlassCard>
           </div>
-        ) : (
-          /* CASE 2: USER IS ALREADY IN A TEAM */
-          <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: '2rem' }} className="grid-2-col">
-            
-            {/* Roster & Members list */}
-            <GlassCard variant="panel" style={{ padding: '2.5rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '2rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>
-                <div>
-                  <Badge variant="cyan" style={{ marginBottom: '0.3rem' }}>ACTIVE ROSTER</Badge>
-                  <h2 style={{ fontSize: '1.75rem' }}>{team.name}</h2>
-                </div>
-                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                  <Button 
-                    onClick={handleLeaveTeam}
-                    variant="outline"
-                    style={{ fontSize: '0.85rem', color: 'var(--neon-blue)', borderColor: 'rgba(0, 240, 255, 0.4)', padding: '0.4rem 0.8rem' }}
-                    disabled={actionLoading}
-                  >
-                    <LogOut size={14} style={{ marginRight: '0.2rem' }} />
-                    {isCaptain ? 'Leave & Transfer Leadership' : 'Leave Team'}
-                  </Button>
-                  {isCaptain && (
-                    <Button 
-                      onClick={handleDisbandTeam}
-                      variant="outline"
-                      style={{ fontSize: '0.85rem', color: 'var(--accent-red)', padding: '0.4rem 0.8rem' }}
-                      disabled={actionLoading}
-                    >
-                      Disband Team
-                    </Button>
-                  )}
-                </div>
-              </div>
-
-              {/* Roster list */}
-              <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: 'var(--text-secondary)' }}>Roster Members ({memberProfiles.length})</h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                {memberProfiles.map((member) => {
-                  const memberIsCaptain = member.uid === team.captainId;
-                  return (
-                    <GlassCard key={member.uid} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                        <div style={{ 
-                          width: '40px', 
-                          height: '40px', 
-                          borderRadius: '50%', 
-                          background: 'var(--bg-secondary)', 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          justifyContent: 'center',
-                          fontWeight: 700,
-                          border: '1px solid var(--border-color)'
-                        }}>
-                          {member.displayName.substring(0, 2).toUpperCase()}
-                        </div>
-                        <div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                            <Link href={`/players/${member.gamertag}`} style={{ fontWeight: 700, color: 'var(--text-primary)' }} className="hover-cyan">
-                              {member.displayName}
-                            </Link>
-                            {memberIsCaptain && (
-                              <span style={{ color: 'var(--accent-gold)', display: 'flex', alignItems: 'center', gap: '0.1rem' }} title="Captain">
-                                <Shield size={12} />
-                              </span>
-                            )}
-                          </div>
-                          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>@{member.gamertag} &bull; {member.skillLevel}</div>
-                        </div>
-                      </div>
-
-                      {/* Captain actions */}
-                      {isCaptain && !memberIsCaptain && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                          <button 
-                            onClick={() => handleTransferCaptaincy(member.uid, member.gamertag)}
-                            className="btn btn-outline"
-                            style={{ 
-                              padding: '0.35rem 0.65rem', 
-                              fontSize: '0.75rem', 
-                              fontWeight: 700,
-                              color: '#f59e0b', 
-                              borderColor: 'rgba(245, 158, 11, 0.35)', 
-                              background: 'rgba(245, 158, 11, 0.08)',
-                              display: 'flex', 
-                              alignItems: 'center', 
-                              gap: '0.3rem' 
-                            }}
-                            title="Promote to Team Captain"
-                          >
-                            <Crown size={14} /> Make Captain
-                          </button>
-                          <button 
-                            onClick={() => handleRemoveMember(member.uid, member.gamertag)}
-                            className="btn btn-outline"
-                            style={{ padding: '0.35rem 0.5rem', color: 'var(--accent-red)', borderColor: 'rgba(239, 68, 68, 0.3)' }}
-                            title="Remove Player"
-                          >
-                            <UserMinus size={16} />
-                          </button>
-                        </div>
-                      )}
-                    </GlassCard>
-                  );
-                })}
-              </div>
-            </GlassCard>
-
-            {/* Captain Actions Panel */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-              {isCaptain ? (
-                <>
-                  {/* Invite Panel */}
-                  <GlassCard variant="panel" style={{ padding: '2rem' }}>
-                    <h2 style={{ fontSize: '1.25rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <UserPlus size={18} style={{ color: 'var(--accent-cyan)' }} />
-                      Recruit Teammate
-                    </h2>
-                    <form onSubmit={handleSendInvite}>
-                      <div className="form-group">
-                        <label htmlFor="invite-gamertag" className="form-label">Search Gamertag</label>
-                        <div className="input-glow-wrapper">
-                          <span style={{ position: 'absolute', left: '1rem', color: 'var(--accent-cyan)', fontWeight: 600 }}>@</span>
-                          <input
-                            id="invite-gamertag"
-                            type="text"
-                            className="glass-input"
-                            style={{ paddingLeft: '2.25rem' }}
-                            placeholder="gamertag..."
-                            value={inviteGamertag}
-                            onChange={(e) => setInviteGamertag(e.target.value)}
-                            disabled={actionLoading}
-                          />
-                        </div>
-                      </div>
-                      <Button 
-                        type="submit" 
-                        variant="primary" 
-                        style={{ width: '100%', height: '2.6rem' }}
-                        disabled={actionLoading}
-                      >
-                        Send Roster Invite
-                      </Button>
-                    </form>
-                  </GlassCard>
-
-                  {/* Pending Outbound Invites */}
-                  <GlassCard variant="panel" style={{ padding: '2rem' }}>
-                    <h2 style={{ fontSize: '1.25rem', marginBottom: '1rem' }}>Pending Outbound Invites</h2>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1rem' }}>
-                      {team.pendingInvites && team.pendingInvites.map((pGamertag) => (
-                        <div key={pGamertag} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.6rem 0.8rem', background: 'var(--bg-secondary)', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '0.9rem' }}>
-                          <span style={{ color: 'var(--text-secondary)' }}>@{pGamertag}</span>
-                          <button 
-                            onClick={() => handleRevokeInvite(pGamertag)}
-                            style={{ background: 'none', border: 'none', color: 'var(--accent-red)', cursor: 'pointer' }}
-                            title="Cancel Invite"
-                          >
-                            <X size={14} />
-                          </button>
-                        </div>
-                      ))}
-
-                      {(!team.pendingInvites || team.pendingInvites.length === 0) && (
-                        <p style={{ fontStyle: 'italic', color: 'var(--text-muted)', fontSize: '0.85rem' }}>No pending outbound invites.</p>
-                      )}
-                    </div>
-                  </GlassCard>
-                </>
-              ) : (
-                <GlassCard variant="panel" style={{ padding: '2rem' }}>
-                  <h2 style={{ fontSize: '1.25rem', marginBottom: '1rem' }}>Role Info</h2>
-                  <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                    You are a registered roster member of <strong style={{ color: 'var(--text-primary)' }}>{team.name}</strong>.
-                  </p>
-                  <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.75rem' }}>
-                    Only the captain can modify team rosters, invite new players, or sign up the team for bracket tournaments.
-                  </p>
-                </GlassCard>
-              )}
-            </div>
-
-          </div>
-        )}
+        </div>
 
       </div>
 
