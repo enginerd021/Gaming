@@ -61,29 +61,7 @@ export default function Navbar() {
     }
   }, [user, pathname]);
 
-  // 2-Theme System (Neon and Light only)
-  type ThemeId = 'neon' | 'light';
-  const THEMES: { id: ThemeId; label: string; desc: string; accentColor: string; swatches: string[] }[] = [
-    { id: 'neon',     label: 'Neon Esports',       desc: 'Deep space · electric cyan',       accentColor: '#00E5FF', swatches: ['#02040a', '#00E5FF', '#D946EF', '#0c1020'] },
-    { id: 'light',    label: 'Minimal Light',       desc: 'Clean white · deep indigo',        accentColor: '#4F46E5', swatches: ['#F8FAFC', '#4F46E5', '#0EA5E9', '#E2E8F0'] },
-  ];
-
-  const [theme, setTheme] = useState<ThemeId>('neon');
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const saved = (localStorage.getItem('shaktrix_theme') as ThemeId) || 'neon';
-    setTheme(saved);
-    document.documentElement.setAttribute('data-theme', saved);
-  }, []);
-
-  const selectTheme = (id: ThemeId) => {
-    setTheme(id);
-    localStorage.setItem('shaktrix_theme', id);
-    document.documentElement.setAttribute('data-theme', id);
-  };
-
-  // Single Theme State (Neon Dark vs Minimal Light)
+  // 2-Theme System (Neon Dark and Minimal Light)
   type ThemeId = 'neon' | 'light';
   const [theme, setTheme] = useState<ThemeId>('neon');
 
