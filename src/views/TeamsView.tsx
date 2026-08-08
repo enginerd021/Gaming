@@ -19,12 +19,12 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAppStore, Profile, Team } from '@/store/useAppStore';
-import { Users, UserPlus, UserMinus, Check, X, Shield, LogOut, PlusCircle, AlertCircle } from 'lucide-react';
+import { Users, UserPlus, UserMinus, Check, X, Shield, LogOut, PlusCircle, AlertCircle, Crown } from 'lucide-react';
 import Link from 'next/link';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import GlassCard from '@/components/ui/GlassCard';
-import { transferLeaderOrDisband } from '@/services/teamService';
+import { transferLeaderOrDisband, transferCaptainToSelectedMember } from '@/services/teamService';
 
 export default function TeamsView() {
   const user = useAppStore((state) => state.user);
@@ -41,6 +41,10 @@ export default function TeamsView() {
   const [receivedInvites, setReceivedInvites] = useState<Team[]>([]);
   const [actioningInviteId, setActioningInviteId] = useState<string | null>(null);
   
+  // Leadership transfer & leave modal states
+  const [leaveModalOpen, setLeaveModalOpen] = useState(false);
+  const [selectedNewCaptainId, setSelectedNewCaptainId] = useState<string>('');
+
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -327,48 +331,99 @@ export default function TeamsView() {
     }
   };
 
-  // Leave Team (with automatic Leader Succession)
-  const handleLeaveTeam = async () => {
+  // Transfer Team Captain leadership to a designated member (while staying on roster)
+  const handleTransferCaptaincy = async (targetUid: string, targetGamertag: string) => {
     if (!team || !user) return;
-    const isCaptain = team.captainId === user.uid;
-    const remainingCount = (team.members || []).filter(id => id !== user.uid).length;
-
-    let confirmMsg = "Are you sure you want to leave this team?";
-    if (isCaptain) {
-      if (remainingCount > 0) {
-        confirmMsg = "👑 You are currently the Team Captain. Leaving will automatically transfer Captaincy to the next roster member. Proceed?";
-      } else {
-        confirmMsg = "⚠️ You are the last remaining member of this team. Leaving will disband the team. Proceed?";
-      }
-    }
-
-    if (!window.confirm(confirmMsg)) return;
+    if (!window.confirm(`👑 Are you sure you want to promote @${targetGamertag} to Team Captain of ${team.name}?`)) return;
 
     clearMessages();
     setActionLoading(true);
 
     try {
-      if (isCaptain) {
-        const res = await transferLeaderOrDisband(team, user.uid);
-        if (res.disbanded) {
-          setSuccess("You have left the team. The team organization has been disbanded.");
-        } else {
-          setSuccess("You have left the team. Captaincy has been automatically transferred to the next roster member!");
-        }
+      const res = await transferCaptainToSelectedMember(team, targetUid);
+      setSuccess(`👑 Transferred Team Captain leadership to @${res.newCaptainGamertag}!`);
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "Failed to transfer leadership.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Open Leave Modal or Trigger Solo Leave
+  const handleLeaveTeam = async () => {
+    if (!team || !user) return;
+    const isCaptain = team.captainId === user.uid;
+    const activeMemberUids = (team.members || []).filter(id => id !== user.uid);
+    const eligibleMembers = activeMemberUids.map(uid => {
+      const prof = memberProfiles.find(p => p.uid === uid);
+      return prof || {
+        uid,
+        displayName: 'Active Roster Member',
+        gamertag: 'player',
+        registeredGames: [],
+        preferredRoles: [],
+        skillLevel: 'Intermediate' as const,
+        stats: { wins: 0, losses: 0, points: 1000 },
+        createdAt: Date.now()
+      };
+    });
+
+    if (isCaptain) {
+      if (eligibleMembers.length > 0) {
+        // Open modal to select new leader before leaving
+        setSelectedNewCaptainId(eligibleMembers[0].uid);
+        setLeaveModalOpen(true);
+        return;
       } else {
+        // Captain is alone - prompt disband
+        if (!window.confirm("⚠️ You are the last remaining member of this team. Leaving will disband the team organization. Proceed?")) return;
+        clearMessages();
+        setActionLoading(true);
+        try {
+          await transferLeaderOrDisband(team, user.uid);
+          setSuccess("You left the team. The team organization was disbanded.");
+        } catch (err: any) {
+          console.error(err);
+          setError(err.message || "Failed to leave team.");
+        } finally {
+          setActionLoading(false);
+        }
+      }
+    } else {
+      // Regular roster member leaving
+      if (!window.confirm(`Are you sure you want to leave ${team.name}?`)) return;
+      clearMessages();
+      setActionLoading(true);
+      try {
         const teamRef = doc(db, "teams", team.id);
         await updateDoc(teamRef, {
           members: arrayRemove(user.uid)
         });
         setSuccess("Successfully left the team.");
+      } catch (err: any) {
+        console.error(err);
+        setError(err.message || "Failed to leave team.");
+      } finally {
+        setActionLoading(false);
       }
+    }
+  };
+
+  // Confirm Leave with Selected New Captain
+  const handleConfirmLeaveWithNewCaptain = async () => {
+    if (!team || !user || !selectedNewCaptainId) return;
+
+    clearMessages();
+    setActionLoading(true);
+
+    try {
+      const res = await transferCaptainToSelectedMember(team, selectedNewCaptainId, user.uid);
+      setLeaveModalOpen(false);
+      setSuccess(`You left the team. Team Captain leadership was transferred to @${res.newCaptainGamertag}!`);
     } catch (err: any) {
       console.error(err);
-      if (err.code === 'permission-denied') {
-        setError("Action failed: Database rejected exit. Verify you are still on the roster.");
-      } else {
-        setError(err.message || "Failed to leave team.");
-      }
+      setError(err.message || "Failed to transfer leadership and leave.");
     } finally {
       setActionLoading(false);
     }
@@ -639,14 +694,34 @@ export default function TeamsView() {
 
                       {/* Captain actions */}
                       {isCaptain && !memberIsCaptain && (
-                        <button 
-                          onClick={() => handleRemoveMember(member.uid, member.gamertag)}
-                          className="btn btn-outline"
-                          style={{ padding: '0.3rem 0.5rem', color: 'var(--accent-red)', borderColor: 'transparent' }}
-                          title="Remove Player"
-                        >
-                          <UserMinus size={16} />
-                        </button>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          <button 
+                            onClick={() => handleTransferCaptaincy(member.uid, member.gamertag)}
+                            className="btn btn-outline"
+                            style={{ 
+                              padding: '0.35rem 0.65rem', 
+                              fontSize: '0.75rem', 
+                              fontWeight: 700,
+                              color: '#f59e0b', 
+                              borderColor: 'rgba(245, 158, 11, 0.35)', 
+                              background: 'rgba(245, 158, 11, 0.08)',
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: '0.3rem' 
+                            }}
+                            title="Promote to Team Captain"
+                          >
+                            <Crown size={14} /> Make Captain
+                          </button>
+                          <button 
+                            onClick={() => handleRemoveMember(member.uid, member.gamertag)}
+                            className="btn btn-outline"
+                            style={{ padding: '0.35rem 0.5rem', color: 'var(--accent-red)', borderColor: 'rgba(239, 68, 68, 0.3)' }}
+                            title="Remove Player"
+                          >
+                            <UserMinus size={16} />
+                          </button>
+                        </div>
                       )}
                     </GlassCard>
                   );
@@ -732,6 +807,124 @@ export default function TeamsView() {
         )}
 
       </div>
+
+      {/* Leadership Transfer & Leave Modal */}
+      {leaveModalOpen && team && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '1rem'
+          }}
+        >
+          <div 
+            style={{
+              width: '100%',
+              maxWidth: '480px',
+              background: 'var(--bg-secondary, #0f172a)',
+              border: '1px solid var(--border-color, rgba(255, 255, 255, 0.15))',
+              borderRadius: '20px',
+              padding: '2rem',
+              boxShadow: '0 25px 50px rgba(0,0,0,0.5), 0 0 25px rgba(245, 158, 11, 0.15)',
+              color: 'var(--text-primary)'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+              <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'rgba(245, 158, 11, 0.15)', border: '1px solid rgba(245, 158, 11, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f59e0b', flexShrink: 0 }}>
+                <Crown size={22} />
+              </div>
+              <div>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 800 }}>Select New Team Captain</h3>
+                <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary, #94a3b8)' }}>
+                  Appoint a successor from your roster before leaving <strong>{team.name}</strong>.
+                </p>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', margin: '1.5rem 0', maxHeight: '260px', overflowY: 'auto' }}>
+              {(team.members || []).filter(uid => uid !== user?.uid).map((memberUid) => {
+                const m = memberProfiles.find(p => p.uid === memberUid) || {
+                  uid: memberUid,
+                  displayName: 'Active Roster Member',
+                  gamertag: 'player',
+                  skillLevel: 'Intermediate'
+                };
+                const isSelected = selectedNewCaptainId === m.uid;
+                return (
+                  <div 
+                    key={m.uid}
+                    onClick={() => setSelectedNewCaptainId(m.uid)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '0.85rem 1rem',
+                      borderRadius: '12px',
+                      background: isSelected ? 'rgba(245, 158, 11, 0.15)' : 'var(--bg-primary, rgba(2,4,10,0.4))',
+                      border: isSelected ? '1px solid #f59e0b' : '1px solid var(--border-color, rgba(255,255,255,0.08))',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: isSelected ? '#f59e0b' : 'var(--bg-secondary)', color: isSelected ? '#000' : 'var(--text-primary)', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.85rem' }}>
+                        {m.displayName.substring(0, 2).toUpperCase()}
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)' }}>{m.displayName}</div>
+                        <div style={{ fontSize: '0.775rem', color: 'var(--text-muted)' }}>@{m.gamertag} &bull; {m.skillLevel}</div>
+                      </div>
+                    </div>
+                    <div style={{ width: '18px', height: '18px', borderRadius: '50%', border: isSelected ? '5px solid #f59e0b' : '2px solid var(--border-color)', background: 'transparent' }} />
+                  </div>
+                );
+              })}
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+              <button 
+                type="button"
+                onClick={() => setLeaveModalOpen(false)}
+                className="btn btn-outline"
+                disabled={actionLoading}
+                style={{ padding: '0.6rem 1.2rem', borderRadius: '10px' }}
+              >
+                Cancel
+              </button>
+              <button 
+                type="button"
+                onClick={handleConfirmLeaveWithNewCaptain}
+                disabled={actionLoading || !selectedNewCaptainId}
+                className="btn btn-primary"
+                style={{ 
+                  padding: '0.6rem 1.2rem', 
+                  borderRadius: '10px', 
+                  background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                  color: '#fff',
+                  fontWeight: 700,
+                  border: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  cursor: (actionLoading || !selectedNewCaptainId) ? 'not-allowed' : 'pointer'
+                }}
+              >
+                <Crown size={16} />
+                {actionLoading ? 'Transferring...' : 'Transfer & Leave Team'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
