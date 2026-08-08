@@ -20,3 +20,9 @@ To ensure consistency, readability, and correct video frame styling in both Dark
 
 ## 5. Text Gradients
 - Ensure text-gradient classes (`.text-gradient-cyan`, `.text-gradient-violet`, `.text-gradient-gold`) have light theme overrides that start with a dark contrasting color (like `#1E1B4B` or `#78350F`) instead of `#ffffff`, preventing invisible headings on white subpage backgrounds.
+
+## 6. UI/UX Pro Max & Modern Design System Rules
+- **Non-Templated Visual Identity**: Avoid plain/generic component templates. Create custom, opinionated visual hierarchy using curated typography, glassmorphism overlays (`backdrop-filter: blur()`), glowing cyan/violet accents, and depth layers.
+- **Micro-Animations & Transitions**: Apply smooth 150ms–300ms easing transitions for hover effects, scale transforms (`transform: translateY(-2px)`), and state updates.
+- **Touch & Accessibility Standards**: Ensure interactive elements maintain a minimum target size of `44x44px` with clear focus and hover feedback (`var(--neon-blue)` focus rings).
+- **Layout Grid Consistency**: Wrap page content within `.container` (`max-width: 1280px; margin: 0 auto; padding: 0 1.5rem;`) to maintain strict margin breadth alignment across sections.
