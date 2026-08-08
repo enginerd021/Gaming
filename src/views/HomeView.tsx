@@ -165,7 +165,7 @@ export default function HomeView() {
   }, []);
 
   return (
-    <main style={{ position: 'relative', overflowX: 'hidden', backgroundColor: 'var(--bg-primary)' }}>
+    <main style={{ position: 'relative', overflowX: 'hidden', background: 'transparent' }}>
       
       {/* UNLEASH THE GAME HERO SECTION */}
       <section 
@@ -246,7 +246,7 @@ export default function HomeView() {
         ref={sectionRef} 
         className="section-padding"
         style={{ 
-          background: 'linear-gradient(180deg, var(--bg-primary) 0%, var(--bg-secondary) 50%, var(--bg-primary) 100%)', 
+          background: 'linear-gradient(180deg, rgba(2, 4, 10, 0.40) 0%, rgba(10, 13, 24, 0.50) 50%, rgba(2, 4, 10, 0.40) 100%)', 
           position: 'relative', 
           zIndex: 2,
           borderTop: '1px solid var(--border-color)',
