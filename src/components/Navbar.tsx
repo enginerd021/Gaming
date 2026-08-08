@@ -21,7 +21,7 @@ import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 
 interface AppNotification {
   id: string;
-  type: 'team_invite' | 'tournament_starting' | 'match_result' | 'registration_confirmed';
+  type: 'team_invite' | 'tournament_starting' | 'match_result' | 'registration_confirmed' | 'new_tournament';
   message: string;
   relatedId: string;
   read: boolean;

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { tournamentService, Tournament } from '@/services/tournamentService';
 import { useAppStore } from '@/store/useAppStore';
+import { isAdmin } from '@/lib/adminConfig';
 import { Trophy, Search, Gamepad2, PlusCircle, X } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
@@ -12,7 +13,10 @@ import GlassCard from '@/components/ui/GlassCard';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 
 export default function TournamentsView() {
-  const user = useAppStore((state) => state.user);
+  const user    = useAppStore((state) => state.user);
+  // UX-only guard: used to show/hide the Create Tournament button.
+  // Real security enforcement is in firestore.rules → isAdminEmail().
+  const userIsAdmin = !!user && isAdmin(user.email);
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [loading, setLoading] = useState(true);
   const { refreshCount } = useAutoRefresh();
@@ -103,7 +107,8 @@ export default function TournamentsView() {
             </p>
           </div>
 
-          {user && (
+          {/* Only admins can create tournaments (UX gate; real enforcement is in firestore.rules) */}
+          {userIsAdmin && (
             <Link href="/tournaments/create">
               <Button variant="primary" style={{ borderRadius: '9999px', padding: '0.75rem 1.5rem' }}>
                 <PlusCircle size={18} />
