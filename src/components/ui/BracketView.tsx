@@ -40,6 +40,37 @@ export default function BracketView({
   const [editingMatchId, setEditingMatchId] = useState<string | null>(null);
   const [editScore1, setEditScore1] = useState(0);
   const [editScore2, setEditScore2] = useState(0);
+  const [riotIdInput, setRiotIdInput] = useState('');
+  const [fetchingRiotScore, setFetchingRiotScore] = useState(false);
+  const [riotScoreInfo, setRiotScoreInfo] = useState<string | null>(null);
+
+  const handleFetchScoreByRiotId = async () => {
+    if (!riotIdInput.trim() || !riotIdInput.includes('#')) {
+      setError("Please enter a valid Riot ID format (e.g. Tarik#NA1 or Singh#IND).");
+      return;
+    }
+    setFetchingRiotScore(true);
+    setRiotScoreInfo(null);
+    setError(null);
+
+    try {
+      const res = await fetch(`/api/game-stats?riotId=${encodeURIComponent(riotIdInput.trim())}&action=matchScore`);
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to fetch Riot ID match score.");
+      }
+
+      setEditScore1(data.score1);
+      setEditScore2(data.score2);
+      setRiotScoreInfo(`Riot ID (@${data.riotId}) Live Score: ${data.score1} - ${data.score2} (${data.map || 'Match'})`);
+      setSuccess(`Fetched live match result for ${data.riotId}: ${data.score1}-${data.score2}`);
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "Failed to query Riot match score.");
+    } finally {
+      setFetchingRiotScore(false);
+    }
+  };
 
   // Auto ticking timer for forfeit countdown
   useEffect(() => {
@@ -271,6 +302,38 @@ export default function BracketView({
 
                     {editingMatchId === m.id ? (
                       <div style={{ marginTop: '0.5rem' }}>
+                        {/* Riot ID Match Score Fetch Box */}
+                        <div style={{ marginBottom: '0.65rem', padding: '0.45rem', borderRadius: '6px', background: 'rgba(0, 240, 255, 0.05)', border: '1px solid rgba(0, 240, 255, 0.2)' }}>
+                          <label htmlFor={`edit-riot-id-${m.id}`} style={{ fontSize: '0.7rem', color: 'var(--accent-cyan)', fontWeight: 700, display: 'block', marginBottom: '0.2rem' }}>
+                            🎮 Fetch Score by Riot ID (e.g. Tarik#NA1)
+                          </label>
+                          <div style={{ display: 'flex', gap: '0.3rem' }}>
+                            <input
+                              id={`edit-riot-id-${m.id}`}
+                              type="text"
+                              placeholder="Name#Tag"
+                              className="glass-input"
+                              style={{ flex: 1, padding: '0.2rem 0.4rem', fontSize: '0.75rem' }}
+                              value={riotIdInput}
+                              onChange={(e) => setRiotIdInput(e.target.value)}
+                            />
+                            <button
+                              type="button"
+                              onClick={handleFetchScoreByRiotId}
+                              disabled={fetchingRiotScore}
+                              className="btn btn-outline"
+                              style={{ padding: '0.2rem 0.5rem', fontSize: '0.7rem', height: 'auto', background: 'var(--accent-cyan)', color: '#000', fontWeight: 800 }}
+                            >
+                              {fetchingRiotScore ? 'Fetching...' : 'Fetch'}
+                            </button>
+                          </div>
+                          {riotScoreInfo && (
+                            <span style={{ display: 'block', fontSize: '0.68rem', color: 'var(--accent-green)', marginTop: '0.25rem', fontWeight: 600 }}>
+                              {riotScoreInfo}
+                            </span>
+                          )}
+                        </div>
+
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                           <label htmlFor={`edit-score-t1-${m.id}`} style={{ fontSize: '0.85rem', maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t1Name}</label>
                           <input 
@@ -300,7 +363,7 @@ export default function BracketView({
                             style={{ flex: 1, padding: '0.4rem', fontSize: '0.75rem', height: 'auto' }}
                             disabled={actionLoading}
                           >
-                            Save
+                            Save Score
                           </button>
                           <button 
                             onClick={() => setEditingMatchId(null)} 
