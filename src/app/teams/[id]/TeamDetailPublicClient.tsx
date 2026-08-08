@@ -17,7 +17,6 @@ import {
 import { db } from '@/lib/firebase';
 import { Trophy, Users, Shield, Calendar, ArrowLeft, Loader, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
-import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 
 interface MatchRecord {
   id: string;
@@ -64,7 +63,6 @@ export default function TeamDetailPublicClient({ id }: { id: string }) {
   
   const [loading, setLoading] = useState(true);
   const [notifError, setNotifError] = useState<string | null>(null);
-  const { refreshCount } = useAutoRefresh();
 
   useEffect(() => {
     if (!id) return;
@@ -145,7 +143,7 @@ export default function TeamDetailPublicClient({ id }: { id: string }) {
       if (membersUnsub) membersUnsub();
       matchUnsub();
     };
-  }, [id, refreshCount]);
+  }, [id]);
 
   const loadMoreMatches = async () => {
     if (!lastDoc) return;

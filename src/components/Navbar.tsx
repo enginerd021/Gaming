@@ -17,7 +17,6 @@ import {
   updateDoc 
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 
 interface AppNotification {
   id: string;
@@ -37,7 +36,6 @@ export default function Navbar() {
   const connectionStatus = useAppStore((state) => state.connectionStatus);
   const pathname = usePathname();
   const isHome = pathname === '/';
-  const { refreshCount } = useAutoRefresh();
   
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
@@ -185,7 +183,7 @@ export default function Navbar() {
     });
 
     return () => unsubscribe();
-  }, [user, refreshCount]);
+  }, [user]);
 
   const promptLogout = () => {
     setShowLogoutConfirm(true);

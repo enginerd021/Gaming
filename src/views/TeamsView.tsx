@@ -24,7 +24,6 @@ import Link from 'next/link';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import GlassCard from '@/components/ui/GlassCard';
-import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 import { transferLeaderOrDisband } from '@/services/teamService';
 
 export default function TeamsView() {
@@ -34,7 +33,6 @@ export default function TeamsView() {
   const teamLoading = useAppStore((state) => state.teamLoading);
   const loading = useAppStore((state) => state.loading);
   const router = useRouter();
-  const { refreshCount } = useAutoRefresh();
 
   // Component states
   const [newTeamName, setNewTeamName] = useState('');
@@ -83,7 +81,7 @@ export default function TeamsView() {
     }
 
     return () => unsubs.forEach(fn => fn());
-  }, [team?.members, refreshCount]);
+  }, [team?.members]);
 
   // Real-time stream of pending invitations for this user (handles case variations)
   useEffect(() => {
@@ -115,7 +113,7 @@ export default function TeamsView() {
     });
 
     return () => unsub1();
-  }, [profile?.gamertag, team, refreshCount]);
+  }, [profile?.gamertag, team]);
 
   const clearMessages = () => {
     setError(null);

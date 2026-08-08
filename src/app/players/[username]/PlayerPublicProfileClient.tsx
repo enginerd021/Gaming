@@ -17,7 +17,6 @@ import { db } from '@/lib/firebase';
 import { Profile, Team } from '@/store/useAppStore';
 import { Trophy, Gamepad2, Award, Users, Calendar, AlertCircle, Loader, Video, ExternalLink, X } from 'lucide-react';
 import Link from 'next/link';
-import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 import { ACHIEVEMENTS } from '@/lib/achievements';
 import ShareButton from '@/components/ui/ShareButton';
 
@@ -60,7 +59,6 @@ export default function PlayerPublicProfileClient({ username }: { username: stri
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { refreshCount } = useAutoRefresh();
 
   useEffect(() => {
     if (!username) return;
@@ -159,7 +157,7 @@ export default function PlayerPublicProfileClient({ username }: { username: stri
       if (teamUnsub) teamUnsub();
       if (matchUnsub) matchUnsub();
     };
-  }, [username, refreshCount]);
+  }, [username]);
 
   // Subscribe to VODs for matched records
   useEffect(() => {
