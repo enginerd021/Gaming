@@ -62,7 +62,19 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUser(user);
       if (user) {
-        startUserListeners(user.uid);
+        if (user.emailVerified) {
+          // Fully authenticated: start real-time Firestore listeners for profile + team.
+          startUserListeners(user.uid);
+        } else {
+          // User is signed in but has NOT verified their email yet.
+          // We store the user object (so /verify-email can call resend),
+          // but we do NOT start profile/team listeners — they shouldn't
+          // have full app access until verified.
+          // Google Sign-In users always have emailVerified=true, so this
+          // branch only applies to email/password accounts.
+          stopUserListeners();
+          useAppStore.setState({ profile: null, team: null, loading: false });
+        }
       } else {
         stopUserListeners();
         useAppStore.setState({ profile: null, team: null, loading: false });
