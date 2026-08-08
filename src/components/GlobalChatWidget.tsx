@@ -13,7 +13,6 @@ import {
   serverTimestamp 
 } from 'firebase/firestore';
 import { MessageSquare, X, Send, Sparkles, LogIn } from 'lucide-react';
-import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 
 interface GlobalMessage {
   id: string;
@@ -54,7 +53,6 @@ const DEFAULT_LOUNGE_MESSAGES: GlobalMessage[] = [
 export default function GlobalChatWidget() {
   const user = useAppStore((state) => state.user);
   const profile = useAppStore((state) => state.profile);
-  const { refreshCount } = useAutoRefresh();
 
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<GlobalMessage[]>(DEFAULT_LOUNGE_MESSAGES);
@@ -181,7 +179,7 @@ export default function GlobalChatWidget() {
     });
 
     return () => unsubscribe();
-  }, [refreshCount, isOpen]);
+  }, [isOpen]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();

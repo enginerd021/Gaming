@@ -1,18 +1,16 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useRouter } from 'next/navigation';
 
 /**
- * Custom hook to execute a data refresh callback periodically every `intervalMs` milliseconds (default 5 seconds).
- * Also triggers on window focus and tab visibility change, and triggers Next.js router refresh.
+ * Custom hook for components that require explicit periodic background refresh callbacks.
+ * Data is updated seamlessly without triggering full page re-renders or Next.js router flashes.
  */
 export function useAutoRefresh(
   onRefresh?: () => void,
-  intervalMs: number = 5000
+  intervalMs: number = 30000
 ) {
   const [refreshCount, setRefreshCount] = useState(0);
-  const router = useRouter();
   const savedCallback = useRef(onRefresh);
 
   useEffect(() => {
@@ -24,17 +22,16 @@ export function useAutoRefresh(
     if (savedCallback.current) {
       savedCallback.current();
     }
-    // Also trigger Next.js server components revalidation / refresh
-    router.refresh();
-  }, [router]);
+  }, []);
 
   useEffect(() => {
-    // Periodic auto-refresh timer
+    // Only run interval if an explicit onRefresh handler was provided
+    if (!savedCallback.current) return;
+
     const timer = setInterval(() => {
       triggerRefresh();
     }, intervalMs);
 
-    // Refresh when user returns to window/tab
     const handleFocus = () => {
       triggerRefresh();
     };

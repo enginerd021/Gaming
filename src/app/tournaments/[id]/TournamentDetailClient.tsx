@@ -25,7 +25,6 @@ import { useAppStore, Team } from '@/store/useAppStore';
 import { Trophy, Calendar, Shield, Users, Layers, Award, Loader, AlertCircle, Edit3, Save, Play, Check, X, MessageSquare, Send, Trash2, Bell, Clock, ShieldAlert, CheckCircle, Flame } from 'lucide-react';
 import Link from 'next/link';
 import Button from '@/components/ui/Button';
-import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 import { TournamentCountdown } from '@/components/TournamentCountdown';
 import { calculateTournamentTimeWindow, checkPlayerTournamentOverlap } from '@/lib/tournamentUtils';
 import { achievementService } from '@/services/achievementService';
@@ -87,7 +86,6 @@ export default function TournamentDetailClient({ id }: { id: string }) {
   const user = useAppStore((state) => state.user);
   const team = useAppStore((state) => state.team);
   const profile = useAppStore((state) => state.profile);
-  const { refreshCount } = useAutoRefresh();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -182,7 +180,7 @@ export default function TournamentDetailClient({ id }: { id: string }) {
       unsub();
       if (teamsUnsub) teamsUnsub();
     };
-  }, [id, refreshCount]);
+  }, [id]);
 
   const isOrganizer = tournament?.organizerId === user?.uid;
   const isParticipant = team && tournament?.registeredTeamIds?.includes(team.id);

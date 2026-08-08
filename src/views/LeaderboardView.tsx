@@ -9,7 +9,6 @@ import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import GlassCard from '@/components/ui/GlassCard';
 import Podium from '@/components/ui/Podium';
-import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 
 export default function LeaderboardView() {
   const [activeTab, setActiveTab] = useState<'players' | 'teams'>('players');
@@ -18,7 +17,6 @@ export default function LeaderboardView() {
   const [loading, setLoading] = useState(true);
   const [playerLimit, setPlayerLimit] = useState(50);
   const [teamLimit, setTeamLimit] = useState(50);
-  const { refreshCount } = useAutoRefresh();
 
   // Search & Filter states
   const [searchQuery, setSearchQuery] = useState('');
@@ -46,7 +44,7 @@ export default function LeaderboardView() {
       unsubProfiles();
       unsubTeams();
     };
-  }, [playerLimit, teamLimit, refreshCount]);
+  }, [playerLimit, teamLimit]);
 
   // Derived filtered players list
   const filteredPlayers = useMemo(() => {

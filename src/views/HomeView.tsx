@@ -122,15 +122,11 @@ export default function HomeView() {
   const user = useAppStore((state) => state.user);
   const [activeTournaments, setActiveTournaments] = useState<Tournament[]>([]);
   const [loading, setLoading] = useState(true);
-  const { refreshCount } = useAutoRefresh();
 
   const heroWrapperRef = useRef<HTMLDivElement>(null);
   const sectionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (activeTournaments.length === 0) {
-      setLoading(true);
-    }
     const unsub = tournamentService.subscribeRecentTournaments(
       3,
       (list) => {
@@ -145,7 +141,7 @@ export default function HomeView() {
     return () => {
       unsub();
     };
-  }, [refreshCount]);
+  }, []);
 
   useEffect(() => {
     if (!heroWrapperRef.current) return;
