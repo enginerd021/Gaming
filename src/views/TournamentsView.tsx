@@ -9,7 +9,7 @@ import { Trophy, Search, Gamepad2, PlusCircle, X } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import GlassCard from '@/components/ui/GlassCard';
-
+import { TournamentCountdown } from '@/components/TournamentCountdown';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 
 export default function TournamentsView() {
@@ -293,8 +293,12 @@ export default function TournamentsView() {
                   </div>
 
                   <h3 style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>{tournament.name}</h3>
-                  <div style={{ color: 'var(--accent-cyan)', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '1.5rem' }}>
+                  <div style={{ color: 'var(--accent-cyan)', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '1rem' }}>
                     <Gamepad2 size={16} /> {tournament.game}
+                  </div>
+
+                  <div style={{ marginBottom: '1.25rem' }}>
+                    <TournamentCountdown tournament={tournament} compact={true} />
                   </div>
 
                   <div style={{ marginTop: 'auto', borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>

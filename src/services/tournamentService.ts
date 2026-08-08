@@ -36,6 +36,9 @@ export interface Tournament {
   registeredTeamIds: string[];
   organizerId?: string;
   createdAt: number;
+  startDate?: number;
+  roundDurationMins?: number;
+  estimatedEndTime?: number;
   discordWebhookUrl?: string;
   discordBotEnabled?: boolean;
 }

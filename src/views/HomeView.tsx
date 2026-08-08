@@ -11,6 +11,7 @@ import Badge from '@/components/ui/Badge';
 import GlassCard from '@/components/ui/GlassCard';
 import StatsTicker from '@/components/ui/StatsTicker';
 import BentoGrid from '@/components/ui/BentoGrid';
+import { TournamentCountdown } from '@/components/TournamentCountdown';
 import { initScrollReveals } from '@/animations/scroll';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -309,7 +310,10 @@ export default function HomeView() {
                     </Badge>
                     <Badge variant="cyan" style={{ fontSize: '0.75rem', textTransform: 'none' }}>{t.game}</Badge>
                   </div>
-                  <h3 style={{ fontSize: '1.25rem', marginBottom: '1rem' }}>{t.name}</h3>
+                  <h3 style={{ fontSize: '1.25rem', marginBottom: '0.75rem' }}>{t.name}</h3>
+                  <div style={{ marginBottom: '1rem' }}>
+                    <TournamentCountdown tournament={t} compact={true} />
+                  </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--text-secondary)', borderTop: '1px solid var(--border-color)', paddingTop: '1rem', marginTop: '1rem' }}>
                     <span>Rosters Registered</span>
                     <strong style={{ color: 'var(--text-primary)' }}>{t.registeredTeamIds?.length || 0} / {t.maxTeams}</strong>
