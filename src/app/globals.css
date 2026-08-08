@@ -171,7 +171,8 @@
   box-shadow: none !important;
 }
 
-[data-theme="light"] header .zentry-text-link {
+[data-theme="light"] header .zentry-text-link,
+[data-theme="light"] header.is-inner-header .nav-home-symbol {
   color: #0F172A !important;
 }
 
