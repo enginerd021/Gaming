@@ -82,6 +82,15 @@ async function logFlaggedMessage(userId: string, gamertag: string, text: string,
 
 export async function POST(request: Request) {
   try {
+    const hasCredentials = (process.env.FIREBASE_ADMIN_PRIVATE_KEY || process.env.FIREBASE_PRIVATE_KEY) && 
+                           (process.env.FIREBASE_ADMIN_CLIENT_EMAIL || process.env.FIREBASE_CLIENT_EMAIL);
+    if (!hasCredentials) {
+      console.error("Firebase Admin credentials are not configured in local environment variables.");
+      return NextResponse.json({
+        error: "Server Configuration Error: Firebase credentials are missing. Please add FIREBASE_PRIVATE_KEY and FIREBASE_CLIENT_EMAIL to your local .env.local file or Vercel dashboard."
+      }, { status: 500 });
+    }
+
     // 1. Authenticate user
     const authHeader = request.headers.get('Authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
