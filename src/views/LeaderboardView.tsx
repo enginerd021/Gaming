@@ -212,14 +212,14 @@ export default function LeaderboardView() {
                 {/* Table for Players */}
                 <GlassCard variant="panel" className="responsive-table" style={{ padding: '1.5rem' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                    <caption>Player Leaderboard rankings based on aggregated match performance and XP score.</caption>
+                    <caption>Player Leaderboard rankings based on live Riot rank data and match performance.</caption>
                     <thead>
                       <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
                         <th style={{ padding: '1rem' }}>Rank</th>
                         <th style={{ padding: '1rem' }}>Player</th>
                         <th style={{ padding: '1rem' }}>Active Games</th>
                         <th style={{ padding: '1rem' }}>Skill Level</th>
-                        <th style={{ padding: '1rem', textAlign: 'right' }}>XP Points</th>
+                        <th style={{ padding: '1rem', textAlign: 'right' }}>Riot Score</th>
                       </tr>
                     </thead>
                     <tbody aria-live="polite">
@@ -254,7 +254,7 @@ export default function LeaderboardView() {
                               {player.skillLevel}
                             </Badge>
                           </td>
-                          <td data-label="XP Points" style={{ padding: '1rem', textAlign: 'right', fontWeight: 800, color: 'var(--accent-cyan)' }}>
+                          <td data-label="Riot Score" style={{ padding: '1rem', textAlign: 'right', fontWeight: 800, color: 'var(--accent-cyan)' }}>
                             {player.stats?.points || 1000}
                           </td>
                         </tr>
@@ -275,7 +275,7 @@ export default function LeaderboardView() {
                       <th style={{ padding: '1rem' }}>Rank</th>
                       <th style={{ padding: '1rem' }}>Team Name</th>
                       <th style={{ padding: '1rem' }}>Roster Size</th>
-                      <th style={{ padding: '1rem', textAlign: 'right' }}>Total XP</th>
+                      <th style={{ padding: '1rem', textAlign: 'right' }}>Team Score</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -292,8 +292,8 @@ export default function LeaderboardView() {
                         <td data-label="Roster Size" style={{ padding: '1rem' }}>
                           <Badge variant="violet">{team.members.length} Members</Badge>
                         </td>
-                        <td data-label="Total XP" style={{ padding: '1rem', textAlign: 'right', fontWeight: 800, color: 'var(--accent-gold)' }}>
-                          {team.points} XP
+                        <td data-label="Team Score" style={{ padding: '1rem', textAlign: 'right', fontWeight: 800, color: 'var(--accent-gold)' }}>
+                          {team.points} pts
                         </td>
                       </tr>
                     ))}

@@ -1,6 +1,6 @@
 import { collection, onSnapshot, doc, query, orderBy, limit, Unsubscribe, writeBatch, getDoc, getDocs, updateDoc, setDoc, serverTimestamp, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { calculateXP } from '@/lib/xpCalculator';
+import { calculateRiotScore } from '@/lib/riotScoreCalculator';
 import { achievementService } from '@/services/achievementService';
 
 export interface Match {
@@ -371,7 +371,7 @@ export const tournamentService = {
           const newWins = (pData.stats?.wins || 0) + 1;
           const summonerLevel = pData.riotStats?.summonerLevel || 30;
           const rankInfo = pData.riotStats?.rankInfo || {};
-          const newPoints = calculateXP(
+          const newPoints = calculateRiotScore(
             summonerLevel,
             rankInfo.tier || 'UNRANKED',
             rankInfo.rank || '',

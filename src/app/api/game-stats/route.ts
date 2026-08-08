@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { calculateRiotScore } from '@/lib/riotScoreCalculator';
 
 interface CacheEntry {
   data: unknown;
@@ -149,7 +150,15 @@ export async function GET(request: Request) {
         wins: 0,
         losses: 0,
         winRate: 0
-      }
+      },
+      // Pre-computed Riot Score so the client has a single source of truth
+      riotScore: calculateRiotScore(
+        summonerData.summonerLevel,
+        soloQueue?.tier || 'UNRANKED',
+        soloQueue?.rank || '',
+        soloQueue?.leaguePoints || 0,
+        soloQueue?.wins || 0
+      )
     };
 
     // 4. Save to in-memory cache

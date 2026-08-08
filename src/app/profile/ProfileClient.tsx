@@ -64,11 +64,10 @@ export default function ProfileClient() {
   const [newRole, setNewRole] = useState('');
   const [riotId, setRiotId] = useState('');
 
-  // Extended Stats states
-  const [losses, setLosses] = useState(0);
-  const [mvps, setMvps] = useState(0);
-  const [kda, setKda] = useState('0.0');
-  const [totalTournaments, setTotalTournaments] = useState(0);
+  // Live Riot Stats (fetched from /api/game-stats)
+  const [riotLiveStats, setRiotLiveStats] = useState<Record<string, any> | null>(null);
+  const [loadingRiotSync, setLoadingRiotSync] = useState(false);
+  const [riotSyncError, setRiotSyncError] = useState<string | null>(null);
 
   // Match history & VODs
   const [matches, setMatches] = useState<any[]>([]);
@@ -93,10 +92,6 @@ export default function ProfileClient() {
     setSelectedGames(profile.registeredGames || []);
     setPreferredRoles(profile.preferredRoles || []);
     setRiotId(profile.riotId || '');
-    setLosses(profile.stats?.losses || 0);
-    setMvps(profile.stats?.mvps || 0);
-    setKda(profile.stats?.kda || '0.0');
-    setTotalTournaments(profile.stats?.totalTournaments || 0);
   }
 
   useEffect(() => {
@@ -178,6 +173,45 @@ export default function ProfileClient() {
     setPreferredRoles(preferredRoles.filter(r => r !== roleToRemove));
   };
 
+  // Syncs live Riot score from the Riot API and writes to Firestore
+  const syncRiotScore = async (riotIdToSync: string) => {
+    if (!profile) return;
+    if (!riotIdToSync.trim() || !/^[^#]+#[^#]+$/.test(riotIdToSync.trim())) return;
+
+    setLoadingRiotSync(true);
+    setRiotSyncError(null);
+
+    try {
+      const res = await fetch(`/api/game-stats?riotId=${encodeURIComponent(riotIdToSync.trim())}`);
+      const data = await res.json();
+
+      if (!res.ok) {
+        setRiotSyncError(data.error || `Riot API error (${res.status})`);
+        return;
+      }
+
+      // Write the live Riot Score to stats.points and cache rank info on the profile doc
+      const profileRef = doc(db, 'profiles', profile.uid);
+      await updateDoc(profileRef, {
+        'stats.points': data.riotScore,
+        'stats.wins': data.rankInfo?.wins || profile.stats?.wins || 0,
+        'stats.losses': data.rankInfo?.losses || 0,
+        riotStats: {
+          summonerLevel: data.summonerLevel,
+          rankInfo: data.rankInfo,
+          lastSynced: Date.now(),
+        },
+      });
+
+      setRiotLiveStats(data);
+      setMessage({ type: 'success', text: `Riot Score synced! Rank: ${data.rankInfo?.tier || 'UNRANKED'} — ${data.riotScore.toLocaleString()} pts` });
+    } catch {
+      setRiotSyncError('Failed to connect to Riot Stats service.');
+    } finally {
+      setLoadingRiotSync(false);
+    }
+  };
+
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile) return;
@@ -197,27 +231,25 @@ export default function ProfileClient() {
     setMessage(null);
 
     try {
-      const profileRef = doc(db, "profiles", profile.uid);
+      const profileRef = doc(db, 'profiles', profile.uid);
       await updateDoc(profileRef, {
         displayName: displayName.trim(),
         skillLevel,
         registeredGames: selectedGames,
         preferredRoles: preferredRoles,
         riotId: riotId.trim(),
-        // Stats
-        "stats.losses": Number(losses),
-        "stats.mvps": Number(mvps),
-        "stats.totalTournaments": Number(totalTournaments),
-        "stats.kda": kda.trim()
       });
-      
-      setMessage({ type: 'success', text: 'Profile updated successfully!' });
+
       // Trigger Sheriff check if Riot ID linked
       if (riotId.trim()) {
         await achievementService.unlockAchievement(profile.uid, 'sheriff', profile.achievements || []);
+        // Auto-sync live Riot Score after saving Riot ID
+        await syncRiotScore(riotId.trim());
+      } else {
+        setMessage({ type: 'success', text: 'Profile updated successfully!' });
       }
     } catch (err: any) {
-      console.error("Error updating profile:", err);
+      console.error('Error updating profile:', err);
       triggerShake();
       const pErr = err as { code?: string; message?: string };
       if (pErr.code === 'permission-denied') {
@@ -227,33 +259,6 @@ export default function ProfileClient() {
       }
     } finally {
       setUpdating(false);
-    }
-  };
-
-  const handleSimulateWin = async () => {
-    if (!profile) return;
-    try {
-      const profileRef = doc(db, "profiles", profile.uid);
-      const currentWins = profile.stats?.wins || 0;
-      const currentPoints = profile.stats?.points || 1000;
-      
-      await updateDoc(profileRef, {
-        "stats.wins": currentWins + 1,
-        "stats.points": currentPoints + 150
-      });
-      setMessage({ type: 'success', text: 'Victory simulated! +150 XP added.' });
-
-      // Unlock First Blood achievement if first win
-      await achievementService.unlockAchievement(profile.uid, 'first_blood', profile.achievements || []);
-    } catch (err: any) {
-      console.error(err);
-      triggerShake();
-      const pErr = err as { code?: string };
-      if (pErr.code === 'permission-denied') {
-        setMessage({ type: 'error', text: "Action failed: You do not have permission to modify this profile's stats." });
-      } else {
-        setMessage({ type: 'error', text: 'Failed to simulate win.' });
-      }
     }
   };
 
@@ -363,17 +368,14 @@ export default function ProfileClient() {
               <span className="badge badge-cyan">@{profile.gamertag}</span>
             </div>
             <p style={{ color: 'var(--text-secondary)', marginTop: '0.25rem', fontSize: '0.95rem' }}>
-              Combat Stats: <strong style={{ color: 'var(--accent-gold)' }}>{profile.stats?.points || 1000} XP</strong> &bull; <strong style={{ color: 'var(--accent-green)' }}>{profile.stats?.wins || 0} Wins</strong>
+              Riot Score: <strong style={{ color: 'var(--accent-gold)' }}>{(profile.stats?.points || 0).toLocaleString()} pts</strong> &bull; <strong style={{ color: 'var(--accent-green)' }}>{profile.stats?.wins || 0} Wins</strong>
+              {!profile.riotId && (
+                <span style={{ marginLeft: '0.75rem', fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                  (Link Riot ID to sync your live rank score)
+                </span>
+              )}
             </p>
           </div>
-          
-          <button 
-            onClick={handleSimulateWin}
-            className="btn btn-outline"
-            style={{ marginLeft: 'auto', fontSize: '0.85rem' }}
-          >
-            Simulate Win (+150 XP)
-          </button>
         </div>
 
         {/* Global Feedback message */}
@@ -600,83 +602,104 @@ export default function ProfileClient() {
               <h2 style={{ fontSize: '1.5rem', margin: 0 }}>Career Stats & Game Sync</h2>
             </div>
 
-            {/* Riot Games ID Link */}
+            {/* Riot Games ID Link + Live Score Sync */}
             <div className="form-group" style={{ marginBottom: '2rem' }}>
               <label htmlFor="prof-riotid" className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.5rem' }}>
                 <Gamepad2 size={16} style={{ color: 'var(--accent-cyan)' }} />
                 Linked Riot Games ID
               </label>
-              <div className="input-glow-wrapper">
-                <input
-                  id="prof-riotid"
-                  type="text"
-                  className="glass-input"
-                  placeholder="e.g. Rioter#NA1"
-                  value={riotId}
-                  onChange={(e) => setRiotId(e.target.value)}
-                  disabled={updating}
-                />
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <div className="input-glow-wrapper" style={{ flex: 1 }}>
+                  <input
+                    id="prof-riotid"
+                    type="text"
+                    className="glass-input"
+                    placeholder="e.g. Rioter#NA1"
+                    value={riotId}
+                    onChange={(e) => setRiotId(e.target.value)}
+                    disabled={updating || loadingRiotSync}
+                  />
+                </div>
+                {profile.riotId && (
+                  <button
+                    type="button"
+                    className="btn btn-outline"
+                    onClick={() => syncRiotScore(riotId || profile.riotId!)}
+                    disabled={loadingRiotSync || updating}
+                    style={{ whiteSpace: 'nowrap', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                    title="Refresh live Riot rank data"
+                  >
+                    {loadingRiotSync ? <Loader size={14} className="spin" /> : '🔄'} Refresh Live Stats
+                  </button>
+                )}
               </div>
               <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginTop: '0.4rem' }}>
-                Enter your Riot ID (name#tag) to fetch your League of Legends live rank and link it to your profile. Unlocks the "Sheriff" achievement badge!
+                Enter your Riot ID (name#tag) and save to sync your live League of Legends rank as your Riot Score. Unlocks the &quot;Sheriff&quot; achievement!
               </span>
             </div>
 
-            {/* Edit Career Stats */}
-            <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: 'var(--text-primary)' }}>Adjust Career Stats manually</h3>
-            
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }} className="grid-2-col">
-              <div className="form-group">
-                <label htmlFor="prof-losses" className="form-label">Match Losses</label>
-                <input
-                  id="prof-losses"
-                  type="number"
-                  className="glass-input"
-                  value={losses}
-                  onChange={(e) => setLosses(Number(e.target.value))}
-                  disabled={updating}
-                />
-              </div>
-              
-              <div className="form-group">
-                <label htmlFor="prof-mvps" className="form-label">MVP Count</label>
-                <input
-                  id="prof-mvps"
-                  type="number"
-                  className="glass-input"
-                  value={mvps}
-                  onChange={(e) => setMvps(Number(e.target.value))}
-                  disabled={updating}
-                />
-              </div>
-            </div>
+            {/* Live Riot Stats — read-only display */}
+            {(riotLiveStats || (profile as any).riotStats) && (() => {
+              const stats = riotLiveStats || (profile as any).riotStats;
+              const rank = stats.rankInfo || {};
+              const score = riotLiveStats?.riotScore ?? profile.stats?.points ?? 0;
+              return (
+                <div style={{
+                  background: 'var(--bg-secondary)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '12px',
+                  padding: '1.5rem',
+                  marginBottom: '1.5rem',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--accent-cyan)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>⚡ Live Riot Stats</span>
+                    {(profile as any).riotStats?.lastSynced && (
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginLeft: 'auto' }}>
+                        Last synced: {new Date((profile as any).riotStats.lastSynced).toLocaleString()}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '1rem' }}>
+                    <div>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.25rem' }}>Rank</div>
+                      <div style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)' }}>
+                        {rank.tier && rank.tier !== 'UNRANKED' ? `${rank.tier} ${rank.rank}` : 'UNRANKED'}
+                      </div>
+                    </div>
+                    {rank.tier !== 'UNRANKED' && rank.leaguePoints !== undefined && (
+                      <div>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.25rem' }}>League Points</div>
+                        <div style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--accent-violet)' }}>{rank.leaguePoints} LP</div>
+                      </div>
+                    )}
+                    <div>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.25rem' }}>Ranked Wins</div>
+                      <div style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--accent-green)' }}>{rank.wins ?? 0}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.25rem' }}>Ranked Losses</div>
+                      <div style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--accent-red)' }}>{rank.losses ?? 0}</div>
+                    </div>
+                    {rank.winRate !== undefined && (
+                      <div>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.25rem' }}>Win Rate</div>
+                        <div style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--accent-gold)' }}>{rank.winRate}%</div>
+                      </div>
+                    )}
+                    <div>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.25rem' }}>Riot Score</div>
+                      <div style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--accent-cyan)' }}>{score.toLocaleString()} pts</div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }} className="grid-2-col">
-              <div className="form-group">
-                <label htmlFor="prof-kda" className="form-label">Average KDA (Kills/Deaths/Assists)</label>
-                <input
-                  id="prof-kda"
-                  type="text"
-                  className="glass-input"
-                  placeholder="e.g. 3.2"
-                  value={kda}
-                  onChange={(e) => setKda(e.target.value)}
-                  disabled={updating}
-                />
+            {riotSyncError && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent-red)', fontSize: '0.85rem', marginBottom: '1rem', background: 'hsla(350,85%,55%,0.08)', border: '1px solid var(--accent-red)', borderRadius: '8px', padding: '0.6rem 1rem' }}>
+                <AlertCircle size={14} /> {riotSyncError}
               </div>
-
-              <div className="form-group">
-                <label htmlFor="prof-tournaments" className="form-label">Total Tournaments Played</label>
-                <input
-                  id="prof-tournaments"
-                  type="number"
-                  className="glass-input"
-                  value={totalTournaments}
-                  onChange={(e) => setTotalTournaments(Number(e.target.value))}
-                  disabled={updating}
-                />
-              </div>
-            </div>
+            )}
 
             <button
               type="submit"
