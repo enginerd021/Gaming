@@ -173,14 +173,61 @@ service cloud.firestore {
     }
 
     // ----------------------------------------------------------
+    // /globalChatMessages/{messageId}
+    // ----------------------------------------------------------
+    match /globalChatMessages/{messageId} {
+      allow read: if true;
+      allow create: if isEmailVerified()
+                    && request.resource.data.senderId == request.auth.uid
+                    && !(request.resource.data.text.matches('(?i).*https?://.*') || request.resource.data.text.matches('(?i).*www\\..*') || request.resource.data.text.matches('(?i).*data:image/.*base64.*'));
+      allow update: if false;
+      allow delete: if isAdminEmail();
+    }
+
+    // ----------------------------------------------------------
     // /global_chat/{messageId} (live global chat shoutbox)
     // ----------------------------------------------------------
     match /global_chat/{messageId} {
       allow read: if true;
-      // Require email verification to post chat messages.
       allow create: if isEmailVerified()
-                    && request.resource.data.uid == request.auth.uid;
-      allow update, delete: if false;
+                    && request.resource.data.senderId == request.auth.uid
+                    && !(request.resource.data.text.matches('(?i).*https?://.*') || request.resource.data.text.matches('(?i).*www\\..*') || request.resource.data.text.matches('(?i).*data:image/.*base64.*'));
+      allow update: if false;
+      allow delete: if isAdminEmail();
+    }
+
+    // ----------------------------------------------------------
+    // /chatReports/{reportId}
+    // ----------------------------------------------------------
+    match /chatReports/{reportId} {
+      allow read, delete: if isAdminEmail();
+      allow create: if isAuthenticated() && request.resource.data.reporterId == request.auth.uid;
+      allow update: if false;
+    }
+
+    // ----------------------------------------------------------
+    // /mutedUsers/{userId}
+    // ----------------------------------------------------------
+    match /mutedUsers/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdminEmail();
+    }
+
+    // ----------------------------------------------------------
+    // /flaggedMessages/{flagId}
+    // ----------------------------------------------------------
+    match /flaggedMessages/{flagId} {
+      allow read, delete: if isAdminEmail();
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if false;
+    }
+
+    // ----------------------------------------------------------
+    // /tournamentRegistrations/{regId}
+    // ----------------------------------------------------------
+    match /tournamentRegistrations/{regId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdminEmail();
     }
 
   }

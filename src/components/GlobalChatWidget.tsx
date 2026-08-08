@@ -7,252 +7,286 @@ import { db } from '@/lib/firebase';
 import { 
   collection, 
   query, 
+  orderBy, 
   limit, 
   onSnapshot, 
-  addDoc, 
-  serverTimestamp 
+  getDoc,
+  getDocs,
+  doc,
+  where
 } from 'firebase/firestore';
-import { MessageSquare, X, Send, Sparkles, LogIn } from 'lucide-react';
+import { MessageSquare, X, Send, Sparkles, LogIn, UserPlus, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
+import InviteCard from './chat/InviteCard';
+import Button from './ui/Button';
 
-interface GlobalMessage {
+interface ChatMessage {
   id: string;
-  uid: string;
-  gamertag: string;
-  displayName: string;
-  message: string;
+  senderId: string;
+  senderGamertag: string;
+  senderAvatarUrl: string;
+  text: string;
   createdAt: any;
+  type: 'text' | 'emoji' | 'invite';
+  inviteData?: {
+    tournamentId: string;
+    tournamentName: string;
+    game: string;
+    teamId: string;
+    teamName: string;
+    slotsLeft: number;
+    slotsTotal: number;
+    status: 'active' | 'expired' | 'full';
+  };
 }
 
-const DEFAULT_LOUNGE_MESSAGES: GlobalMessage[] = [
-  {
-    id: 'demo-1',
-    uid: 'system',
-    gamertag: 'SHAKTRIX_Bot',
-    displayName: 'SHAKTRIX Bot',
-    message: '⚡ Welcome to the SHAKTRIX Global Lounge! Connect & chat live with online players across all pages.',
-    createdAt: new Date(Date.now() - 3600000).toISOString()
-  },
-  {
-    id: 'demo-2',
-    uid: 'demo-user-1',
-    gamertag: 'ViperX',
-    displayName: 'ViperX',
-    message: 'Who is ready for tonight\'s Valorant bracket tournament? 🔥',
-    createdAt: new Date(Date.now() - 1800000).toISOString()
-  },
-  {
-    id: 'demo-3',
-    uid: 'demo-user-2',
-    gamertag: 'NeonBlade',
-    displayName: 'NeonBlade',
-    message: 'Our squad is looking for 1 entry fragger! Check out our team page 🛡️',
-    createdAt: new Date(Date.now() - 600000).toISOString()
-  }
-];
+interface MiniTournament {
+  id: string;
+  name: string;
+  game: string;
+  status: string;
+}
 
 export default function GlobalChatWidget() {
   const user = useAppStore((state) => state.user);
   const profile = useAppStore((state) => state.profile);
+  const team = useAppStore((state) => state.team);
   const { refreshCount } = useAutoRefresh();
 
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<GlobalMessage[]>(DEFAULT_LOUNGE_MESSAGES);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
+  // Recruitment states
+  const [showRecruitForm, setShowRecruitForm] = useState(false);
+  const [userTournaments, setUserTournaments] = useState<MiniTournament[]>([]);
+  const [selectedTournamentId, setSelectedTournamentId] = useState('');
+  const [recruitLoading, setRecruitLoading] = useState(false);
+
+  // Toast status feedback
+  const [errorToast, setErrorToast] = useState<string | null>(null);
+  const [successToast, setSuccessToast] = useState<string | null>(null);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const isFirstLoad = useRef(true);
-  const channelRef = useRef<BroadcastChannel | null>(null);
 
-  // Initialize BroadcastChannel & localStorage history on mount
+  const showErrorToast = (msg: string) => {
+    setErrorToast(msg);
+    setTimeout(() => setErrorToast(null), 4500);
+  };
+
+  const showSuccessToast = (msg: string) => {
+    setSuccessToast(msg);
+    setTimeout(() => setSuccessToast(null), 4500);
+  };
+
+  // Real-time Firestore stream listener for globalChatMessages
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    try {
-      const saved = localStorage.getItem('shaktrix_global_chat_history');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setMessages(parsed);
-        }
-      }
-    } catch (e) {
-      console.error("Failed to load local chat history:", e);
-    }
-
-    if ('BroadcastChannel' in window) {
-      const channel = new BroadcastChannel('shaktrix_global_chat');
-      channelRef.current = channel;
-      channel.onmessage = (event) => {
-        if (event.data && event.data.type === 'NEW_MESSAGE') {
-          const incoming: GlobalMessage = event.data.message;
-          setMessages(prev => {
-            if (prev.some(m => m.id === incoming.id)) return prev;
-            const updated = [...prev, incoming];
-            try {
-              localStorage.setItem('shaktrix_global_chat_history', JSON.stringify(updated.slice(-100)));
-            } catch (e) {}
-            return updated;
-          });
-          if (!isOpen) {
-            setUnreadCount(count => count + 1);
-          }
-        }
-      };
-    }
-
-    const handleStorageEvent = (e: StorageEvent) => {
-      if (e.key === 'shaktrix_global_chat_history' && e.newValue) {
-        try {
-          const parsed = JSON.parse(e.newValue);
-          if (Array.isArray(parsed)) {
-            setMessages(parsed);
-          }
-        } catch (err) {}
-      }
-    };
-
-    window.addEventListener('storage', handleStorageEvent);
-
-    return () => {
-      window.removeEventListener('storage', handleStorageEvent);
-      if (channelRef.current) {
-        channelRef.current.close();
-      }
-    };
-  }, [isOpen]);
-
-  // Scroll to bottom only if user is near bottom or opening chat
-  useEffect(() => {
-    if (isOpen && chatScrollRef.current) {
-      const el = chatScrollRef.current;
-      const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
-      if (isNearBottom || isFirstLoad.current) {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-      }
-      setUnreadCount(0);
-    }
-  }, [messages, isOpen]);
-
-  // Real-time Firestore stream listener for global chat
-  useEffect(() => {
-    const q = query(collection(db, "global_chat"), limit(60));
+    const q = query(
+      collection(db, "globalChatMessages"),
+      orderBy("createdAt", "desc"),
+      limit(50)
+    );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const list: GlobalMessage[] = [];
+      const list: ChatMessage[] = [];
       snapshot.forEach(docSnap => {
         const data = docSnap.data();
-        let createdIso = new Date().toISOString();
-        if (data.createdAt?.toDate) {
-          createdIso = data.createdAt.toDate().toISOString();
-        } else if (data.createdAt) {
-          createdIso = new Date(data.createdAt).toISOString();
-        }
         list.push({
           id: docSnap.id,
-          uid: data.uid || '',
-          gamertag: data.gamertag || 'Player',
-          displayName: data.displayName || 'Player',
-          message: data.message || '',
-          createdAt: createdIso
+          senderId: data.senderId || '',
+          senderGamertag: data.senderGamertag || 'Player',
+          senderAvatarUrl: data.senderAvatarUrl || '',
+          text: data.text || '',
+          createdAt: data.createdAt,
+          type: data.type || 'text',
+          inviteData: data.inviteData
         });
       });
 
-      if (list.length > 0) {
-        // Sort client-side by timestamp ascending (oldest to newest)
-        list.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      // Reverse so oldest is first
+      list.reverse();
 
+      if (list.length > 0) {
         if (!isOpen && !isFirstLoad.current) {
           setUnreadCount(prev => prev + (list.length - messages.length > 0 ? list.length - messages.length : 0));
         }
 
         isFirstLoad.current = false;
         setMessages(list);
-
-        try {
-          localStorage.setItem('shaktrix_global_chat_history', JSON.stringify(list.slice(-100)));
-        } catch (e) {}
       }
     }, (err: any) => {
-      // Handled silently for un-deployed rules
+      console.error("Widget message stream error:", err);
     });
 
     return () => unsubscribe();
   }, [refreshCount, isOpen]);
 
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newMessage.trim() || sending) return;
-
-    const messageText = newMessage.trim();
-    
-    // Determine Gamertag: User's profile gamertag or persistent guest handle
-    let myGamertag = 'Guest';
-    let myUid = 'guest';
-
-    if (user) {
-      myGamertag = profile?.gamertag || user.email?.split('@')[0] || 'Player';
-      myUid = user.uid;
-    } else {
-      let guestTag = localStorage.getItem('shaktrix_guest_tag');
-      if (!guestTag) {
-        guestTag = `Guest_${Math.floor(1000 + Math.random() * 9000)}`;
-        localStorage.setItem('shaktrix_guest_tag', guestTag);
-      }
-      myGamertag = guestTag;
-      myUid = `guest-${guestTag}`;
+  // Fetch registered tournaments for team recruitment list
+  useEffect(() => {
+    if (!team) {
+      setUserTournaments([]);
+      return;
     }
 
-    const myDisplayName = myGamertag;
+    const loadTournaments = async () => {
+      try {
+        const q = query(
+          collection(db, "tournaments"),
+          where("status", "==", "Upcoming")
+        );
+        const snap = await getDocs(q);
+        const tList: MiniTournament[] = [];
+        
+        snap.docs.forEach(d => {
+          const data = d.data();
+          const registeredTeamIds: string[] = data.registeredTeamIds || [];
+          if (registeredTeamIds.includes(team.id)) {
+            tList.push({
+              id: d.id,
+              name: data.name || data.title || 'Tournament',
+              game: data.game || '',
+              status: data.status || 'Upcoming'
+            });
+          }
+        });
+        
+        setUserTournaments(tList);
+        if (tList.length > 0) {
+          setSelectedTournamentId(tList[0].id);
+        }
+      } catch (err) {
+        console.error("Failed to load user tournaments in widget:", err);
+      }
+    };
+
+    loadTournaments();
+  }, [team]);
+
+  // Scroll to bottom only if user is near bottom or opening chat
+  useEffect(() => {
+    if (isOpen && chatScrollRef.current) {
+      const el = chatScrollRef.current;
+      const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 150;
+      if (isNearBottom || isFirstLoad.current) {
+        setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+        isFirstLoad.current = false;
+      }
+      setUnreadCount(0);
+    }
+  }, [messages, isOpen]);
+
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMessage.trim() || sending || !user) return;
+
+    const messageText = newMessage.trim();
+
+    // Client-side base64 Image Check
+    if (/data:image\/(png|jpeg|jpg|gif|webp|svg\+xml);base64,/i.test(messageText)) {
+      showErrorToast('Base64 image uploads are not permitted in chat.');
+      return;
+    }
+
     setNewMessage('');
     setSending(true);
 
-    const localMsg: GlobalMessage = {
-      id: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-      uid: myUid,
-      gamertag: myGamertag,
-      displayName: myDisplayName,
-      message: messageText,
-      createdAt: new Date().toISOString()
-    };
-
-    // 1. Optimistic UI update
-    setMessages(prev => {
-      const updated = [...prev, localMsg];
-      try {
-        localStorage.setItem('shaktrix_global_chat_history', JSON.stringify(updated.slice(-100)));
-      } catch (err) {}
-      return updated;
-    });
-
-    // 2. Broadcast to other tabs locally
-    if (channelRef.current) {
-      try {
-        channelRef.current.postMessage({ type: 'NEW_MESSAGE', message: localMsg });
-      } catch (err) {}
-    }
-
-    // 3. Write to Cloud Firestore
     try {
-      await addDoc(collection(db, "global_chat"), {
-        uid: myUid,
-        gamertag: myGamertag,
-        displayName: myDisplayName,
-        message: messageText,
-        createdAt: serverTimestamp()
+      const idToken = await user.getIdToken();
+      const res = await fetch('/api/chat/send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
+        body: JSON.stringify({
+          text: messageText,
+          type: 'text'
+        })
       });
-    } catch (err) {
-      console.warn("Firestore save fallback to local broadcast:", err);
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to send message.');
+      }
+    } catch (err: any) {
+      console.error(err);
+      showErrorToast(err.message || 'Failed to send message.');
     } finally {
       setSending(false);
     }
   };
 
+  const handleSendRecruitment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedTournamentId || recruitLoading || !user || !team) return;
+
+    setRecruitLoading(true);
+    setErrorToast(null);
+
+    try {
+      const tSnap = await getDoc(doc(db, "tournaments", selectedTournamentId));
+      if (!tSnap.exists()) {
+        throw new Error("Selected tournament not found.");
+      }
+      const tData = tSnap.data();
+
+      // Determine size limit
+      const gameStr = tData.game || '';
+      const gameLower = gameStr.toLowerCase();
+      let sizeLimit = 5;
+      if (gameLower.includes('apex') || gameLower.includes('rocket')) {
+        sizeLimit = 3;
+      }
+
+      const slotsLeft = sizeLimit - (team.members || []).length;
+      if (slotsLeft <= 0) {
+        throw new Error("Your team roster is already full.");
+      }
+
+      const idToken = await user.getIdToken();
+      const res = await fetch('/api/chat/send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
+        body: JSON.stringify({
+          type: 'invite',
+          inviteData: {
+            tournamentId: selectedTournamentId,
+            tournamentName: tData.name || tData.title || 'Tournament',
+            game: gameStr,
+            teamId: team.id,
+            teamName: team.name,
+            slotsLeft,
+            slotsTotal: sizeLimit
+          }
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to post recruitment card.');
+      }
+
+      showSuccessToast(`Recruitment card posted!`);
+      setShowRecruitForm(false);
+    } catch (err: any) {
+      console.error(err);
+      showErrorToast(err.message || 'Failed to send recruitment.');
+    } finally {
+      setRecruitLoading(false);
+    }
+  };
+
   const formatTime = (timestamp: any) => {
-    if (!timestamp) return 'Just now';
+    if (!timestamp) return 'Sending...';
     const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
@@ -279,7 +313,11 @@ export default function GlobalChatWidget() {
           alignItems: 'center',
           justifyContent: 'center',
           cursor: 'pointer',
-          transition: 'transform 0.25s cubic-bezier(0.25, 1, 0.5, 1)'
+          transition: 'transform 0.25s cubic-bezier(0.25, 1, 0.5, 1)',
+          position: 'fixed',
+          bottom: '2rem',
+          right: '2rem',
+          zIndex: 999
         }}
       >
         {isOpen ? <X size={24} /> : <MessageSquare size={24} />}
@@ -307,7 +345,13 @@ export default function GlobalChatWidget() {
         <div 
           className="global-chat-drawer fade-in"
           style={{
-            background: 'rgba(6, 12, 26, 0.92)',
+            position: 'fixed',
+            bottom: '6rem',
+            right: '2rem',
+            width: '380px',
+            height: '500px',
+            zIndex: 999,
+            background: 'rgba(6, 12, 26, 0.96)',
             backdropFilter: 'blur(20px) saturate(180%)',
             WebkitBackdropFilter: 'blur(20px) saturate(180%)',
             border: '1px solid rgba(0, 240, 255, 0.25)',
@@ -317,7 +361,7 @@ export default function GlobalChatWidget() {
             flexDirection: 'column',
             overflow: 'hidden'
           }}
-          >
+        >
           {/* Header Bar */}
           <div style={{
             padding: '1rem 1.25rem',
@@ -349,6 +393,24 @@ export default function GlobalChatWidget() {
             </button>
           </div>
 
+          {/* Toast Feedbacks */}
+          {(errorToast || successToast) && (
+            <div style={{ position: 'absolute', top: '3.5rem', left: '5%', width: '90%', zIndex: 1000 }}>
+              {errorToast && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'rgba(255, 60, 60, 0.95)', color: '#fff', padding: '0.5rem 0.75rem', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 600 }}>
+                  <AlertTriangle size={14} />
+                  <span>{errorToast}</span>
+                </div>
+              )}
+              {successToast && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'rgba(6, 12, 26, 0.98)', border: '1px solid var(--accent-cyan)', color: '#fff', padding: '0.5rem 0.75rem', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 600 }}>
+                  <CheckCircle2 size={14} style={{ color: 'var(--accent-cyan)' }} />
+                  <span>{successToast}</span>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Messages Scroll Area */}
           <div 
             ref={chatScrollRef}
@@ -374,8 +436,7 @@ export default function GlobalChatWidget() {
               </div>
             ) : (
               messages.map((msg) => {
-                const currentUid = user ? user.uid : (typeof window !== 'undefined' ? localStorage.getItem('shaktrix_guest_tag') : null);
-                const isMe = user ? (user.uid === msg.uid) : (msg.uid.includes(currentUid || 'guest'));
+                const isMe = user ? (user.uid === msg.senderId) : false;
 
                 return (
                   <div
@@ -384,31 +445,41 @@ export default function GlobalChatWidget() {
                       display: 'flex',
                       flexDirection: 'column',
                       alignItems: isMe ? 'flex-end' : 'flex-start',
-                      maxWidth: '85%',
+                      maxWidth: '90%',
                       alignSelf: isMe ? 'flex-end' : 'flex-start'
                     }}
                   >
                     <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginBottom: '0.2rem', padding: '0 0.25rem' }}>
                       <strong style={{ color: isMe ? 'var(--neon-blue)' : 'var(--neon-purple)' }}>
-                        @{msg.gamertag}
+                        @{msg.senderGamertag}
                       </strong> • {formatTime(msg.createdAt)}
                     </div>
-                    <div style={{
-                      padding: '0.65rem 0.9rem',
-                      borderRadius: isMe ? '14px 14px 2px 14px' : '14px 14px 14px 2px',
-                      background: isMe 
-                        ? 'linear-gradient(135deg, rgba(0, 240, 255, 0.25) 0%, rgba(0, 136, 255, 0.25) 100%)' 
-                        : 'rgba(16, 24, 53, 0.85)',
-                      border: isMe 
-                        ? '1px solid rgba(0, 240, 255, 0.35)' 
-                        : '1px solid rgba(255, 255, 255, 0.1)',
-                      color: '#ffffff',
-                      fontSize: '0.85rem',
-                      lineHeight: 1.4,
-                      wordBreak: 'break-word'
-                    }}>
-                      {msg.message}
-                    </div>
+                    {msg.type === 'invite' && msg.inviteData ? (
+                      <InviteCard 
+                        inviteData={msg.inviteData}
+                        senderGamertag={msg.senderGamertag}
+                        senderId={msg.senderId}
+                        onJoinSuccess={(txt) => showSuccessToast(txt)}
+                        onJoinError={(err) => showErrorToast(err)}
+                      />
+                    ) : (
+                      <div style={{
+                        padding: '0.65rem 0.9rem',
+                        borderRadius: isMe ? '14px 14px 2px 14px' : '14px 14px 14px 2px',
+                        background: isMe 
+                          ? 'linear-gradient(135deg, rgba(0, 240, 255, 0.2) 0%, rgba(0, 136, 255, 0.2) 100%)' 
+                          : 'rgba(16, 24, 53, 0.85)',
+                        border: isMe 
+                          ? '1px solid rgba(0, 240, 255, 0.3)' 
+                          : '1px solid rgba(255, 255, 255, 0.1)',
+                        color: '#ffffff',
+                        fontSize: '0.85rem',
+                        lineHeight: 1.4,
+                        wordBreak: 'break-word'
+                      }}>
+                        {msg.text}
+                      </div>
+                    )}
                   </div>
                 );
               })
@@ -416,49 +487,136 @@ export default function GlobalChatWidget() {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Footer Input Area - Enabled for both Logged In & Guests */}
+          {/* Recruitment Selector inside widget */}
+          {showRecruitForm && team && (
+            <form 
+              onSubmit={handleSendRecruitment}
+              style={{
+                background: 'rgba(10, 16, 36, 0.98)',
+                borderTop: '1px solid rgba(0, 240, 255, 0.15)',
+                padding: '1rem',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.75rem'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#fff' }}>Recruit for {team.name}</span>
+                <button type="button" onClick={() => setShowRecruitForm(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1rem' }}>&times;</button>
+              </div>
+              
+              {userTournaments.length === 0 ? (
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: 0 }}>
+                  Your team isn't registered in any upcoming tournaments. Register on the Tournaments page first!
+                </p>
+              ) : (
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <select 
+                    value={selectedTournamentId}
+                    onChange={e => setSelectedTournamentId(e.target.value)}
+                    style={{
+                      flex: 1,
+                      fontSize: '0.8rem',
+                      padding: '0.4rem',
+                      background: 'rgba(4, 9, 20, 0.8)',
+                      border: '1px solid rgba(0, 240, 255, 0.2)',
+                      color: '#fff',
+                      borderRadius: '6px'
+                    }}
+                  >
+                    {userTournaments.map(t => (
+                      <option key={t.id} value={t.id}>{t.name} ({t.game})</option>
+                    ))}
+                  </select>
+                  <Button 
+                    variant="primary" 
+                    type="submit" 
+                    disabled={recruitLoading}
+                    style={{ padding: '0.4rem 0.85rem', fontSize: '0.78rem', borderRadius: '6px', minHeight: 'auto' }}
+                  >
+                    {recruitLoading ? 'Posting...' : 'Post'}
+                  </Button>
+                </div>
+              )}
+            </form>
+          )}
+
+          {/* Footer Input Area */}
           <div style={{
             padding: '0.75rem 1rem',
             background: 'rgba(10, 16, 36, 0.95)',
             borderTop: '1px solid rgba(0, 240, 255, 0.15)'
           }}>
-            <form onSubmit={handleSendMessage} style={{ display: 'flex', gap: '0.5rem' }}>
-              <input
-                type="text"
-                placeholder="Chat with SHAKTRIX players..."
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                disabled={sending}
-                style={{
-                  flex: 1,
-                  padding: '0.6rem 0.85rem',
-                  borderRadius: '8px',
-                  background: 'rgba(4, 9, 20, 0.8)',
-                  border: '1px solid rgba(0, 240, 255, 0.2)',
-                  color: '#fff',
-                  fontSize: '0.85rem',
-                  outline: 'none'
-                }}
-              />
-              <button
-                type="submit"
-                disabled={!newMessage.trim() || sending}
-                style={{
-                  padding: '0.6rem 0.85rem',
-                  borderRadius: '8px',
-                  background: 'linear-gradient(135deg, var(--neon-blue) 0%, var(--neon-purple) 100%)',
-                  border: 'none',
-                  color: '#fff',
-                  cursor: newMessage.trim() && !sending ? 'pointer' : 'not-allowed',
-                  opacity: newMessage.trim() && !sending ? 1 : 0.5,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-              >
-                <Send size={16} />
-              </button>
-            </form>
+            {user ? (
+              <form onSubmit={handleSendMessage} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                <input
+                  type="text"
+                  placeholder="Chat with SHAKTRIX players..."
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  disabled={sending}
+                  style={{
+                    flex: 1,
+                    padding: '0.6rem 0.85rem',
+                    borderRadius: '8px',
+                    background: 'rgba(4, 9, 20, 0.8)',
+                    border: '1px solid rgba(0, 240, 255, 0.2)',
+                    color: '#fff',
+                    fontSize: '0.85rem',
+                    outline: 'none'
+                  }}
+                />
+
+                {/* Recruitment button inside widget */}
+                {team && (
+                  <button
+                    type="button"
+                    onClick={() => setShowRecruitForm(!showRecruitForm)}
+                    style={{
+                      background: showRecruitForm ? 'rgba(0, 240, 255, 0.15)' : 'rgba(255,255,255,0.06)',
+                      border: `1px solid ${showRecruitForm ? 'var(--accent-cyan)' : 'rgba(255,255,255,0.1)'}`,
+                      borderRadius: '8px',
+                      width: '2.2rem',
+                      height: '2.2rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: showRecruitForm ? 'var(--accent-cyan)' : '#fff',
+                      cursor: 'pointer',
+                      flexShrink: 0
+                    }}
+                    title="Recruit players"
+                  >
+                    <UserPlus size={16} />
+                  </button>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={!newMessage.trim() || sending}
+                  style={{
+                    width: '2.2rem',
+                    height: '2.2rem',
+                    borderRadius: '8px',
+                    background: 'linear-gradient(135deg, var(--neon-blue) 0%, var(--neon-purple) 100%)',
+                    border: 'none',
+                    color: '#fff',
+                    cursor: newMessage.trim() && !sending ? 'pointer' : 'not-allowed',
+                    opacity: newMessage.trim() && !sending ? 1 : 0.5,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0
+                  }}
+                >
+                  <Send size={16} />
+                </button>
+              </form>
+            ) : (
+              <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.78rem', padding: '0.35rem 0' }}>
+                You must be logged in to chat. <a href="/login" style={{ color: 'var(--accent-cyan)', fontWeight: 700 }}>Log In</a> or <a href="/register" style={{ color: 'var(--accent-cyan)', fontWeight: 700 }}>Sign Up</a>.
+              </div>
+            )}
           </div>
         </div>
       )}
