@@ -63,12 +63,20 @@ export default function LoginClient() {
     setLoading(true);
     try {
       await sendPasswordResetEmail(auth, email.trim());
-      setSuccessMsg(`Password reset email sent to ${email.trim()}. Please check your inbox!`);
+      // Generic message regardless — do not reveal whether email exists.
+      setSuccessMsg('If an account with that email exists, a password reset link has been sent.');
     } catch (err: unknown) {
-      console.error('Password reset error:', err);
-      triggerShake();
       const authErr = err as { code?: string; message?: string };
-      setError(authErr.message || 'Failed to send password reset email.');
+      if (authErr.code === 'auth/user-not-found') {
+        // Suppress user-not-found to avoid leaking which emails are registered.
+        setSuccessMsg('If an account with that email exists, a password reset link has been sent.');
+      } else if (authErr.code === 'auth/invalid-email') {
+        triggerShake();
+        setError('Please enter a valid email address.');
+      } else {
+        triggerShake();
+        setError('Failed to send password reset email. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -173,6 +181,14 @@ export default function LoginClient() {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email.trim(), password);
       const user = userCredential.user;
+
+      // Block unverified email/password accounts from accessing the app.
+      // Google Sign-In users are always verified (emailVerified=true by default).
+      if (!user.emailVerified) {
+        router.push('/verify-email');
+        return;
+      }
+
       const welcomeStr = `Welcome back, ${user.displayName || email.split('@')[0]}!`;
       setWelcomeMsg(welcomeStr);
       if (typeof window !== 'undefined') {
