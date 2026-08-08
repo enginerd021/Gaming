@@ -25,16 +25,7 @@ export function BentoGrid() {
         <div className="bento-grid">
           
           {/* Bento Card 1: Live Bracket Engine (Span 8) */}
-          <article className="bento-card bento-col-8">
-            <video
-              autoPlay
-              loop
-              muted
-              playsInline
-              className="bento-card-bg-video"
-            >
-              <source src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4" type="video/mp4" />
-            </video>
+          <article className="bento-card bento-col-8" style={{ background: 'linear-gradient(135deg, rgba(0, 240, 255, 0.08) 0%, var(--bg-tertiary) 100%)', borderTop: '4px solid var(--accent-cyan)' }}>
             
             <div style={{ position: 'relative', zIndex: 2, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '320px' }}>
               <div>
@@ -85,16 +76,7 @@ export function BentoGrid() {
           </article>
 
           {/* Bento Card 3: Real-time Live Spectate Arena (Span 4) */}
-          <article className="bento-card bento-col-4" style={{ borderTop: '4px solid var(--accent-gold)' }}>
-            <video
-              autoPlay
-              loop
-              muted
-              playsInline
-              className="bento-card-bg-video"
-            >
-              <source src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4" type="video/mp4" />
-            </video>
+          <article className="bento-card bento-col-4" style={{ borderTop: '4px solid var(--accent-gold)', background: 'linear-gradient(135deg, rgba(255, 215, 0, 0.08) 0%, var(--bg-tertiary) 100%)' }}>
 
             <div style={{ position: 'relative', zIndex: 2, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '300px' }}>
               <div>

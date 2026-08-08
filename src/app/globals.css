@@ -38,6 +38,59 @@
   --glow-violet: 0 0 25px rgba(176, 38, 255, 0.5);
 }
 
+[data-theme="light"] {
+  --bg-primary:        #F8FAFC;
+  --bg-secondary:      #FFFFFF;
+  --bg-tertiary:       #F1F5F9;
+  --bg-card:           rgba(255, 255, 255, 0.9);
+
+  --neon-blue:         #4F46E5;
+  --neon-blue-glow:    rgba(79, 70, 229, 0.15);
+  --neon-purple:       #7C3AED;
+  --neon-purple-glow:  rgba(124, 58, 237, 0.15);
+
+  --accent-cyan:       #4F46E5;
+  --accent-cyan-rgb:   79, 70, 229;
+  --accent-violet:     #7C3AED;
+  --accent-violet-rgb: 124, 58, 237;
+  --accent-gold:       #D97706;
+  --accent-red:        #DC2626;
+  --accent-green:      #059669;
+
+  --text-primary:      #0F172A;
+  --text-secondary:    #334155;
+  --text-muted:        #64748B;
+
+  --border-color:      #E2E8F0;
+  --border-glow:       none;
+  --border-glow-violet:none;
+  --glow-cyan:         none;
+  --glow-violet:       none;
+}
+
+[data-theme="light"] body {
+  background-color: #F8FAFC;
+  color: #0F172A;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+[data-theme="light"] .glass-panel,
+[data-theme="light"] .glass-card,
+[data-theme="light"] .podium-card {
+  background: #FFFFFF !important;
+  border: 1px solid #E2E8F0 !important;
+  color: #0F172A !important;
+  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.05) !important;
+}
+
+[data-theme="light"] input,
+[data-theme="light"] select,
+[data-theme="light"] textarea {
+  background: #FFFFFF !important;
+  border-color: #CBD5E1 !important;
+  color: #0F172A !important;
+}
+
 /* Reset & Base Styles */
 * {
   box-sizing: border-box;
@@ -54,7 +107,6 @@ html, body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
-  scroll-behavior: smooth;
 }
 
 /* Typography */

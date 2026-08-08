@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { tournamentService, Tournament } from '@/services/tournamentService';
 import { useAppStore } from '@/store/useAppStore';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
-import { Trophy, Gamepad2, Users, Flame, ChevronRight, Activity, Radio, Zap, ArrowDownRight } from 'lucide-react';
+import { Trophy, Gamepad2, Users, Flame, ChevronRight, Activity, Radio, Zap, ArrowDownRight, Sparkles } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import GlassCard from '@/components/ui/GlassCard';
@@ -124,7 +124,6 @@ export default function HomeView() {
   const { refreshCount } = useAutoRefresh();
 
   const heroWrapperRef = useRef<HTMLDivElement>(null);
-  const videoFrameRef = useRef<HTMLDivElement>(null);
   const sectionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -146,28 +145,9 @@ export default function HomeView() {
   }, [refreshCount]);
 
   useEffect(() => {
-    if (!heroWrapperRef.current || !videoFrameRef.current) return;
+    if (!heroWrapperRef.current) return;
 
     const ctx = gsap.context(() => {
-      gsap.to(videoFrameRef.current, {
-        scrollTrigger: {
-          trigger: heroWrapperRef.current,
-          start: 'top top',
-          end: 'bottom top',
-          scrub: true,
-        },
-        clipPath: 'polygon(3% 3%, 97% 3%, 97% 97%, 3% 97%)',
-        borderRadius: '24px',
-        scale: 0.92,
-        opacity: 0.4,
-        ease: 'none',
-      });
-
-      gsap.to('.cockpit-hud', {
-        scrollTrigger: { trigger: heroWrapperRef.current, start: 'top top', end: 'center top', scrub: true },
-        opacity: 0, y: -40, ease: 'none',
-      });
-
       gsap.fromTo('.zentry-reveal-text', 
         { y: 80, opacity: 0, rotateX: -45 }, 
         { 
@@ -184,38 +164,67 @@ export default function HomeView() {
   return (
     <main style={{ position: 'relative', overflowX: 'hidden', backgroundColor: 'var(--bg-primary)' }}>
       
-      {/* COCKPIT HERO SECTION */}
-      <section ref={heroWrapperRef} style={{ position: 'relative', width: '100%', height: '100vh', display: 'flex', flexDirection: 'column' }}>
-        <div ref={videoFrameRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', clipPath: 'polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)', overflow: 'hidden' }}>
-          <video autoPlay loop muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.85 }}>
-            <source src="/videos/hero-drive.mp4" type="video/mp4" />
-          </video>
-          <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at center, transparent 40%, rgba(2, 9, 22, 0.9) 100%)', pointerEvents: 'none' }} />
-        </div>
+      {/* UNLEASH THE GAME HERO SECTION */}
+      <section 
+        ref={heroWrapperRef} 
+        style={{ 
+          position: 'relative', 
+          width: '100%', 
+          minHeight: '85vh', 
+          display: 'flex', 
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          textAlign: 'center',
+          padding: '8rem 1.5rem 4rem 1.5rem',
+          background: 'radial-gradient(ellipse at 50% 20%, rgba(0, 240, 255, 0.15) 0%, rgba(176, 38, 255, 0.08) 45%, var(--bg-primary) 85%)',
+          overflow: 'hidden'
+        }}
+      >
+        <div className="ambient-glow-cyan" style={{ top: '15%', left: '20%', opacity: 0.3 }} />
+        <div className="ambient-glow-violet" style={{ bottom: '15%', right: '20%', opacity: 0.3 }} />
 
-        <div className="cockpit-hud" style={{ position: 'relative', zIndex: 10, width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '7rem 2.5rem 2.5rem 2.5rem', maxWidth: '1440px', margin: '0 auto', pointerEvents: 'none' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', pointerEvents: 'auto' }}>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'hsla(220, 40%, 8%, 0.6)', backdropFilter: 'blur(12px)', padding: '0.45rem 1.1rem', borderRadius: '9999px', border: '1px solid hsla(210, 100%, 55%, 0.3)' }}>
-              <Radio size={14} style={{ color: 'var(--accent-cyan)', animation: 'pulse 1.5s infinite' }} />
-              <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--accent-cyan)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>CO-PILOT ACTIVE</span>
-            </div>
+        <div style={{ position: 'relative', zIndex: 10, maxWidth: '900px', margin: '0 auto' }}>
+          
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(0, 240, 255, 0.08)', backdropFilter: 'blur(12px)', padding: '0.5rem 1.25rem', borderRadius: '9999px', border: '1px solid var(--border-color)', marginBottom: '1.75rem' }}>
+            <Sparkles size={14} style={{ color: 'var(--accent-cyan)' }} />
+            <span style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--accent-cyan)', textTransform: 'uppercase', letterSpacing: '0.15em' }}>
+              ESPORTS TOURNAMENTS & BRACKETS
+            </span>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', pointerEvents: 'auto', flexWrap: 'wrap', gap: '2rem' }}>
-            <div>
-              <h1 style={{ fontSize: 'clamp(3.5rem, 7vw, 6rem)', lineHeight: '0.9', fontWeight: 900, letterSpacing: '0.02em', textTransform: 'uppercase', fontFamily: 'var(--font-title)' }}>
-                <span style={{ color: 'var(--neon-blue)', textShadow: '0 0 35px rgba(0, 240, 255, 0.85)' }}>SHAKT</span>
-                <span style={{ color: 'var(--neon-purple)', textShadow: '0 0 35px rgba(176, 38, 255, 0.85)' }}>RIX</span>
-              </h1>
-            </div>
-            <div style={{ display: 'flex', gap: '1rem' }}>
-              {user ? (
-                <Link href="/tournaments" className="btn btn-primary glow-pulse" style={{ padding: '1rem 2rem', borderRadius: '12px' }}><ArrowDownRight size={18} /> Enter Arena</Link>
-              ) : (
-                <Link href="/register" className="btn btn-primary glow-pulse" style={{ padding: '1rem 2rem', borderRadius: '12px' }}>Join Now</Link>
-              )}
-            </div>
+          <h1 style={{ fontSize: 'clamp(2.8rem, 6.5vw, 5.5rem)', lineHeight: '1.05', fontWeight: 900, letterSpacing: '0.02em', textTransform: 'uppercase', fontFamily: 'var(--font-title)', marginBottom: '1.5rem' }}>
+            UNLEASH THE <span style={{ color: 'var(--neon-blue)', textShadow: '0 0 35px rgba(0, 240, 255, 0.85)' }}>GAME</span>
+            <br />
+            <span style={{ fontSize: '0.7em', color: 'var(--text-primary)' }}>DOMINATE THE <span style={{ color: 'var(--neon-purple)', textShadow: '0 0 35px rgba(176, 38, 255, 0.85)' }}>BRACKET</span></span>
+          </h1>
+
+          <p style={{ fontSize: '1.15rem', color: 'var(--text-secondary)', maxWidth: '680px', margin: '0 auto 2.5rem auto', lineHeight: 1.6, fontWeight: 400 }}>
+            SHAKTRIX is the central hub for competitive gamers. Recruit elite teammates, manage tournament brackets in real-time, build pro rosters, and climb the live Hall of Fame.
+          </p>
+
+          <div style={{ display: 'flex', gap: '1.25rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+            {user ? (
+              <>
+                <Link href="/tournaments" className="btn btn-primary glow-pulse" style={{ padding: '0.9rem 2.2rem', borderRadius: '12px', fontSize: '1.05rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Trophy size={18} /> Enter Arena <ArrowDownRight size={18} />
+                </Link>
+                <Link href="/teams" className="btn btn-outline" style={{ padding: '0.9rem 2.2rem', borderRadius: '12px', fontSize: '1.05rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Users size={18} /> Manage Team
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link href="/register" className="btn btn-primary glow-pulse" style={{ padding: '0.9rem 2.2rem', borderRadius: '12px', fontSize: '1.05rem' }}>
+                  Create Player Profile
+                </Link>
+                <Link href="/tournaments" className="btn btn-outline" style={{ padding: '0.9rem 2.2rem', borderRadius: '12px', fontSize: '1.05rem' }}>
+                  Explore Brackets
+                </Link>
+              </>
+            )}
           </div>
+
         </div>
       </section>
 
@@ -232,8 +241,8 @@ export default function HomeView() {
       {/* ZENTRY BENTO GRID SECTION WITH RESTORED LINKS */}
       <section 
         ref={sectionRef} 
+        className="section-padding"
         style={{ 
-          padding: '8rem 2rem', 
           background: 'linear-gradient(180deg, var(--bg-primary) 0%, var(--bg-secondary) 50%, var(--bg-primary) 100%)', 
           position: 'relative', 
           zIndex: 2,
@@ -241,7 +250,7 @@ export default function HomeView() {
           borderBottom: '1px solid var(--border-color)'
         }}
       >
-        <div style={{ maxWidth: '1440px', margin: '0 auto' }}>
+        <div className="container">
           
           <div style={{ marginBottom: '4rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             <div style={{ overflow: 'hidden' }}>

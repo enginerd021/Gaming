@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAppStore } from '@/store/useAppStore';
-import { User, LogOut, Menu, X, Bell, ChevronDown, Home } from 'lucide-react';
+import { User, LogOut, Menu, X, Bell, ChevronDown, Home, Sun, Moon } from 'lucide-react';
 import { 
   collection, 
   query, 
@@ -42,6 +42,24 @@ export default function Navbar() {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [notifOpen, setNotifOpen] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
+
+  // Single Theme State (Neon Dark vs Minimal Light)
+  type ThemeId = 'neon' | 'light';
+  const [theme, setTheme] = useState<ThemeId>('neon');
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const saved = (localStorage.getItem('shaktrix_theme') as ThemeId) || 'neon';
+    setTheme(saved);
+    document.documentElement.setAttribute('data-theme', saved);
+  }, []);
+
+  const toggleTheme = () => {
+    const nextTheme = theme === 'neon' ? 'light' : 'neon';
+    setTheme(nextTheme);
+    localStorage.setItem('shaktrix_theme', nextTheme);
+    document.documentElement.setAttribute('data-theme', nextTheme);
+  };
 
   // Dropdown states for the inner-page black bar
   const [productsOpen, setProductsOpen] = useState(false);
@@ -230,11 +248,33 @@ export default function Navbar() {
             </div>
           </div>
 
-          {/* RIGHT SIDE: Arranged strictly as: Notification -> Leaderboard -> Tournaments -> Teams -> About -> Profile -> Logout */}
+          {/* RIGHT SIDE: Single Theme Toggle -> Notification -> Nav Links */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '2.5rem' }}>
             
             <nav className="desktop-nav" style={{ display: 'none', alignItems: 'center', gap: '1.75rem' }}>
-              
+                           {/* Single Sun/Moon Icon Theme Toggle Button */}
+              <button
+                onClick={toggleTheme}
+                aria-label={`Switch to ${theme === 'neon' ? 'Light' : 'Dark'} Mode`}
+                title={`Switch to ${theme === 'neon' ? 'Light' : 'Dark'} Mode`}
+                style={{
+                  width: '38px',
+                  height: '38px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '8px',
+                  color: theme === 'neon' ? 'var(--neon-blue)' : 'var(--accent-gold)',
+                  cursor: 'pointer',
+                  transition: 'all 0.25s ease',
+                  boxSizing: 'border-box'
+                }}
+              >
+                {theme === 'neon' ? <Moon size={18} /> : <Sun size={18} />}
+              </button>
+
               {/* 1. Notification Symbol */}
               {user && (
                 <div ref={notifRef} style={{ position: 'relative' }}>
@@ -243,21 +283,22 @@ export default function Navbar() {
                       e.stopPropagation();
                       setNotifOpen(!notifOpen);
                     }}
-                    className="btn btn-outline touch-target"
                     aria-label={`Notifications, ${notifications.length} unread`}
                     aria-expanded={notifOpen}
                     style={{
                       position: 'relative',
-                      padding: '0.5rem',
+                      width: '38px',
+                      height: '38px',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      background: notifOpen ? 'hsla(186, 100%, 48%, 0.1)' : 'none',
+                      background: notifOpen ? 'hsla(186, 100%, 48%, 0.1)' : 'rgba(255, 255, 255, 0.08)',
                       border: notifOpen ? '1px solid var(--accent-cyan)' : '1px solid var(--border-color)',
-                      borderRadius: '6px',
+                      borderRadius: '8px',
                       color: notifOpen ? 'var(--accent-cyan)' : 'var(--text-primary)',
                       cursor: 'pointer',
-                      transition: 'all 0.2s ease'
+                      transition: 'all 0.25s ease',
+                      boxSizing: 'border-box'
                     }}
                   >
                     <Bell size={18} />
@@ -446,6 +487,19 @@ export default function Navbar() {
             <Link href="/tournaments" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>TOURNAMENTS</Link>
             <Link href="/teams" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>TEAMS</Link>
             <Link href="/leaderboard" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>LEADERBOARD</Link>
+            <button 
+              onClick={() => { toggleTheme(); setMobileMenuOpen(false); }} 
+              style={{ 
+                background: 'rgba(255,255,255,0.08)', border: '1px solid var(--border-color)', borderRadius: '8px', 
+                padding: '0.5rem', color: theme === 'neon' ? 'var(--neon-blue)' : 'var(--accent-gold)', 
+                display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                cursor: 'pointer', width: 'fit-content'
+              }}
+              aria-label={`Switch to ${theme === 'neon' ? 'Light' : 'Dark'} Mode`}
+              title={`Switch to ${theme === 'neon' ? 'Light' : 'Dark'} Mode`}
+            >
+              {theme === 'neon' ? <Moon size={18} /> : <Sun size={18} />}
+            </button>
             <hr style={{ borderColor: 'rgba(255,255,255,0.1)' }}/>
             {user ? (
                <>
