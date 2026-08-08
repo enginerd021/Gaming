@@ -620,16 +620,29 @@ export default function ProfileClient() {
                     disabled={updating || loadingRiotSync}
                   />
                 </div>
-                {profile.riotId && (
+                {riotId.trim() && (
                   <button
                     type="button"
                     className="btn btn-outline"
-                    onClick={() => syncRiotScore(riotId || profile.riotId!)}
+                    onClick={() => syncRiotScore(riotId.trim())}
                     disabled={loadingRiotSync || updating}
-                    style={{ whiteSpace: 'nowrap', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
-                    title="Refresh live Riot rank data"
+                    style={{
+                      whiteSpace: 'nowrap',
+                      fontSize: '0.85rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.4rem',
+                      borderColor: 'var(--accent-cyan)',
+                      color: 'var(--accent-cyan)',
+                      minWidth: '145px',
+                      justifyContent: 'center'
+                    }}
+                    title="Fetch live rank data from Riot API"
                   >
-                    {loadingRiotSync ? <Loader size={14} className="spin" /> : '🔄'} Refresh Live Stats
+                    {loadingRiotSync
+                      ? <><Loader size={14} style={{ animation: 'spin 1s linear infinite' }} /> Syncing…</>
+                      : <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Refresh Stats</>
+                    }
                   </button>
                 )}
               </div>
