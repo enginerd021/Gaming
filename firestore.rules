@@ -88,10 +88,11 @@ service cloud.firestore {
           // Owner can write their own notifications (e.g. registration_confirmed)
           request.auth.uid == userId
 
-          // Team captains can send invites or leadership updates to users
+          // Team captains can send invites, leadership updates, or registration confirmations
           || request.resource.data.type == 'team_invite'
           || request.resource.data.type == 'captain_transferred'
           || request.resource.data.type == 'captain_updated'
+          || request.resource.data.type == 'registration_confirmed'
 
           // Organizer/admin-triggered types: tournament_starting, match_result, new_tournament
           || request.resource.data.type == 'tournament_starting'
@@ -149,10 +150,29 @@ service cloud.firestore {
       // ✅ ADMIN-ONLY + EMAIL VERIFIED: Only verified admin emails can create tournaments.
       allow create: if isAdminEmail() && isEmailVerified();
 
-      // Organizer (admin who created it) can edit/delete.
-      // This covers bracket updates, score saves, and status changes.
-      allow update: if isAuthenticated()
-                    && resource.data.organizerId == request.auth.uid;
+      // Organizer (admin who created it) can edit/delete, or a team captain can register.
+      allow update: if isAuthenticated() && (
+        // Case 1: Organizer updates the tournament
+        resource.data.organizerId == request.auth.uid
+        // Case 2: Team captain registers their team for an upcoming tournament
+        || (
+          resource.data.status == 'Upcoming'
+          && request.resource.data.organizerId == resource.data.organizerId
+          && request.resource.data.name == resource.data.name
+          && request.resource.data.game == resource.data.game
+          && request.resource.data.maxTeams == resource.data.maxTeams
+          && request.resource.data.entryType == resource.data.entryType
+          && request.resource.data.status == resource.data.status
+          && request.resource.data.startTime == resource.data.startTime
+          // Verify that exactly one team is being registered
+          && request.resource.data.lastRegisteredTeamId != null
+          && request.resource.data.registeredTeamIds.hasAll(resource.data.registeredTeamIds)
+          && request.resource.data.registeredTeamIds.size() == resource.data.registeredTeamIds.size() + 1
+          && request.resource.data.lastRegisteredTeamId in request.resource.data.registeredTeamIds
+          // Cross-reference: verify the user is the captain of the registering team
+          && get(/databases/$(database)/documents/teams/$(request.resource.data.lastRegisteredTeamId)).data.captainId == request.auth.uid
+        )
+      );
 
       allow delete: if isAuthenticated()
                     && resource.data.organizerId == request.auth.uid;
