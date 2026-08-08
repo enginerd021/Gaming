@@ -153,7 +153,7 @@ service cloud.firestore {
     // /globalChatMessages/{messageId}
     // ----------------------------------------------------------
     match /globalChatMessages/{messageId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow create: if isEmailVerified()
                     && request.resource.data.senderId == request.auth.uid
                     && !(request.resource.data.text.matches('(?i).*https?://.*') || request.resource.data.text.matches('(?i).*www\\..*') || request.resource.data.text.matches('(?i).*data:image/.*base64.*'));
