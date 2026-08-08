@@ -14,7 +14,8 @@ import {
   serverTimestamp,
   doc,
   getDoc,
-  where
+  where,
+  updateDoc
 } from 'firebase/firestore';
 import { useAppStore } from '@/store/useAppStore';
 import { 
@@ -272,6 +273,63 @@ export default function ChatClient() {
     setTimeout(() => setSuccessToast(null), 4500);
   };
 
+  // Profanity word list
+  const PROFANITY_WORDS = [
+    'fuck', 'shit', 'asshole', 'bitch', 'cunt', 'dick', 'pussy', 'bastard', 'slut', 'whore', 'fag', 'nigger',
+    'saala', 'sala', 'chutiya', 'chutya', 'chut1ya', 'chu', 'bhenchod', 'behenchod', 'madarchod', 'harami', 'kamina', 'kaminey', 'randi', 
+    'gaand', 'gand', 'loda', 'lauda', 'bhosadi', 'bhosdike', 'bhosada', 'lodu', 'muth', 'muthi', 'tatte', 'kutta', 'kamine', 'gandi', 
+    'g@ndi', 'g@nd', 'bc', 'mc'
+  ];
+
+  // Helper validation functions
+  const checkProfanity = (text: string): boolean => {
+    const lowercaseText = text.toLowerCase();
+    const words = lowercaseText.split(/[^a-zA-Z0-9]/);
+    for (const w of words) {
+      if (PROFANITY_WORDS.includes(w)) return true;
+    }
+    const normalized = lowercaseText
+      .replace(/[^a-z0-9]/g, '')
+      .replace(/0/g, 'o')
+      .replace(/1/g, 'i')
+      .replace(/3/g, 'e')
+      .replace(/4/g, 'a')
+      .replace(/@/g, 'a')
+      .replace(/\$/g, 's')
+      .replace(/5/g, 's')
+      .replace(/7/g, 't')
+      .replace(/8/g, 'b')
+      .replace(/!/g, 'i');
+    for (const badWord of PROFANITY_WORDS) {
+      const normalizedBadWord = badWord.replace(/[^a-z0-9]/g, '');
+      if (normalized.includes(normalizedBadWord)) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  const containsLinks = (text: string): boolean => {
+    const urlRegex = /(https?:\/\/|www\.)/i;
+    if (urlRegex.test(text)) return true;
+    const wordUrlRegex = /([a-z0-9]+)\s*(\.|dot|\[\.\]|\(\s*dot\s*\))\s*(com|net|org|edu|gov|io|co|in|info|vercel|vercel\.app|vercel\s+app)/i;
+    if (wordUrlRegex.test(text)) return true;
+    return false;
+  };
+
+  const checkImpersonation = (text: string, gamertag: string, displayName: string): boolean => {
+    const lowerText = text.toLowerCase();
+    const lowerTag = gamertag.toLowerCase();
+    const lowerName = displayName.toLowerCase();
+    const badPatterns = ['admin', 'mod', 'shaktrix'];
+    for (const pattern of badPatterns) {
+      if (lowerTag.startsWith(pattern) || lowerName.startsWith(pattern) || lowerText.startsWith(pattern)) {
+        return true;
+      }
+    }
+    return false;
+  };
+
   // Submit Text Message
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -279,12 +337,90 @@ export default function ChatClient() {
 
     const messageText = newMessageText.trim();
     
-    // Block base64 images client-side
+    // 1. Base64 check
     if (/data:image\/(png|jpeg|jpg|gif|webp|svg\+xml);base64,/i.test(messageText)) {
       showErrorToast('Base64 image uploads are not permitted in chat.');
       return;
     }
-    
+
+    // 2. Link check
+    if (containsLinks(messageText)) {
+      showErrorToast('Links are not allowed in the chat lounge.');
+      // Log flagged attempt
+      await addDoc(collection(db, "flaggedMessages"), {
+        userId: user.uid,
+        userGamertag: profile?.gamertag || 'Player',
+        text: messageText,
+        reason: 'Blocked Link',
+        createdAt: serverTimestamp()
+      }).catch(console.error);
+      return;
+    }
+
+    // 3. Impersonation check
+    const isStaffEmail = ['asthaojas30@gmail.com', 'vk844504@gmail.com'].includes(user.email || '');
+    if (!isStaffEmail && checkImpersonation(messageText, profile?.gamertag || '', user.displayName || '')) {
+      showErrorToast('Impersonation detected: display names or gamertags starting with Admin, Mod, or SHAKTRIX are restricted.');
+      // Log flagged attempt
+      await addDoc(collection(db, "flaggedMessages"), {
+        userId: user.uid,
+        userGamertag: profile?.gamertag || 'Player',
+        text: messageText,
+        reason: 'Impersonation Attempt',
+        createdAt: serverTimestamp()
+      }).catch(console.error);
+      return;
+    }
+
+    // 4. Profanity check
+    if (checkProfanity(messageText)) {
+      showErrorToast('Abusive or vulgar language is blocked.');
+      
+      // Increment strikes client-side
+      const currentStrikes = (profile?.chatStrikes || 0) + 1;
+      const profileRef = doc(db, "profiles", user.uid);
+      
+      let updatedData: any = { chatStrikes: currentStrikes };
+      if (currentStrikes >= 3) {
+        const muteDuration = 15 * 60 * 1000;
+        updatedData.mutedUntil = Date.now() + muteDuration;
+        updatedData.chatStrikes = 0;
+        showErrorToast('You have been muted for 15 minutes due to multiple strikes.');
+      } else {
+        showErrorToast(`Warning Strike ${currentStrikes}/3: Please keep chat respectful.`);
+      }
+
+      await updateDoc(profileRef, updatedData).catch(console.error);
+
+      // Log flagged message
+      await addDoc(collection(db, "flaggedMessages"), {
+        userId: user.uid,
+        userGamertag: profile?.gamertag || 'Player',
+        text: messageText,
+        reason: `Profanity Strike ${currentStrikes}`,
+        createdAt: serverTimestamp()
+      }).catch(console.error);
+      
+      return;
+    }
+
+    // 5. Rate limit check (2 seconds)
+    const now = Date.now();
+    const lastSent = Number(localStorage.getItem('shaktrix_last_msg_sent_at') || 0);
+    if (now - lastSent < 2000) {
+      showErrorToast('Please wait 2 seconds between messages.');
+      return;
+    }
+    localStorage.setItem('shaktrix_last_msg_sent_at', String(now));
+
+    // 6. Mute check
+    const muteTime = profile?.mutedUntil || 0;
+    if (muteTime > now) {
+      const mins = Math.ceil((muteTime - now) / 60000);
+      showErrorToast(`You are muted. Try again in ${mins} minute(s).`);
+      return;
+    }
+
     // Check if input is exactly a single curated emoji
     const isSingleCuratedEmoji = CURATED_EMOJIS.includes(messageText);
 
@@ -292,27 +428,14 @@ export default function ChatClient() {
     setErrorToast(null);
 
     try {
-      const idToken = await user.getIdToken();
-      const res = await fetch('/api/chat/send', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`
-        },
-        body: JSON.stringify({
-          text: messageText,
-          type: isSingleCuratedEmoji ? 'emoji' : 'text'
-        })
+      await addDoc(collection(db, "globalChatMessages"), {
+        senderId: user.uid,
+        senderGamertag: profile?.gamertag || 'Player',
+        senderAvatarUrl: user.photoURL || '',
+        text: messageText,
+        type: isSingleCuratedEmoji ? 'emoji' : 'text',
+        createdAt: serverTimestamp()
       });
-
-      const data = await res.json();
-      if (!res.ok) {
-        // Handle specific server-side mutes or warning strikes
-        if (data.muted) {
-          setMuteStatus({ isMuted: true, mutedUntil: data.mutedUntil });
-        }
-        throw new Error(data.error || 'Failed to send message.');
-      }
 
       setNewMessageText('');
       setShowEmojiPicker(false);
@@ -327,33 +450,25 @@ export default function ChatClient() {
   };
 
   // Curated Emoji click helper
-  const handleEmojiClick = (emoji: string) => {
+  const handleEmojiClick = async (emoji: string) => {
     // If input is empty, click immediately sends as jumbo emoji message
     if (!newMessageText.trim() && user) {
       setSending(true);
-      user.getIdToken().then(idToken => {
-        fetch('/api/chat/send', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${idToken}`
-          },
-          body: JSON.stringify({
-            text: emoji,
-            type: 'emoji'
-          })
-        }).then(async res => {
-          const data = await res.json();
-          if (!res.ok) {
-            showErrorToast(data.error || 'Failed to send emoji.');
-          }
-          setShowEmojiPicker(false);
-          setSending(false);
-        }).catch(err => {
-          showErrorToast('Failed to send emoji.');
-          setSending(false);
+      try {
+        await addDoc(collection(db, "globalChatMessages"), {
+          senderId: user.uid,
+          senderGamertag: profile?.gamertag || 'Player',
+          senderAvatarUrl: user.photoURL || '',
+          text: emoji,
+          type: 'emoji',
+          createdAt: serverTimestamp()
         });
-      });
+        setShowEmojiPicker(false);
+      } catch (err) {
+        showErrorToast('Failed to send emoji.');
+      } finally {
+        setSending(false);
+      }
     } else {
       // Append emoji to text input
       setNewMessageText(prev => prev + emoji);
@@ -364,6 +479,15 @@ export default function ChatClient() {
   const handleSendRecruitment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedTournamentId || recruitLoading || !user || !team) return;
+
+    // Rate limit check for invites (30 seconds)
+    const now = Date.now();
+    const lastInvite = Number(localStorage.getItem('shaktrix_last_invite_sent_at') || 0);
+    if (now - lastInvite < 30000) {
+      const secsLeft = Math.ceil((30000 - (now - lastInvite)) / 1000);
+      showErrorToast(`Please wait ${secsLeft}s before sending another team invite.`);
+      return;
+    }
 
     setRecruitLoading(true);
     setErrorToast(null);
@@ -389,32 +513,26 @@ export default function ChatClient() {
         throw new Error("Your team roster is already full. You cannot recruit more players.");
       }
 
-      const idToken = await user.getIdToken();
-      const res = await fetch('/api/chat/send', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`
+      await addDoc(collection(db, "globalChatMessages"), {
+        senderId: user.uid,
+        senderGamertag: profile?.gamertag || 'Player',
+        senderAvatarUrl: user.photoURL || '',
+        text: `Team Recruitment for ${tData.name || tData.title || 'Tournament'}`,
+        type: 'invite',
+        inviteData: {
+          tournamentId: selectedTournamentId,
+          tournamentName: tData.name || tData.title || 'Tournament',
+          game: gameStr,
+          teamId: team.id,
+          teamName: team.name,
+          slotsLeft,
+          slotsTotal: sizeLimit,
+          status: 'active'
         },
-        body: JSON.stringify({
-          type: 'invite',
-          inviteData: {
-            tournamentId: selectedTournamentId,
-            tournamentName: tData.name || tData.title || 'Tournament',
-            game: gameStr,
-            teamId: team.id,
-            teamName: team.name,
-            slotsLeft,
-            slotsTotal: sizeLimit
-          }
-        })
+        createdAt: serverTimestamp()
       });
 
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to post recruitment card.');
-      }
-
+      localStorage.setItem('shaktrix_last_invite_sent_at', String(now));
       showSuccessToast(`Recruitment card posted for ${team.name}!`);
       setShowRecruitForm(false);
     } catch (err: any) {
