@@ -29,6 +29,16 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // Confirms the Auth token carries email_verified = true.
+    // This claim is set by Firebase Auth (Google OAuth always sets it;
+    // email/password accounts set it after clicking the verification link).
+    // Client-side redirect to /verify-email is the UX gate;
+    // this rule is the real enforcement so unverified users cannot
+    // bypass the UI by calling Firestore directly.
+    function isEmailVerified() {
+      return isAuthenticated() && request.auth.token.email_verified == true;
+    }
+
     // SECURITY SOURCE OF TRUTH for admin role.
     // Client-side adminConfig.ts mirrors this list for UI display ONLY;
     // it has no effect on actual DB permissions.
@@ -98,7 +108,9 @@ service cloud.firestore {
     // ----------------------------------------------------------
     match /teams/{teamId} {
       allow read: if true;
-      allow create: if isAuthenticated();
+      // Require email verification to create a team.
+      // Client redirect to /verify-email is UX; this rule is the real gate.
+      allow create: if isEmailVerified();
       allow update: if isAuthenticated()
                     && resource.data.captainId == request.auth.uid;
       allow delete: if isAuthenticated()
@@ -114,8 +126,8 @@ service cloud.firestore {
     match /tournaments/{tournamentId} {
       allow read: if true;
 
-      // ✅ ADMIN-ONLY: Only verified admin emails can create tournaments.
-      allow create: if isAdminEmail();
+      // ✅ ADMIN-ONLY + EMAIL VERIFIED: Only verified admin emails can create tournaments.
+      allow create: if isAdminEmail() && isEmailVerified();
 
       // Organizer (admin who created it) can edit/delete.
       // This covers bracket updates, score saves, and status changes.
@@ -124,6 +136,14 @@ service cloud.firestore {
 
       allow delete: if isAuthenticated()
                     && resource.data.organizerId == request.auth.uid;
+
+      // Tournament live chat subcollection
+      match /messages/{messageId} {
+        allow read: if true;
+        allow create: if isEmailVerified()
+                      && request.resource.data.uid == request.auth.uid;
+        allow update, delete: if false;
+      }
     }
 
     // ----------------------------------------------------------
@@ -138,13 +158,76 @@ service cloud.firestore {
     }
 
     // ----------------------------------------------------------
-    // /messages/{messageId}  (live chat shoutbox)
+    // /matchVods/{vodId}
+    // Linked match video clips on player profiles.
     // ----------------------------------------------------------
-    match /messages/{messageId} {
+    match /matchVods/{vodId} {
       allow read: if true;
-      allow create: if isAuthenticated()
-                    && request.resource.data.uid == request.auth.uid;
-      allow update, delete: if false;
+      allow create: if isEmailVerified()
+                    && request.resource.data.userId == request.auth.uid;
+      allow update: if isEmailVerified()
+                    && resource.data.userId == request.auth.uid
+                    && request.resource.data.userId == request.auth.uid;
+      allow delete: if isAuthenticated()
+                    && resource.data.userId == request.auth.uid;
+    }
+
+    // ----------------------------------------------------------
+    // /globalChatMessages/{messageId}
+    // ----------------------------------------------------------
+    match /globalChatMessages/{messageId} {
+      allow read: if true;
+      allow create: if isEmailVerified()
+                    && request.resource.data.senderId == request.auth.uid
+                    && !(request.resource.data.text.matches('(?i).*https?://.*') || request.resource.data.text.matches('(?i).*www\\..*') || request.resource.data.text.matches('(?i).*data:image/.*base64.*'));
+      allow update: if false;
+      allow delete: if isAdminEmail();
+    }
+
+    // ----------------------------------------------------------
+    // /global_chat/{messageId} (live global chat shoutbox)
+    // ----------------------------------------------------------
+    match /global_chat/{messageId} {
+      allow read: if true;
+      allow create: if isEmailVerified()
+                    && request.resource.data.senderId == request.auth.uid
+                    && !(request.resource.data.text.matches('(?i).*https?://.*') || request.resource.data.text.matches('(?i).*www\\..*') || request.resource.data.text.matches('(?i).*data:image/.*base64.*'));
+      allow update: if false;
+      allow delete: if isAdminEmail();
+    }
+
+    // ----------------------------------------------------------
+    // /chatReports/{reportId}
+    // ----------------------------------------------------------
+    match /chatReports/{reportId} {
+      allow read, delete: if isAdminEmail();
+      allow create: if isAuthenticated() && request.resource.data.reporterId == request.auth.uid;
+      allow update: if false;
+    }
+
+    // ----------------------------------------------------------
+    // /mutedUsers/{userId}
+    // ----------------------------------------------------------
+    match /mutedUsers/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdminEmail();
+    }
+
+    // ----------------------------------------------------------
+    // /flaggedMessages/{flagId}
+    // ----------------------------------------------------------
+    match /flaggedMessages/{flagId} {
+      allow read, delete: if isAdminEmail();
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if false;
+    }
+
+    // ----------------------------------------------------------
+    // /tournamentRegistrations/{regId}
+    // ----------------------------------------------------------
+    match /tournamentRegistrations/{regId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdminEmail();
     }
 
   }
