@@ -3,20 +3,6 @@ rules_version = '2';
 // ============================================================
 // SHAKTRIX FIRESTORE SECURITY RULES
 // ============================================================
-// Admin Management:
-//   The isAdminEmail() function below is the SOURCE OF TRUTH for
-//   admin privileges. Firestore reads request.auth.token.email
-//   directly from the verified Firebase Auth ID token — it cannot
-//   be spoofed by a client.
-//
-//   To add or remove an admin:
-//     1. Edit the email list inside isAdminEmail() here.
-//     2. Mirror the same list in src/lib/adminConfig.ts (for UI display only).
-//     3. Deploy: firebase deploy --only firestore:rules
-//
-//   Known limitation: there is no in-app admin management UI.
-//   Admin assignment is a deploy-time operation.
-// ============================================================
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -46,7 +32,6 @@ service cloud.firestore {
 
     // ----------------------------------------------------------
     // /gamertags/{gamertag}
-    // Public read so the registration pre-check can run unauthenticated.
     // ----------------------------------------------------------
     match /gamertags/{gamertag} {
       allow read: if true;
