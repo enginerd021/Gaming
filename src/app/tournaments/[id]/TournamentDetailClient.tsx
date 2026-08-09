@@ -26,7 +26,7 @@ import { Trophy, Calendar, Shield, Users, Layers, Award, Loader, AlertCircle, Ed
 import Link from 'next/link';
 import Button from '@/components/ui/Button';
 import { TournamentCountdown } from '@/components/TournamentCountdown';
-import { calculateTournamentTimeWindow, checkPlayerTournamentOverlap, autoCheckTournamentStatus } from '@/lib/tournamentUtils';
+import { calculateTournamentTimeWindow, checkPlayerTournamentOverlap, autoCheckTournamentStatus, useEffectiveTournamentStatus } from '@/lib/tournamentUtils';
 import { achievementService } from '@/services/achievementService';
 import { tournamentService } from '@/services/tournamentService';
 import BracketView from '@/components/ui/BracketView';
@@ -1267,6 +1267,7 @@ export default function TournamentDetailClient({ id }: { id: string }) {
   }
 
   const isRegistered = team && tournament.registeredTeamIds.includes(team.id);
+  const effectiveStatus = useEffectiveTournamentStatus(tournament);
 
   const matchesByRound: Record<number, Match[]> = {};
   if (tournament.bracket?.matches) {
@@ -1294,11 +1295,11 @@ export default function TournamentDetailClient({ id }: { id: string }) {
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
                 <span className={`badge ${
-                  tournament.status === 'Upcoming' ? 'badge-cyan' :
-                  tournament.status === 'Active' ? 'badge-violet' : 'badge-gold'
+                  effectiveStatus === 'Upcoming' ? 'badge-cyan' :
+                  effectiveStatus === 'Active' ? 'badge-violet' : 'badge-gold'
                 }`}>
-                  {tournament.status}
-                  {tournament.status === 'Upcoming' && (
+                  {effectiveStatus === 'Active' ? 'Live' : effectiveStatus}
+                  {effectiveStatus === 'Upcoming' && (
                     <span 
                       style={{ 
                         width: '8px', 
@@ -1334,7 +1335,7 @@ export default function TournamentDetailClient({ id }: { id: string }) {
               <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
                 <ShareButton
                   title={tournament.name}
-                  description={`${tournament.game} • ${tournament.status} • ${tournament.registeredTeamIds.length}/${tournament.maxTeams} teams`}
+                  description={`${tournament.game} • ${effectiveStatus} • ${tournament.registeredTeamIds.length}/${tournament.maxTeams} teams`}
                 />
                 {isOrganizer && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--bg-secondary)', padding: '0.4rem 0.8rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
@@ -1351,7 +1352,7 @@ export default function TournamentDetailClient({ id }: { id: string }) {
                     />
                   </div>
                 )}
-                {tournament.status === 'Upcoming' && (
+                {effectiveStatus === 'Upcoming' && (
                   <>
                     {isOrganizer ? (
                       <button 

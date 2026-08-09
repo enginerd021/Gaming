@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Timer, Clock, Flame, CheckCircle2 } from 'lucide-react';
 import { Tournament } from '@/services/tournamentService';
-import { calculateTournamentTimeWindow, getEffectiveTournamentStatus } from '@/lib/tournamentUtils';
+import { calculateTournamentTimeWindow, useEffectiveTournamentStatus } from '@/lib/tournamentUtils';
 
 interface TournamentCountdownProps {
   tournament: Tournament;
@@ -17,11 +17,10 @@ export function TournamentCountdown({ tournament, compact = false, showDetails =
     hours: number;
     minutes: number;
     seconds: number;
-    isPast: boolean;
-  }>({ days: 0, hours: 0, minutes: 0, seconds: 0, isPast: false });
+  }>({ days: 0, hours: 0, minutes: 0, seconds: 0 });
 
   const timeWindow = calculateTournamentTimeWindow(tournament);
-  const effectiveStatus = getEffectiveTournamentStatus(tournament);
+  const effectiveStatus = useEffectiveTournamentStatus(tournament);
 
   useEffect(() => {
     const updateCountdown = () => {
@@ -29,7 +28,7 @@ export function TournamentCountdown({ tournament, compact = false, showDetails =
       const diff = timeWindow.startDate - now;
 
       if (diff <= 0) {
-        setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0, isPast: true });
+        setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
         return;
       }
 
@@ -38,7 +37,7 @@ export function TournamentCountdown({ tournament, compact = false, showDetails =
       const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
       const seconds = Math.floor((diff % (1000 * 60)) / 1000);
 
-      setTimeLeft({ days, hours, minutes, seconds, isPast: false });
+      setTimeLeft({ days, hours, minutes, seconds });
     };
 
     updateCountdown();
@@ -68,7 +67,7 @@ export function TournamentCountdown({ tournament, compact = false, showDetails =
     );
   }
 
-  if (effectiveStatus === 'Active' || timeLeft.isPast) {
+  if (effectiveStatus === 'Active') {
     return (
       <div 
         style={{ 
