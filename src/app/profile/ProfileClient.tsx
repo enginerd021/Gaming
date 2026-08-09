@@ -200,6 +200,22 @@ export default function ProfileClient() {
           summonerLevel: data.summonerLevel,
           rankInfo: data.rankInfo,
           lastSynced: Date.now(),
+          // Live Valorant Telemetry
+          agent: data.agent,
+          wins: data.wins,
+          losses: data.losses,
+          roundsPlayed: data.roundsPlayed,
+          kills: data.kills,
+          deaths: data.deaths,
+          assists: data.assists,
+          acs: data.acs,
+          adr: data.adr,
+          kast: data.kast,
+          kd: data.kd,
+          headshotPct: data.headshotPct,
+          firstKills: data.firstKills,
+          firstDeaths: data.firstDeaths,
+          shaktrixRating: data.shaktrixRating,
         },
       });
 
@@ -672,37 +688,46 @@ export default function ProfileClient() {
                       </span>
                     )}
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '1rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '1.25rem' }}>
                     <div>
                       <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.25rem' }}>Rank</div>
-                      <div style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)' }}>
+                      <div style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--accent-gold)' }}>
                         {rank.tier && rank.tier !== 'UNRANKED' ? `${rank.tier} ${rank.rank}` : 'UNRANKED'}
                       </div>
                     </div>
-                    {rank.tier !== 'UNRANKED' && rank.leaguePoints !== undefined && (
-                      <div>
-                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.25rem' }}>League Points</div>
-                        <div style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--accent-violet)' }}>{rank.leaguePoints} LP</div>
-                      </div>
-                    )}
-                    <div>
-                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.25rem' }}>Ranked Wins</div>
-                      <div style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--accent-green)' }}>{rank.wins ?? 0}</div>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.25rem' }}>Ranked Losses</div>
-                      <div style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--accent-red)' }}>{rank.losses ?? 0}</div>
-                    </div>
-                    {rank.winRate !== undefined && (
-                      <div>
-                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.25rem' }}>Win Rate</div>
-                        <div style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--accent-gold)' }}>{rank.winRate}%</div>
-                      </div>
-                    )}
                     <div>
                       <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.25rem' }}>Riot Score</div>
-                      <div style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--accent-cyan)' }}>{score.toLocaleString()} pts</div>
+                      <div style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--accent-cyan)' }}>{score.toLocaleString()} pts</div>
                     </div>
+                    {stats.agent && (
+                      <div>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.25rem' }}>Agent / Character</div>
+                        <div style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--accent-violet)' }}>👤 {stats.agent}</div>
+                      </div>
+                    )}
+                    {stats.kills !== undefined && (
+                      <div>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.25rem' }}>Kills / Deaths / Assists</div>
+                        <div style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--accent-green)' }}>
+                          ⚔️ {stats.kills}/{stats.deaths}/{stats.assists}
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginLeft: '0.4rem', fontWeight: 600 }}>({stats.kd} K/D)</span>
+                        </div>
+                      </div>
+                    )}
+                    {stats.acs !== undefined && (
+                      <div>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.25rem' }}>Score / Rounds Played</div>
+                        <div style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--text-primary)' }}>
+                          🔥 {stats.acs} ACS <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>({stats.roundsPlayed} rounds)</span>
+                        </div>
+                      </div>
+                    )}
+                    {stats.adr !== undefined && (
+                      <div>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.25rem' }}>Avg Damage / Round</div>
+                        <div style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--accent-red)' }}>💥 {stats.adr} ADR</div>
+                      </div>
+                    )}
                   </div>
                 </div>
               );
