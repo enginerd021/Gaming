@@ -10,7 +10,7 @@ import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import GlassCard from '@/components/ui/GlassCard';
 import { TournamentCountdown } from '@/components/TournamentCountdown';
-import { getEffectiveTournamentStatus } from '@/lib/tournamentUtils';
+import { getEffectiveTournamentStatus, autoCheckTournamentStatus } from '@/lib/tournamentUtils';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
@@ -31,6 +31,7 @@ export default function TournamentsView() {
   useEffect(() => {
     const unsub = tournamentService.subscribeAllTournaments(
       (list) => {
+        list.forEach(t => autoCheckTournamentStatus(t));
         setTournaments(list);
         setLoading(false);
 

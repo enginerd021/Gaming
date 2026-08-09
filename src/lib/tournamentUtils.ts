@@ -1,6 +1,6 @@
-import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Tournament } from '@/services/tournamentService';
+import { Tournament, Match } from '@/services/tournamentService';
 
 export interface TournamentTimeWindow {
   startDate: number;
@@ -85,12 +85,11 @@ export function getEffectiveTournamentStatus(tournament: Tournament): 'Upcoming'
     }
   }
 
-  // 4. Check time window
+  // 4. Check time window: If estimated end time has elapsed -> Completed!
   const window = calculateTournamentTimeWindow(tournament);
   const now = Date.now();
 
-  // If time window has expired and any match scores are entered -> Completed
-  if (now >= window.estimatedEndTime && matches.some(m => m.winnerId || m.score1 > 0 || m.score2 > 0)) {
+  if (now >= window.estimatedEndTime) {
     return 'Completed';
   }
 
@@ -213,3 +212,146 @@ export async function checkPlayerTournamentOverlap(
 
   return { hasConflict: false };
 }
+
+/**
+ * Auto-checks if a tournament or any of its live matches have passed their scheduled time window / check-in deadline.
+ * Automatically resolves expired live matches and completes tournaments whose estimated end time or final matches have ended.
+ */
+export async function autoCheckTournamentStatus(tournament: Tournament, matches?: Match[]): Promise<boolean> {
+  if (!tournament || (tournament.status as string) === 'Completed') return false;
+
+  const timeWindow = calculateTournamentTimeWindow(tournament);
+  const now = Date.now();
+  let updated = false;
+
+  const matchArray: Match[] = matches || (tournament as any).bracket?.matches || [];
+
+  if (matchArray.length > 0) {
+    let matchesChanged = false;
+    const updatedMatches = [...matchArray];
+
+    for (let i = 0; i < updatedMatches.length; i++) {
+      const m = updatedMatches[i];
+      if (m.status !== 'live') continue;
+
+      const roundEnd = timeWindow.startDate + m.round * timeWindow.roundDurationMins * 60 * 1000;
+      const deadline = m.checkIn?.checkInDeadline || null;
+      const checkInExpired = deadline ? now >= deadline : false;
+      const roundExpired = now >= roundEnd;
+
+      // Auto-resolve live match if round interval or check-in deadline has expired
+      if (checkInExpired || roundExpired) {
+        matchesChanged = true;
+        const t1Checked = m.checkIn?.team1CheckedIn || false;
+        const t2Checked = m.checkIn?.team2CheckedIn || false;
+
+        let winnerId: string | null = null;
+        let score1 = 0;
+        let score2 = 0;
+
+        if (t1Checked && !t2Checked) {
+          winnerId = m.team1Id;
+          score1 = 1;
+          score2 = 0;
+        } else if (t2Checked && !t1Checked) {
+          winnerId = m.team2Id;
+          score1 = 0;
+          score2 = 1;
+        } else {
+          winnerId = m.team1Id || m.team2Id;
+          if (winnerId === m.team1Id) {
+            score1 = 1;
+            score2 = 0;
+          } else {
+            score1 = 0;
+            score2 = 1;
+          }
+        }
+
+        if (winnerId) {
+          updatedMatches[i] = {
+            ...m,
+            score1,
+            score2,
+            status: 'completed',
+            winnerId,
+            updatedAt: now,
+            checkIn: m.checkIn ? { ...m.checkIn, checkInDeadline: null } : null
+          };
+
+          // Advance winner in bracket
+          const maxTeams = tournament.maxTeams || 4;
+          const totalRounds = Math.ceil(Math.log2(maxTeams));
+          if (m.round < totalRounds) {
+            const nextMatchNumber = Math.ceil(m.matchNumber / 2);
+            const nextMatchId = `m-${m.round + 1}-${nextMatchNumber}`;
+            const nextIdx = updatedMatches.findIndex(nm => nm.id === nextMatchId);
+            if (nextIdx !== -1) {
+              const nextM = { ...updatedMatches[nextIdx] };
+              if (m.matchNumber % 2 === 1) {
+                nextM.team1Id = winnerId;
+              } else {
+                nextM.team2Id = winnerId;
+              }
+              if (nextM.team1Id && nextM.team2Id) {
+                nextM.status = 'live';
+                nextM.checkIn = {
+                  team1CheckedIn: false,
+                  team2CheckedIn: false,
+                  checkInDeadline: now + 10 * 60 * 1000,
+                  disputed: false,
+                  disputeReason: null,
+                  disputedBy: null
+                };
+              }
+              updatedMatches[nextIdx] = nextM;
+            }
+          }
+        }
+      }
+    }
+
+    if (matchesChanged) {
+      updated = true;
+      try {
+        const tournamentRef = doc(db, 'tournaments', tournament.id);
+        await updateDoc(tournamentRef, {
+          'bracket.matches': updatedMatches
+        });
+        (tournament as any).bracket = { matches: updatedMatches };
+      } catch (err) {
+        console.error('Failed to auto-resolve match timeouts in Firestore:', err);
+      }
+    }
+
+    // Check if ALL matches are now completed
+    const allMatchesCompleted = updatedMatches.length > 0 && updatedMatches.every(m => m.status === 'completed');
+    if (allMatchesCompleted && (tournament.status as string) !== 'Completed') {
+      updated = true;
+      tournament.status = 'Completed';
+      try {
+        const tournamentRef = doc(db, 'tournaments', tournament.id);
+        await updateDoc(tournamentRef, { status: 'Completed' });
+      } catch (err) {
+        console.error('Failed to auto-complete tournament in Firestore:', err);
+      }
+      return true;
+    }
+  }
+
+  // Also check overall tournament estimated end time
+  if (tournament.status === 'Active' && now >= timeWindow.estimatedEndTime) {
+    updated = true;
+    tournament.status = 'Completed';
+    try {
+      const tournamentRef = doc(db, 'tournaments', tournament.id);
+      await updateDoc(tournamentRef, { status: 'Completed' });
+    } catch (err) {
+      console.error('Failed to auto-complete expired tournament in Firestore:', err);
+    }
+    return true;
+  }
+
+  return updated;
+}
+

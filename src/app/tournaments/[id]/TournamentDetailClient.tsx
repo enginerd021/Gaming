@@ -26,7 +26,7 @@ import { Trophy, Calendar, Shield, Users, Layers, Award, Loader, AlertCircle, Ed
 import Link from 'next/link';
 import Button from '@/components/ui/Button';
 import { TournamentCountdown } from '@/components/TournamentCountdown';
-import { calculateTournamentTimeWindow, checkPlayerTournamentOverlap } from '@/lib/tournamentUtils';
+import { calculateTournamentTimeWindow, checkPlayerTournamentOverlap, autoCheckTournamentStatus } from '@/lib/tournamentUtils';
 import { achievementService } from '@/services/achievementService';
 import { tournamentService } from '@/services/tournamentService';
 import BracketView from '@/components/ui/BracketView';
@@ -181,6 +181,19 @@ export default function TournamentDetailClient({ id }: { id: string }) {
       if (teamsUnsub) teamsUnsub();
     };
   }, [id]);
+
+  // Auto-check tournament and live match timeouts
+  useEffect(() => {
+    if (!tournament || tournament.status === 'Completed') return;
+
+    autoCheckTournamentStatus(tournament);
+
+    const timer = setInterval(() => {
+      autoCheckTournamentStatus(tournament);
+    }, 5000);
+
+    return () => clearInterval(timer);
+  }, [tournament]);
 
   const isOrganizer = tournament?.organizerId === user?.uid;
   const isParticipant = team && tournament?.registeredTeamIds?.includes(team.id);

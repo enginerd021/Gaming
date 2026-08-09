@@ -229,9 +229,10 @@ export const tournamentService = {
       batch.set(matchDocRef, matchesMap[matchId]);
     }
 
-    // 5. Update tournament status
+    // 5. Update tournament status and bracket payload
     batch.update(tRef, {
-      status: 'Active'
+      status: 'Active',
+      'bracket.matches': Object.values(matchesMap)
     });
 
     await batch.commit();
