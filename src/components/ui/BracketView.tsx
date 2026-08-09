@@ -44,6 +44,31 @@ export default function BracketView({
   const [fetchingRiotScore, setFetchingRiotScore] = useState(false);
   const [riotScoreInfo, setRiotScoreInfo] = useState<string | null>(null);
 
+  // Edit match room credentials states (Organizer/Admin)
+  const [editingRoomMatchId, setEditingRoomMatchId] = useState<string | null>(null);
+  const [inputRoomId, setInputRoomId] = useState('');
+  const [inputRoomPassword, setInputRoomPassword] = useState('');
+
+  const handleSaveRoomDetails = async (matchId: string) => {
+    setError(null);
+    setSuccess(null);
+    if (!inputRoomId.trim()) {
+      setError("Please enter a valid Room ID.");
+      return;
+    }
+    setActionLoading(true);
+    try {
+      await tournamentService.updateMatchRoomDetails(tournamentId, matchId, inputRoomId, inputRoomPassword);
+      setSuccess("Custom Match Lobby Credentials saved!");
+      setEditingRoomMatchId(null);
+    } catch (err: any) {
+      console.error(err);
+      setError("Failed to save room details.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleFetchScoreByRiotId = async () => {
     if (!riotIdInput.trim() || !riotIdInput.includes('#')) {
       setError("Please enter a valid Riot ID format (e.g. Tarik#NA1 or Singh#IND).");
@@ -191,7 +216,10 @@ export default function BracketView({
     matchesByRound[m.round].push(m);
   });
 
-  const roundsCount = Math.log2(maxTeams);
+  const maxRoundInMatches = matches.length > 0 ? Math.max(...matches.map((m) => m.round)) : 0;
+  const roundsCount = maxRoundInMatches > 0 
+    ? maxRoundInMatches 
+    : Math.max(1, Math.ceil(Math.log2(registeredTeamIds.length || maxTeams || 4)));
   const roundsArray = Array.from({ length: roundsCount }, (_, i) => i + 1);
 
   if (loading) {
@@ -209,7 +237,7 @@ export default function BracketView({
         <Trophy size={48} style={{ opacity: 0.25, margin: '0 auto 1rem auto' }} />
         <h3 style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>Bracket Pending Launch</h3>
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', maxWidth: '400px', margin: '0 auto' }}>
-          Brackets will generate and show here once the organizer starts the tournament. Currently waiting for team registrations.
+          Brackets will generate and show here once the organizer starts the tournament or the start date is reached. Currently waiting for team registrations.
         </p>
 
         {/* Roster overview */}
@@ -246,8 +274,9 @@ export default function BracketView({
             
             <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-around', flexGrow: 1, gap: '2rem' }}>
               {roundMatches.map((m) => {
-                const t1Name = m.team1Id ? (teamsMap[m.team1Id] || 'Team Roster') : 'TBD';
-                const t2Name = m.team2Id ? (teamsMap[m.team2Id] || 'Team Roster') : 'TBD';
+                const isByeMatch = m.status === 'completed' && (!m.team1Id || !m.team2Id);
+                const t1Name = m.team1Id ? (teamsMap[m.team1Id] || 'Team Roster') : (isByeMatch && !m.team1Id ? 'BYE (Auto-Advance)' : 'TBD');
+                const t2Name = m.team2Id ? (teamsMap[m.team2Id] || 'Team Roster') : (isByeMatch && !m.team2Id ? 'BYE (Auto-Advance)' : 'TBD');
                 const isT1Winner = m.winnerId && m.winnerId === m.team1Id;
                 const isT2Winner = m.winnerId && m.winnerId === m.team2Id;
 
@@ -455,6 +484,86 @@ export default function BracketView({
                           >
                             💬 Join Discord Lobby
                           </a>
+                        )}
+
+                        {/* Custom Lobby Room ID & Password Display / Form */}
+                        {editingRoomMatchId === m.id ? (
+                          <div style={{ marginTop: '0.5rem', padding: '0.5rem', background: 'rgba(255, 183, 3, 0.08)', borderRadius: '6px', border: '1px solid var(--accent-gold)' }}>
+                            <label htmlFor={`edit-room-id-${m.id}`} style={{ fontSize: '0.72rem', color: 'var(--accent-gold)', fontWeight: 700, display: 'block', marginBottom: '0.2rem' }}>
+                              🎮 Custom Lobby Credentials (Room ID & Pass)
+                            </label>
+                            <input
+                              id={`edit-room-id-${m.id}`}
+                              type="text"
+                              placeholder="Room ID (e.g. ROOM-88241)"
+                              className="glass-input"
+                              style={{ width: '100%', padding: '0.25rem 0.4rem', fontSize: '0.75rem', marginBottom: '0.3rem' }}
+                              value={inputRoomId}
+                              onChange={(e) => setInputRoomId(e.target.value)}
+                            />
+                            <input
+                              id={`edit-room-pass-${m.id}`}
+                              type="text"
+                              placeholder="Password (e.g. shakti123)"
+                              className="glass-input"
+                              style={{ width: '100%', padding: '0.25rem 0.4rem', fontSize: '0.75rem', marginBottom: '0.4rem' }}
+                              value={inputRoomPassword}
+                              onChange={(e) => setInputRoomPassword(e.target.value)}
+                            />
+                            <div style={{ display: 'flex', gap: '0.3rem' }}>
+                              <button
+                                type="button"
+                                onClick={() => handleSaveRoomDetails(m.id)}
+                                className="btn btn-primary"
+                                style={{ flex: 1, padding: '0.3rem', fontSize: '0.72rem', height: 'auto', background: 'var(--accent-gold)', color: '#000', fontWeight: 800 }}
+                                disabled={actionLoading}
+                              >
+                                Save Credentials
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEditingRoomMatchId(null)}
+                                className="btn btn-outline"
+                                style={{ padding: '0.3rem', fontSize: '0.72rem', height: 'auto' }}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            {m.roomId && (
+                              <div style={{ background: 'rgba(0, 240, 255, 0.08)', border: '1px solid var(--accent-cyan)', padding: '0.45rem', borderRadius: '6px', marginTop: '0.4rem', fontSize: '0.75rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.2rem' }}>
+                                  <span style={{ fontWeight: 700, color: 'var(--accent-cyan)', fontSize: '0.7rem' }}>🎮 Custom Lobby Credentials</span>
+                                  {isOrganizer && (
+                                    <button
+                                      type="button"
+                                      onClick={() => { setEditingRoomMatchId(m.id); setInputRoomId(m.roomId || ''); setInputRoomPassword(m.roomPassword || ''); }}
+                                      style={{ background: 'none', border: 'none', color: 'var(--accent-gold)', fontSize: '0.65rem', cursor: 'pointer', fontWeight: 700 }}
+                                    >
+                                      Edit
+                                    </button>
+                                  )}
+                                </div>
+                                <div style={{ display: 'flex', gap: '0.6rem', fontSize: '0.72rem', color: '#fff', alignItems: 'center', flexWrap: 'wrap' }}>
+                                  <span><strong>Room ID:</strong> <code style={{ background: '#000', padding: '0.1rem 0.35rem', borderRadius: '3px', color: 'var(--accent-cyan)', fontWeight: 800 }}>{m.roomId}</code></span>
+                                  {m.roomPassword && <span><strong>Pass:</strong> <code style={{ background: '#000', padding: '0.1rem 0.35rem', borderRadius: '3px', color: 'var(--accent-gold)', fontWeight: 800 }}>{m.roomPassword}</code></span>}
+                                </div>
+                              </div>
+                            )}
+
+                            {isOrganizer && !m.roomId && m.status === 'live' && editingMatchId !== m.id && (
+                              <button
+                                type="button"
+                                onClick={() => { setEditingRoomMatchId(m.id); setInputRoomId(''); setInputRoomPassword(''); }}
+                                className="btn btn-outline"
+                                style={{ marginTop: '0.4rem', padding: '0.3rem', fontSize: '0.72rem', width: '100%', height: 'auto', background: 'rgba(255, 183, 3, 0.08)', borderColor: 'var(--accent-gold)', color: 'var(--accent-gold)', fontWeight: 700 }}
+                              >
+                                🎮 Fill Room ID & Password
+                              </button>
+                            )}
+                          </>
                         )}
 
                         {/* Check-In and Dispute Indicators */}

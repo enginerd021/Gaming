@@ -1,6 +1,6 @@
 import { collection, query, where, getDocs, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Tournament, Match } from '@/services/tournamentService';
+import { Tournament, Match, tournamentService } from '@/services/tournamentService';
 
 export interface TournamentTimeWindow {
   startDate: number;
@@ -85,18 +85,18 @@ export function getEffectiveTournamentStatus(tournament: Tournament): 'Upcoming'
     }
   }
 
-  // 4. Check time window: If estimated end time has elapsed -> Completed!
+  // 4. Check time window: ONLY if matches were generated and played
   const window = calculateTournamentTimeWindow(tournament);
   const now = Date.now();
 
-  if (now >= window.estimatedEndTime) {
+  if (matches.length > 0 && now >= window.estimatedEndTime) {
     return 'Completed';
   }
 
   // 5. Active status: if status is explicitly Active, or if startDate has passed, or if any match is live/played
   if (
     tournament.status === 'Active' ||
-    now >= window.startDate ||
+    (matches.length > 0 && now >= window.startDate) ||
     matches.some(m => (m as any).status === 'live' || m.winnerId || m.score1 > 0 || m.score2 > 0)
   ) {
     return 'Active';
@@ -215,7 +215,8 @@ export async function checkPlayerTournamentOverlap(
 
 /**
  * Auto-checks if a tournament or any of its live matches have passed their scheduled time window / check-in deadline.
- * Automatically resolves expired live matches and completes tournaments whose estimated end time or final matches have ended.
+ * Automatically generates brackets when tournament start time is reached, resolves expired live matches,
+ * and completes tournaments whose estimated end time or final matches have ended.
  */
 export async function autoCheckTournamentStatus(tournament: Tournament, matches?: Match[]): Promise<boolean> {
   if (!tournament || (tournament.status as string) === 'Completed') return false;
@@ -225,6 +226,23 @@ export async function autoCheckTournamentStatus(tournament: Tournament, matches?
   let updated = false;
 
   const matchArray: Match[] = matches || (tournament as any).bracket?.matches || [];
+
+  // 0. Auto-generate bracket when tournament start date is reached
+  if (
+    (tournament.status as string) === 'Upcoming' &&
+    now >= timeWindow.startDate &&
+    (!matchArray || matchArray.length === 0) &&
+    tournament.registeredTeamIds &&
+    tournament.registeredTeamIds.length >= 2
+  ) {
+    try {
+      await tournamentService.generateBracket(tournament.id, tournament.registeredTeamIds);
+      tournament.status = 'Active';
+      return true;
+    } catch (err) {
+      console.error('Failed to auto-generate bracket at tournament start time:', err);
+    }
+  }
 
   if (matchArray.length > 0) {
     let matchesChanged = false;

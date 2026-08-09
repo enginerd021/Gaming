@@ -16,6 +16,8 @@ service cloud.firestore {
     }
 
     // Confirms the Auth token carries email_verified = true.
+    // This claim is set by Firebase Auth (Google OAuth always sets it;
+    // email/password accounts set it after clicking the verification link).
     function isEmailVerified() {
       return isAuthenticated() && request.auth.token.email_verified == true;
     }
@@ -227,3 +229,4 @@ service cloud.firestore {
 
   }
 }
+
