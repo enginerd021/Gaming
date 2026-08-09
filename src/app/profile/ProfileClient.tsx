@@ -705,7 +705,7 @@ export default function ProfileClient() {
                         <div style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--accent-violet)' }}>👤 {stats.agent}</div>
                       </div>
                     )}
-                    {stats.kills !== undefined && (
+                    {stats.kills > 0 && (
                       <div>
                         <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.25rem' }}>Kills / Deaths / Assists</div>
                         <div style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--accent-green)' }}>
@@ -714,7 +714,7 @@ export default function ProfileClient() {
                         </div>
                       </div>
                     )}
-                    {stats.acs !== undefined && (
+                    {stats.acs > 0 && (
                       <div>
                         <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.25rem' }}>Score / Rounds Played</div>
                         <div style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--text-primary)' }}>
@@ -722,7 +722,7 @@ export default function ProfileClient() {
                         </div>
                       </div>
                     )}
-                    {stats.adr !== undefined && (
+                    {stats.adr > 0 && (
                       <div>
                         <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.25rem' }}>Avg Damage / Round</div>
                         <div style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--accent-red)' }}>💥 {stats.adr} ADR</div>

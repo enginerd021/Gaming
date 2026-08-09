@@ -444,7 +444,7 @@ export default function PlayerPublicProfileClient({ username }: { username: stri
                     </div>
                   )}
 
-                  {riotStats.kills !== undefined && (
+                  {riotStats.kills > 0 && (
                     <div>
                       <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.2rem' }}>Kills / Deaths / Assists</div>
                       <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--accent-green)' }}>
@@ -454,7 +454,7 @@ export default function PlayerPublicProfileClient({ username }: { username: stri
                     </div>
                   )}
 
-                  {riotStats.acs !== undefined && (
+                  {riotStats.acs > 0 && (
                     <div>
                       <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.2rem' }}>Score / Rounds Played</div>
                       <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)' }}>
@@ -463,7 +463,7 @@ export default function PlayerPublicProfileClient({ username }: { username: stri
                     </div>
                   )}
 
-                  {riotStats.adr !== undefined && (
+                  {riotStats.adr > 0 && (
                     <div>
                       <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.2rem' }}>Avg Damage / Round</div>
                       <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--accent-red)' }}>
