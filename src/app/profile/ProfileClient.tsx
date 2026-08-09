@@ -24,9 +24,11 @@ import {
   Check, 
   Trophy, 
   Calendar, 
-  Clock
+  Clock,
+  Activity,
+  Flame,
+  Target
 } from 'lucide-react';
-import { recommendGames } from '@/lib/recommendGames';
 
 const AVAILABLE_GAMES = ["Valorant", "League of Legends", "CS:GO", "Apex Legends", "Rocket League", "Overwatch 2"];
 const POPULAR_ROLES = ["Duelist", "Sentinel", "Mid Laner", "Jungler", "IGL (In-Game Leader)", "Entry Fragger", "Support", "Sniper", "Flex"];
@@ -36,6 +38,9 @@ export default function ProfileClient() {
   const profile = useAppStore((state) => state.profile);
   const loading = useAppStore((state) => state.loading);
   const router = useRouter();
+
+  // Active section state
+  const [activeSection, setActiveSection] = useState<'personal' | 'valorant' | 'shaktrix' | 'other_games'>('personal');
 
   // Form states
   const [displayName, setDisplayName] = useState('');
@@ -236,7 +241,7 @@ export default function ProfileClient() {
       if (riotId.trim()) {
         await syncRiotScore(riotId.trim());
       }
-      setMessage({ type: 'success', text: 'Profile updated successfully!' });
+      setMessage({ type: 'success', text: 'Profile settings updated successfully!' });
     } catch (err: any) {
       console.error('Error updating profile:', err);
       triggerShake();
@@ -260,7 +265,6 @@ export default function ProfileClient() {
     );
   }
 
-  // Filter tournaments
   const upcomingTournaments = tournamentHistory.filter(t => t.status !== 'Completed');
   const pastTournaments = tournamentHistory.filter(t => t.status === 'Completed');
 
@@ -268,7 +272,7 @@ export default function ProfileClient() {
     <main style={{ position: 'relative', minHeight: 'calc(100vh - 4.5rem)', padding: '7.5rem 1.5rem 4rem 1.5rem' }}>
       <div className="hero-glow hero-glow-1" />
       
-      <div className="container" style={{ maxWidth: '1200px', position: 'relative', zIndex: 1 }}>
+      <div className="container" style={{ maxWidth: '900px', position: 'relative', zIndex: 1 }}>
         
         {/* Profile Card Header */}
         <div className="glass-panel" style={{ padding: '2rem', marginBottom: '2rem', display: 'flex', flexWrap: 'wrap', gap: '2rem', alignItems: 'center' }}>
@@ -318,370 +322,499 @@ export default function ProfileClient() {
           )}
         </div>
 
-        {/* Two-Column Dashboard Layout */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem', alignItems: 'start' }}>
-          
-          {/* Left Column: Profile Settings & Valorant Live Stats */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-            
-            {/* Valorant Stats Panel */}
-            <div className="glass-panel" style={{ padding: '2rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
-                <Gamepad2 size={20} style={{ color: 'var(--accent-cyan)' }} />
-                <h2 style={{ fontSize: '1.25rem', margin: 0 }}>Valorant Status & Riot ID Link</h2>
-              </div>
+        {/* Section Selection Buttons */}
+        <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '2rem', flexWrap: 'wrap', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
+          <button
+            onClick={() => { setActiveSection('personal'); setMessage(null); }}
+            className={`btn ${activeSection === 'personal' ? 'btn-primary' : 'btn-outline'}`}
+            style={{ fontSize: '0.85rem', padding: '0.5rem 1.25rem', display: 'flex', alignItems: 'center', gap: '0.4rem', borderRadius: '8px', boxShadow: activeSection === 'personal' ? 'var(--glow-cyan)' : 'none' }}
+          >
+            <User size={14} /> Personal Information
+          </button>
+          <button
+            onClick={() => { setActiveSection('valorant'); setMessage(null); }}
+            className={`btn ${activeSection === 'valorant' ? 'btn-primary' : 'btn-outline'}`}
+            style={{ fontSize: '0.85rem', padding: '0.5rem 1.25rem', display: 'flex', alignItems: 'center', gap: '0.4rem', borderRadius: '8px', boxShadow: activeSection === 'valorant' ? 'var(--glow-cyan)' : 'none' }}
+          >
+            <Gamepad2 size={14} /> VALORANT Details
+          </button>
+          <button
+            onClick={() => { setActiveSection('shaktrix'); setMessage(null); }}
+            className={`btn ${activeSection === 'shaktrix' ? 'btn-primary' : 'btn-outline'}`}
+            style={{ fontSize: '0.85rem', padding: '0.5rem 1.25rem', display: 'flex', alignItems: 'center', gap: '0.4rem', borderRadius: '8px', boxShadow: activeSection === 'shaktrix' ? 'var(--glow-cyan)' : 'none' }}
+          >
+            <Trophy size={14} /> Shaktrix History
+          </button>
+          <button
+            onClick={() => { setActiveSection('other_games'); setMessage(null); }}
+            className={`btn ${activeSection === 'other_games' ? 'btn-primary' : 'btn-outline'}`}
+            style={{ fontSize: '0.85rem', padding: '0.5rem 1.25rem', display: 'flex', alignItems: 'center', gap: '0.4rem', borderRadius: '8px', boxShadow: activeSection === 'other_games' ? 'var(--glow-cyan)' : 'none' }}
+          >
+            <Activity size={14} /> CS:GO & Other Games
+          </button>
+        </div>
 
-              {/* Riot Games ID Form Input */}
-              <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-                <label htmlFor="prof-riotid" className="form-label" style={{ fontSize: '0.8rem', display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>
-                  Linked Riot Games ID
-                </label>
-                <div style={{ display: 'flex', gap: '0.75rem' }}>
-                  <div className="input-glow-wrapper" style={{ flex: 1 }}>
-                    <input
-                      id="prof-riotid"
-                      type="text"
-                      className="glass-input"
-                      placeholder="e.g. Rioter#NA1"
-                      value={riotId}
-                      onChange={(e) => setRiotId(e.target.value)}
-                      disabled={updating || loadingRiotSync}
-                    />
-                  </div>
-                  {riotId.trim() && (
+        {/* ────────────────────────────────────────────────────────── */}
+        {/* SECTION 1: PERSONAL INFORMATION (Riot ID taken here) */}
+        {/* ────────────────────────────────────────────────────────── */}
+        {activeSection === 'personal' && (
+          <form onSubmit={handleSaveProfile} className={`glass-panel fade-in ${shake ? 'shake' : ''}`} style={{ padding: '2.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '2rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>
+              <User size={20} style={{ color: 'var(--accent-cyan)' }} />
+              <h2 style={{ fontSize: '1.4rem', margin: 0 }}>Personal Information Settings</h2>
+            </div>
+
+            {/* Riot Games ID (Necessarily Taken Here) */}
+            <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+              <label htmlFor="prof-riotid" className="form-label" style={{ fontSize: '0.85rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.5rem' }}>
+                <Gamepad2 size={16} style={{ color: 'var(--accent-cyan)' }} />
+                Linked Riot Games ID <span style={{ color: 'var(--accent-red)' }}>*Required for stats sync</span>
+              </label>
+              <div className="input-glow-wrapper">
+                <input
+                  id="prof-riotid"
+                  type="text"
+                  className="glass-input"
+                  placeholder="e.g. Rioter#NA1"
+                  value={riotId}
+                  onChange={(e) => setRiotId(e.target.value)}
+                  disabled={updating}
+                  style={{ height: '3rem' }}
+                />
+              </div>
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginTop: '0.4rem', lineHeight: 1.4 }}>
+                Enter your global Riot ID (Format: Username#Tagline). Once linked, your profile will pull live statistics which will be used for seeding match brackets.
+              </span>
+            </div>
+
+            <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+              <label htmlFor="prof-name" className="form-label" style={{ fontSize: '0.85rem', display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>
+                Display Name
+              </label>
+              <div className="input-glow-wrapper">
+                <input
+                  id="prof-name"
+                  type="text"
+                  className="glass-input"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  disabled={updating}
+                  style={{ height: '3rem' }}
+                />
+              </div>
+            </div>
+
+            <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+              <label className="form-label" style={{ fontSize: '0.85rem', display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>
+                Registered Games
+              </label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                {AVAILABLE_GAMES.map((game) => {
+                  const isSelected = selectedGames.includes(game);
+                  return (
                     <button
+                      key={game}
                       type="button"
-                      className="btn btn-outline"
-                      onClick={() => syncRiotScore(riotId.trim())}
-                      disabled={loadingRiotSync || updating}
-                      style={{
-                        whiteSpace: 'nowrap',
-                        fontSize: '0.8rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.4rem',
-                        borderColor: 'var(--accent-cyan)',
-                        color: 'var(--accent-cyan)',
-                        padding: '0 1rem',
-                        justifyContent: 'center'
-                      }}
-                      title="Fetch live rank data from Riot API"
+                      onClick={() => handleGameToggle(game)}
+                      disabled={updating}
+                      className={`badge ${isSelected ? 'badge-cyan' : 'badge-outline'}`}
+                      style={{ padding: '0.4rem 0.85rem', cursor: 'pointer', border: '1px solid var(--border-color)', fontSize: '0.8rem' }}
                     >
-                      {loadingRiotSync
-                        ? <Loader size={14} className="animate-spin" />
-                        : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-                      }
-                      <span style={{ fontSize: '0.78rem' }}>Refresh Stats</span>
+                      {isSelected && <Check size={12} style={{ marginRight: '0.25rem', display: 'inline' }} />}
+                      {game}
                     </button>
-                  )}
-                </div>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', marginTop: '0.4rem', lineHeight: 1.4 }}>
-                  Synchronize your live rank data from your Riot account. The score rating points fetched will be directly used for seeding brackets.
-                </span>
+                  );
+                })}
               </div>
+            </div>
 
-              {/* Live Valorant Stats Display */}
-              {(riotLiveStats || (profile as any).riotStats) ? (() => {
-                const stats = riotLiveStats || (profile as any).riotStats;
-                const rank = stats.rankInfo || {};
-                const score = riotLiveStats?.riotScore ?? profile.stats?.points ?? 0;
-                return (
-                  <div style={{
-                    background: 'var(--bg-secondary)',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: '10px',
-                    padding: '1.25rem',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '1rem'
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
-                      <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--accent-cyan)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>⚡ Live Stats Panel</span>
-                      {stats.lastSynced && (
-                        <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
-                          Synced: {new Date(stats.lastSynced).toLocaleTimeString()}
-                        </span>
-                      )}
-                    </div>
-                    
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                      <div>
-                        <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Rank Level</div>
-                        <div style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--accent-gold)' }}>
-                          {rank.tier && rank.tier !== 'UNRANKED' ? `${rank.tier} ${rank.rank}` : 'UNRANKED'}
-                        </div>
-                      </div>
-                      <div>
-                        <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Riot Score</div>
-                        <div style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--accent-cyan)' }}>{score.toLocaleString()} pts</div>
-                      </div>
-                      
-                      {stats.agent && (
-                        <div>
-                          <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Character</div>
-                          <div style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--accent-violet)' }}>👤 {stats.agent}</div>
-                        </div>
-                      )}
-                      {stats.kills > 0 && (
-                        <div style={{ gridColumn: 'span 2' }}>
-                          <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Kills / Deaths / Assists</div>
-                          <div style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--accent-green)' }}>
-                            ⚔️ {stats.kills}/{stats.deaths}/{stats.assists}
-                            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginLeft: '0.4rem', fontWeight: 600 }}>({stats.kd} K/D)</span>
-                          </div>
-                        </div>
-                      )}
-                      {stats.acs > 0 && (
-                        <div style={{ gridColumn: 'span 2' }}>
-                          <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Score / Rounds</div>
-                          <div style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--text-primary)' }}>
-                            🔥 {stats.acs} ACS <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>({stats.roundsPlayed} rounds)</span>
-                          </div>
-                        </div>
-                      )}
-                      {stats.adr > 0 && (
-                        <div>
-                          <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Avg Damage</div>
-                          <div style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--accent-red)' }}>💥 {stats.adr} ADR</div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })() : (
-                <div style={{ background: 'var(--bg-tertiary)', borderRadius: '10px', padding: '1rem', border: '1px dashed var(--border-color)', textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                  No Riot ID linked. Enter your Riot ID above to display your live stats.
+            <div className="form-group" style={{ marginBottom: '2rem' }}>
+              <label className="form-label" style={{ fontSize: '0.85rem', display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>
+                Preferred Roles
+              </label>
+              
+              {preferredRoles.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.8rem' }}>
+                  {preferredRoles.map((role) => (
+                    <span
+                      key={role}
+                      className="badge badge-violet"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.3rem 0.6rem', fontSize: '0.78rem' }}
+                    >
+                      {role}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveRole(role)}
+                        style={{ background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', padding: '0 0.1rem', fontSize: '0.7rem' }}
+                      >
+                        &times;
+                      </button>
+                    </span>
+                  ))}
                 </div>
               )}
 
-              {riotSyncError && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent-red)', fontSize: '0.78rem', marginTop: '1rem', background: 'hsla(350,85%,55%,0.08)', border: '1px solid var(--accent-red)', borderRadius: '8px', padding: '0.5rem 0.75rem' }}>
-                  <AlertCircle size={14} /> {riotSyncError}
-                </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                {POPULAR_ROLES.filter(r => !preferredRoles.includes(r)).map((role) => (
+                  <button
+                    key={role}
+                    type="button"
+                    onClick={() => handleAddRole(role)}
+                    disabled={updating}
+                    className="badge badge-outline table-row-hover"
+                    style={{ padding: '0.3rem 0.6rem', cursor: 'pointer', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}
+                  >
+                    <Plus size={12} /> {role}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              className="btn btn-primary"
+              style={{ width: '100%', height: '3rem', fontSize: '0.9rem' }}
+              disabled={updating}
+            >
+              {updating ? 'Saving Changes...' : (
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center' }}>
+                  <Save size={18} /> Save Settings
+                </span>
+              )}
+            </button>
+          </form>
+        )}
+
+        {/* ────────────────────────────────────────────────────────── */}
+        {/* SECTION 2: VALORANT DETAILS */}
+        {/* ────────────────────────────────────────────────────────── */}
+        {activeSection === 'valorant' && (
+          <div className="glass-panel fade-in" style={{ padding: '2.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Gamepad2 size={20} style={{ color: 'var(--accent-cyan)' }} />
+                <h2 style={{ fontSize: '1.4rem', margin: 0 }}>VALORANT Career Details</h2>
+              </div>
+              {profile.riotId && (
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={() => syncRiotScore(profile.riotId || '')}
+                  disabled={loadingRiotSync}
+                  style={{
+                    fontSize: '0.8rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    borderColor: 'var(--accent-cyan)',
+                    color: 'var(--accent-cyan)',
+                    padding: '0.4rem 0.85rem'
+                  }}
+                >
+                  {loadingRiotSync ? <Loader size={14} className="animate-spin" /> : <Activity size={14} />}
+                  <span>Refresh Stats</span>
+                </button>
               )}
             </div>
 
-            {/* Profile Info Settings Form */}
-            <form onSubmit={handleSaveProfile} className={`glass-panel ${shake ? 'shake' : ''}`} style={{ padding: '2rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
-                <User size={20} style={{ color: 'var(--accent-cyan)' }} />
-                <h2 style={{ fontSize: '1.25rem', margin: 0 }}>Profile Information</h2>
-              </div>
-
-              <div className="form-group" style={{ marginBottom: '1.25rem' }}>
-                <label htmlFor="prof-name" className="form-label" style={{ fontSize: '0.8rem', display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>
-                  Display Name
-                </label>
-                <div className="input-glow-wrapper">
-                  <input
-                    id="prof-name"
-                    type="text"
-                    className="glass-input"
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    disabled={updating}
-                  />
-                </div>
-              </div>
-
-              <div className="form-group" style={{ marginBottom: '1.25rem' }}>
-                <label className="form-label" style={{ fontSize: '0.8rem', display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>
-                  Registered Games
-                </label>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                  {AVAILABLE_GAMES.map((game) => {
-                    const isSelected = selectedGames.includes(game);
-                    return (
-                      <button
-                        key={game}
-                        type="button"
-                        onClick={() => handleGameToggle(game)}
-                        disabled={updating}
-                        className={`badge ${isSelected ? 'badge-cyan' : 'badge-outline'}`}
-                        style={{ padding: '0.35rem 0.75rem', cursor: 'pointer', border: '1px solid var(--border-color)', fontSize: '0.75rem' }}
-                      >
-                        {isSelected && <Check size={10} style={{ marginRight: '0.25rem', display: 'inline' }} />}
-                        {game}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-                <label className="form-label" style={{ fontSize: '0.8rem', display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>
-                  Preferred Roles
-                </label>
-                
-                {preferredRoles.length > 0 && (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                    {preferredRoles.map((role) => (
-                      <span
-                        key={role}
-                        className="badge badge-violet"
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
-                      >
-                        {role}
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveRole(role)}
-                          style={{ background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', padding: '0 0.1rem', fontSize: '0.7rem' }}
-                        >
-                          &times;
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-                  {POPULAR_ROLES.filter(r => !preferredRoles.includes(r)).map((role) => (
-                    <button
-                      key={role}
-                      type="button"
-                      onClick={() => handleAddRole(role)}
-                      disabled={updating}
-                      className="badge badge-outline table-row-hover"
-                      style={{ padding: '0.25rem 0.5rem', cursor: 'pointer', fontSize: '0.7rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}
-                    >
-                      <Plus size={10} /> {role}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                className="btn btn-primary"
-                style={{ width: '100%', height: '2.8rem' }}
-                disabled={updating}
-              >
-                {updating ? 'Saving...' : (
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', justifyContent: 'center' }}>
-                    <Save size={16} /> Save Profile Settings
-                  </span>
-                )}
-              </button>
-            </form>
-          </div>
-
-          {/* Right Column: Shaktrix Tournament History */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-            
-            {/* Shaktrix History Card */}
-            <div className="glass-panel" style={{ padding: '2rem', minHeight: '400px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
-                <Trophy size={20} style={{ color: 'var(--accent-cyan)' }} />
-                <h2 style={{ fontSize: '1.25rem', margin: 0 }}>Shaktrix History</h2>
-              </div>
-
-              {loadingHistory ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '2rem 0' }}>
-                  <Loader className="animate-spin text-cyan" size={20} style={{ color: 'var(--accent-cyan)' }} />
-                  <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Retrieving tournament history...</span>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+            {profile.riotId ? (() => {
+              const stats = riotLiveStats || (profile as any).riotStats || {};
+              const rank = stats.rankInfo || {};
+              const score = stats.riotScore ?? profile.stats?.points ?? 0;
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                   
-                  {/* Section 1: Upcoming Tournaments */}
-                  <div>
-                    <h3 style={{ fontSize: '0.95rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--accent-cyan)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                      <Calendar size={14} /> Registered / Upcoming Tournaments
-                    </h3>
+                  {/* Summary Block */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg-secondary)', padding: '1.25rem 1.5rem', borderRadius: '10px', border: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '1rem' }}>
+                    <div>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Linked Account</div>
+                      <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#fff', marginTop: '0.15rem' }}>@{stats.summonerName || profile.riotId}</div>
+                    </div>
+                    {stats.lastSynced && (
+                      <div style={{ textAlign: 'right' }}>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                          Last Sync: {new Date(stats.lastSynced).toLocaleString()}
+                        </span>
+                      </div>
+                    )}
+                  </div>
 
-                    {upcomingTournaments.length === 0 ? (
-                      <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic', margin: '0.5rem 0' }}>
-                        No upcoming tournaments registered.
-                      </p>
-                    ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                        {upcomingTournaments.map((t) => (
+                  {/* Main stats grid */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1.25rem' }}>
+                    <div style={{ background: 'var(--bg-secondary)', padding: '1.25rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                      <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.35rem' }}>Rank Level</div>
+                      <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--accent-gold)' }}>
+                        {rank.tier && rank.tier !== 'UNRANKED' ? `${rank.tier} ${rank.rank}` : 'UNRANKED'}
+                      </div>
+                    </div>
+
+                    <div style={{ background: 'var(--bg-secondary)', padding: '1.25rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                      <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.35rem' }}>Riot Score Rating</div>
+                      <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--accent-cyan)' }}>
+                        {score.toLocaleString()} pts
+                      </div>
+                    </div>
+
+                    {stats.agent && (
+                      <div style={{ background: 'var(--bg-secondary)', padding: '1.25rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                        <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.35rem' }}>Preferred Agent</div>
+                        <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--accent-violet)' }}>
+                          👤 {stats.agent}
+                        </div>
+                      </div>
+                    )}
+
+                    {stats.kills > 0 && (
+                      <div style={{ background: 'var(--bg-secondary)', padding: '1.25rem', borderRadius: '8px', border: '1px solid var(--border-color)', gridColumn: 'span 2' }}>
+                        <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.35rem' }}>Tournament K/D Ratio</div>
+                        <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--accent-green)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          ⚔️ {stats.kills}/{stats.deaths}/{stats.assists}
+                          <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 600 }}>({stats.kd} K/D)</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {stats.acs > 0 && (
+                      <div style={{ background: 'var(--bg-secondary)', padding: '1.25rem', borderRadius: '8px', border: '1px solid var(--border-color)', gridColumn: 'span 2' }}>
+                        <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.35rem' }}>Performance Metrics (ACS & Rounds)</div>
+                        <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          <Flame size={18} style={{ color: 'var(--accent-gold)' }} />
+                          {stats.acs} ACS
+                          <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 600 }}>({stats.roundsPlayed} rounds played)</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {stats.adr > 0 && (
+                      <div style={{ background: 'var(--bg-secondary)', padding: '1.25rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                        <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.35rem' }}>Avg Damage / Round</div>
+                        <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--accent-red)' }}>
+                          💥 {stats.adr} ADR
+                        </div>
+                      </div>
+                    )}
+
+                    {stats.headshotPct > 0 && (
+                      <div style={{ background: 'var(--bg-secondary)', padding: '1.25rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                        <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.35rem' }}>Headshot Accuracy</div>
+                        <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--accent-gold)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                          <Target size={16} /> {stats.headshotPct}%
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })() : (
+              <div style={{ padding: '3rem 1rem', textAlign: 'center', border: '1px dashed var(--border-color)', borderRadius: '12px', background: 'var(--bg-secondary)', color: 'var(--text-secondary)' }}>
+                <Gamepad2 size={40} style={{ margin: '0 auto 1.25rem auto', color: 'var(--accent-cyan)', opacity: 0.7 }} />
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: '0.4rem', color: '#fff' }}>No Riot ID Configured</h3>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', maxWidth: '400px', margin: '0 auto', lineHeight: 1.4 }}>
+                  Please navigate to the **Personal Information** section first, enter your Riot ID, and save to unlock your live VALORANT statistics here.
+                </p>
+              </div>
+            )}
+
+            {riotSyncError && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent-red)', fontSize: '0.8rem', marginTop: '1.5rem', background: 'hsla(350,85%,55%,0.08)', border: '1px solid var(--accent-red)', borderRadius: '8px', padding: '0.6rem 1rem' }}>
+                <AlertCircle size={14} /> {riotSyncError}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ────────────────────────────────────────────────────────── */}
+        {/* SECTION 3: SHAKTRIX HISTORY */}
+        {/* ────────────────────────────────────────────────────────── */}
+        {activeSection === 'shaktrix' && (
+          <div className="glass-panel fade-in" style={{ padding: '2.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '2rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>
+              <Trophy size={20} style={{ color: 'var(--accent-cyan)' }} />
+              <h2 style={{ fontSize: '1.4rem', margin: 0 }}>Tournament History &amp; Records</h2>
+            </div>
+
+            {loadingHistory ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '2rem 0' }}>
+                <Loader className="animate-spin text-cyan" size={20} style={{ color: 'var(--accent-cyan)' }} />
+                <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Loading Shaktrix records...</span>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
+                
+                {/* Upcoming */}
+                <div>
+                  <h3 style={{ fontSize: '0.95rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--accent-cyan)', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <Calendar size={14} /> Registered / Upcoming Tournaments
+                  </h3>
+
+                  {upcomingTournaments.length === 0 ? (
+                    <div style={{ padding: '1.5rem', background: 'var(--bg-secondary)', border: '1px dashed var(--border-color)', borderRadius: '8px', textAlign: 'center', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                      No registered upcoming tournaments. Check out the **Tournaments** tab in the header to join!
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                      {upcomingTournaments.map((t) => (
+                        <div 
+                          key={t.id} 
+                          style={{ 
+                            background: 'var(--bg-secondary)', 
+                            border: '1px solid var(--border-color)', 
+                            borderRadius: '8px', 
+                            padding: '1.25rem', 
+                            display: 'flex', 
+                            justifyContent: 'space-between', 
+                            alignItems: 'center' 
+                          }}
+                        >
+                          <div>
+                            <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#fff' }}>{t.name}</div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                              <Clock size={12} /> Registered for {t.startTime ? new Date(t.startTime).toLocaleDateString() : 'TBD'}
+                            </div>
+                          </div>
+                          <span className="badge badge-cyan" style={{ fontSize: '0.7rem', padding: '0.15rem 0.5rem', textTransform: 'uppercase' }}>
+                            {t.status}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Past Win/Loss Results */}
+                <div>
+                  <h3 style={{ fontSize: '0.95rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--accent-gold)', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <Trophy size={14} /> Match Results &amp; Standings
+                  </h3>
+
+                  {pastTournaments.length === 0 ? (
+                    <div style={{ padding: '1.5rem', background: 'var(--bg-secondary)', border: '1px dashed var(--border-color)', borderRadius: '8px', textAlign: 'center', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                      No past tournament results recorded on this profile.
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                      {pastTournaments.map((t) => {
+                        const userWon = t.winnerId && t.winnerId === t.teamId;
+                        return (
                           <div 
                             key={t.id} 
                             style={{ 
                               background: 'var(--bg-secondary)', 
                               border: '1px solid var(--border-color)', 
                               borderRadius: '8px', 
-                              padding: '1rem', 
+                              padding: '1.25rem', 
                               display: 'flex', 
                               justifyContent: 'space-between', 
                               alignItems: 'center' 
                             }}
                           >
                             <div>
-                              <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#fff' }}>{t.name}</div>
-                              <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                                <Clock size={12} /> {t.startTime ? new Date(t.startTime).toLocaleDateString() : 'TBD'}
+                              <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#fff' }}>{t.name}</div>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
+                                Finished on {t.startTime ? new Date(t.startTime).toLocaleDateString() : 'Past'}
                               </div>
                             </div>
-                            <span className="badge badge-cyan" style={{ fontSize: '0.68rem', padding: '0.1rem 0.4rem' }}>
-                              {t.status}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Section 2: Past Tournaments */}
-                  <div>
-                    <h3 style={{ fontSize: '0.95rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--accent-gold)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                      <Trophy size={14} /> Past Participation Results
-                    </h3>
-
-                    {pastTournaments.length === 0 ? (
-                      <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic', margin: '0.5rem 0' }}>
-                        No completed tournaments played yet.
-                      </p>
-                    ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                        {pastTournaments.map((t) => {
-                          const userWon = t.winnerId && t.winnerId === t.teamId;
-                          return (
-                            <div 
-                              key={t.id} 
+                            <span 
+                              className={`badge ${userWon ? 'badge-green' : 'badge-outline'}`} 
                               style={{ 
-                                background: 'var(--bg-secondary)', 
-                                border: '1px solid var(--border-color)', 
-                                borderRadius: '8px', 
-                                padding: '1rem', 
-                                display: 'flex', 
-                                justifyContent: 'space-between', 
-                                alignItems: 'center' 
+                                fontSize: '0.72rem', 
+                                padding: '0.2rem 0.5rem', 
+                                fontWeight: 800,
+                                color: userWon ? 'var(--accent-green)' : 'var(--text-muted)',
+                                borderColor: userWon ? 'var(--accent-green)' : 'var(--border-color)'
                               }}
                             >
-                              <div>
-                                <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#fff' }}>{t.name}</div>
-                                <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-                                  Played on {t.startTime ? new Date(t.startTime).toLocaleDateString() : 'Past'}
-                                </div>
-                              </div>
-                              <span 
-                                className={`badge ${userWon ? 'badge-green' : 'badge-outline'}`} 
-                                style={{ 
-                                  fontSize: '0.7rem', 
-                                  padding: '0.15rem 0.45rem', 
-                                  fontWeight: 800,
-                                  color: userWon ? 'var(--accent-green)' : 'var(--text-muted)',
-                                  borderColor: userWon ? 'var(--accent-green)' : 'var(--border-color)'
-                                }}
-                              >
-                                {userWon ? '🏆 WON / CHAMPION' : 'ELIMINATED'}
-                              </span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-
+                              {userWon ? '🏆 WON / CHAMPION' : 'ELIMINATED'}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-            
-          </div>
 
-        </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ────────────────────────────────────────────────────────── */}
+        {/* SECTION 4: CS:GO & OTHER GAMES */}
+        {/* ────────────────────────────────────────────────────────── */}
+        {activeSection === 'other_games' && (
+          <div className="glass-panel fade-in" style={{ padding: '2.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '2rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>
+              <Activity size={20} style={{ color: 'var(--accent-cyan)' }} />
+              <h2 style={{ fontSize: '1.4rem', margin: 0 }}>CS:GO &amp; Multi-Game Hub</h2>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+              
+              {/* CS:GO Card */}
+              <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '1.5rem', position: 'relative', overflow: 'hidden' }}>
+                <div style={{ position: 'absolute', top: '-1rem', right: '-1rem', fontSize: '5rem', opacity: 0.05, fontWeight: 900, pointerEvents: 'none' }}>
+                  CS:GO
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ fontSize: '1.1rem', fontWeight: 800, color: '#fff' }}>Counter-Strike (CS:GO / CS2)</span>
+                    <span className="badge badge-outline" style={{ fontSize: '0.65rem', borderColor: 'var(--accent-gold)', color: 'var(--accent-gold)' }}>Link Pending</span>
+                  </div>
+                </div>
+                
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '1rem', opacity: 0.6 }}>
+                  <div>
+                    <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>CS Rating / Rank</div>
+                    <div style={{ fontWeight: 800, fontSize: '1rem', color: '#fff', marginTop: '0.2rem' }}>14,580 pts (Gold)</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>K/D Ratio</div>
+                    <div style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--accent-green)', marginTop: '0.2rem' }}>1.15 K/D</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Headshot %</div>
+                    <div style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--accent-gold)', marginTop: '0.2rem' }}>46.2%</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Avg ADR</div>
+                    <div style={{ fontWeight: 800, fontSize: '1rem', color: '#fff', marginTop: '0.2rem' }}>84.5 damage</div>
+                  </div>
+                </div>
+                <div style={{ marginTop: '1.25rem', fontSize: '0.72rem', color: 'var(--text-muted)', borderTop: '1px solid hsla(0,0%,100%,0.05)', paddingTop: '0.75rem' }}>
+                  ℹ️ CS:GO live stats sync system is currently in queue. You will be able to bind your Steam/CS2 tag in an upcoming update!
+                </div>
+              </div>
+
+              {/* Other Games Grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+                
+                {/* Apex Legends */}
+                <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '1.25rem', opacity: 0.75 }}>
+                  <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#fff', marginBottom: '0.5rem' }}>Apex Legends</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
+                    Tracks Kills, Damage, and Arena Placement.
+                  </div>
+                  <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', padding: '0.15rem 0.4rem', borderRadius: '4px' }}>
+                    Coming Soon
+                  </span>
+                </div>
+
+                {/* Rocket League */}
+                <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '1.25rem', opacity: 0.75 }}>
+                  <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#fff', marginBottom: '0.5rem' }}>Rocket League</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
+                    Tracks Division Rank, Goals, Assists, and Saves.
+                  </div>
+                  <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', padding: '0.15rem 0.4rem', borderRadius: '4px' }}>
+                    Coming Soon
+                  </span>
+                </div>
+
+              </div>
+
+            </div>
+          </div>
+        )}
 
       </div>
     </main>
