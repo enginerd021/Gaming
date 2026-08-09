@@ -10,6 +10,9 @@ import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import GlassCard from '@/components/ui/GlassCard';
 import { TournamentCountdown } from '@/components/TournamentCountdown';
+import { getEffectiveTournamentStatus } from '@/lib/tournamentUtils';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 export default function TournamentsView() {
   const user    = useAppStore((state) => state.user);
@@ -30,6 +33,18 @@ export default function TournamentsView() {
       (list) => {
         setTournaments(list);
         setLoading(false);
+
+        // Asynchronously sync any status changes (e.g. auto-ended or active) to Firestore
+        list.forEach(async (t) => {
+          const effStatus = getEffectiveTournamentStatus(t);
+          if (effStatus !== t.status) {
+            try {
+              await updateDoc(doc(db, "tournaments", t.id), { status: effStatus });
+            } catch (err) {
+              console.error("Auto status sync failed for tournament:", t.id, err);
+            }
+          }
+        });
       },
       () => setLoading(false)
     );
@@ -74,12 +89,13 @@ export default function TournamentsView() {
 
   // Filter tournaments
   const filteredTournaments = tournaments.filter(t => {
+    const effectiveStatus = getEffectiveTournamentStatus(t);
     const matchesSearch = !searchTerm.trim() || 
       t.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
       t.game.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesGame = selectedGame === 'All' || t.game.toLowerCase() === selectedGame.toLowerCase();
-    const matchesStatus = selectedStatus === 'All' || t.status === selectedStatus;
+    const matchesStatus = selectedStatus === 'All' || effectiveStatus === selectedStatus;
     const matchesEntry = selectedEntryType === 'All' || (t.entryType || 'Free') === selectedEntryType;
 
     return matchesSearch && matchesGame && matchesStatus && matchesEntry;
@@ -279,12 +295,13 @@ export default function TournamentsView() {
             {filteredTournaments.map(tournament => {
               const registeredCount = tournament.registeredTeamIds?.length || 0;
               const isFull = registeredCount >= tournament.maxTeams;
+              const effectiveStatus = getEffectiveTournamentStatus(tournament);
 
               return (
                 <GlassCard key={tournament.id} style={{ display: 'flex', flexDirection: 'column' }}>
                   
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                    {getStatusBadge(tournament.status)}
+                    {getStatusBadge(effectiveStatus)}
                     <Badge variant={tournament.entryType === 'Free' ? 'cyan' : 'gold'}>
                       {tournament.entryType}
                     </Badge>
@@ -308,8 +325,8 @@ export default function TournamentsView() {
                     </div>
 
                     <Link href={`/tournaments/${tournament.id}`}>
-                      <Button variant={tournament.status === 'Active' ? 'primary' : 'outline'} style={{ width: '100%', justifyContent: 'center' }}>
-                        {tournament.status === 'Active' ? 'Spectate Bracket' : 'View Tournament Details'}
+                      <Button variant={effectiveStatus === 'Active' ? 'primary' : 'outline'} style={{ width: '100%', justifyContent: 'center' }}>
+                        {effectiveStatus === 'Active' ? 'Spectate Bracket' : effectiveStatus === 'Completed' ? 'View Results & Bracket' : 'View Tournament Details'}
                       </Button>
                     </Link>
                   </div>

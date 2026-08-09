@@ -56,6 +56,57 @@ export function calculateTournamentTimeWindow(tournament: Tournament): Tournamen
 }
 
 /**
+ * Calculates real-time tournament status considering start date, end date, and match completion states.
+ */
+export function getEffectiveTournamentStatus(tournament: Tournament): 'Upcoming' | 'Active' | 'Completed' {
+  if (!tournament) return 'Upcoming';
+
+  // 1. Explicitly Completed status stored in document
+  if (tournament.status === 'Completed') {
+    return 'Completed';
+  }
+
+  const matches = tournament.bracket?.matches || [];
+  const maxTeams = tournament.maxTeams || 4;
+  const totalRounds = Math.max(1, Math.ceil(Math.log2(maxTeams)));
+  const finalsMatchId = `m-${totalRounds}-1`;
+  const finalsMatch = matches.find(m => m.id === finalsMatchId);
+
+  // 2. If finals match has a winner or is completed -> Tournament is Completed!
+  if (finalsMatch && (finalsMatch.winnerId || finalsMatch.score1 > 0 || finalsMatch.score2 > 0)) {
+    return 'Completed';
+  }
+
+  // 3. If all non-bye matches in bracket have winnerId or completed status -> Completed
+  if (matches.length > 0) {
+    const playableMatches = matches.filter(m => m.team1Id && m.team2Id);
+    if (playableMatches.length > 0 && playableMatches.every(m => m.winnerId || (m as any).status === 'completed')) {
+      return 'Completed';
+    }
+  }
+
+  // 4. Check time window
+  const window = calculateTournamentTimeWindow(tournament);
+  const now = Date.now();
+
+  // If time window has expired and any match scores are entered -> Completed
+  if (now >= window.estimatedEndTime && matches.some(m => m.winnerId || m.score1 > 0 || m.score2 > 0)) {
+    return 'Completed';
+  }
+
+  // 5. Active status: if status is explicitly Active, or if startDate has passed, or if any match is live/played
+  if (
+    tournament.status === 'Active' ||
+    now >= window.startDate ||
+    matches.some(m => (m as any).status === 'live' || m.winnerId || m.score1 > 0 || m.score2 > 0)
+  ) {
+    return 'Active';
+  }
+
+  return 'Upcoming';
+}
+
+/**
  * Checks if two time windows [start1, end1] and [start2, end2] overlap.
  */
 export function areTimeWindowsOverlapping(
@@ -94,7 +145,7 @@ export async function checkPlayerTournamentOverlap(
   // Find all active or upcoming tournaments (excluding target tournament itself)
   const candidateTournaments = allTournaments.filter((t) => {
     if (t.id === targetTournament.id) return false;
-    if (t.status === 'Completed') return false;
+    if (getEffectiveTournamentStatus(t) === 'Completed') return false;
     if (!t.registeredTeamIds || t.registeredTeamIds.length === 0) return false;
     
     const candidateWindow = calculateTournamentTimeWindow(t);

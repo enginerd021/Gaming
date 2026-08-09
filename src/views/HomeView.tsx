@@ -12,6 +12,7 @@ import GlassCard from '@/components/ui/GlassCard';
 import StatsTicker from '@/components/ui/StatsTicker';
 import BentoGrid from '@/components/ui/BentoGrid';
 import { TournamentCountdown } from '@/components/TournamentCountdown';
+import { getEffectiveTournamentStatus } from '@/lib/tournamentUtils';
 import { initScrollReveals } from '@/animations/scroll';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -298,29 +299,33 @@ export default function HomeView() {
             </div>
           ) : activeTournaments.length > 0 ? (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
-              {activeTournaments.map((t) => (
-                <GlassCard key={t.id} variant="panel" style={{ padding: '2rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                    <Badge variant={t.status === 'Active' ? 'live' : t.status === 'Upcoming' ? 'cyan' : 'gold'}>
-                      {t.status === 'Active' ? 'Live' : t.status}
-                    </Badge>
-                    <Badge variant="cyan" style={{ fontSize: '0.75rem', textTransform: 'none' }}>{t.game}</Badge>
-                  </div>
-                  <h3 style={{ fontSize: '1.25rem', marginBottom: '0.75rem' }}>{t.name}</h3>
-                  <div style={{ marginBottom: '1rem' }}>
-                    <TournamentCountdown tournament={t} compact={true} />
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--text-secondary)', borderTop: '1px solid var(--border-color)', paddingTop: '1rem', marginTop: '1rem' }}>
-                    <span>Rosters Registered</span>
-                    <strong style={{ color: 'var(--text-primary)' }}>{t.registeredTeamIds?.length || 0} / {t.maxTeams}</strong>
-                  </div>
-                  <Link href={`/tournaments/${t.id}`}>
-                    <Button variant="outline" style={{ width: '100%', marginTop: '1.5rem', justifyContent: 'center' }}>
-                      Spectate Bracket
-                    </Button>
-                  </Link>
-                </GlassCard>
-              ))}
+              {activeTournaments.map((t) => {
+                const effStatus = getEffectiveTournamentStatus(t);
+
+                return (
+                  <GlassCard key={t.id} variant="panel" style={{ padding: '2rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                      <Badge variant={effStatus === 'Active' ? 'live' : effStatus === 'Upcoming' ? 'cyan' : 'gold'}>
+                        {effStatus === 'Active' ? 'Live' : effStatus}
+                      </Badge>
+                      <Badge variant="cyan" style={{ fontSize: '0.75rem', textTransform: 'none' }}>{t.game}</Badge>
+                    </div>
+                    <h3 style={{ fontSize: '1.25rem', marginBottom: '0.75rem' }}>{t.name}</h3>
+                    <div style={{ marginBottom: '1rem' }}>
+                      <TournamentCountdown tournament={t} compact={true} />
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--text-secondary)', borderTop: '1px solid var(--border-color)', paddingTop: '1rem', marginTop: '1rem' }}>
+                      <span>Rosters Registered</span>
+                      <strong style={{ color: 'var(--text-primary)' }}>{t.registeredTeamIds?.length || 0} / {t.maxTeams}</strong>
+                    </div>
+                    <Link href={`/tournaments/${t.id}`}>
+                      <Button variant="outline" style={{ width: '100%', marginTop: '1.5rem', justifyContent: 'center' }}>
+                        {effStatus === 'Active' ? 'Spectate Bracket' : effStatus === 'Completed' ? 'View Results' : 'View Tournament Details'}
+                      </Button>
+                    </Link>
+                  </GlassCard>
+                );
+              })}
             </div>
           ) : (
             <GlassCard variant="panel" style={{ 

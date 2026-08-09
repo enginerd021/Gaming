@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Timer, Clock, Flame, CheckCircle2 } from 'lucide-react';
 import { Tournament } from '@/services/tournamentService';
-import { calculateTournamentTimeWindow } from '@/lib/tournamentUtils';
+import { calculateTournamentTimeWindow, getEffectiveTournamentStatus } from '@/lib/tournamentUtils';
 
 interface TournamentCountdownProps {
   tournament: Tournament;
@@ -21,6 +21,7 @@ export function TournamentCountdown({ tournament, compact = false, showDetails =
   }>({ days: 0, hours: 0, minutes: 0, seconds: 0, isPast: false });
 
   const timeWindow = calculateTournamentTimeWindow(tournament);
+  const effectiveStatus = getEffectiveTournamentStatus(tournament);
 
   useEffect(() => {
     const updateCountdown = () => {
@@ -45,7 +46,7 @@ export function TournamentCountdown({ tournament, compact = false, showDetails =
     return () => clearInterval(interval);
   }, [timeWindow.startDate]);
 
-  if (tournament.status === 'Completed') {
+  if (effectiveStatus === 'Completed') {
     return (
       <div 
         style={{ 
@@ -67,7 +68,7 @@ export function TournamentCountdown({ tournament, compact = false, showDetails =
     );
   }
 
-  if (tournament.status === 'Active' || timeLeft.isPast) {
+  if (effectiveStatus === 'Active' || timeLeft.isPast) {
     return (
       <div 
         style={{ 
