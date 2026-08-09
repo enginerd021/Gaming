@@ -12,7 +12,7 @@ import GlassCard from '@/components/ui/GlassCard';
 import StatsTicker from '@/components/ui/StatsTicker';
 import BentoGrid from '@/components/ui/BentoGrid';
 import { TournamentCountdown } from '@/components/TournamentCountdown';
-import { getEffectiveTournamentStatus } from '@/lib/tournamentUtils';
+import { getEffectiveTournamentStatus, autoCheckTournamentStatus } from '@/lib/tournamentUtils';
 import { initScrollReveals } from '@/animations/scroll';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -131,6 +131,7 @@ export default function HomeView() {
     const unsub = tournamentService.subscribeRecentTournaments(
       3,
       (list) => {
+        list.forEach(t => autoCheckTournamentStatus(t));
         setActiveTournaments(list);
         setLoading(false);
       },
