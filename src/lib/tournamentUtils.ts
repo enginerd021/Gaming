@@ -1,6 +1,23 @@
 import { collection, query, where, getDocs, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Tournament, Match, tournamentService } from '@/services/tournamentService';
+import { useState, useEffect } from 'react';
+
+/**
+ * Safely parses any Firestore timestamp (number, Timestamp object, Date, string) to epoch milliseconds.
+ */
+export function parseTimestampToMs(val: any, fallback: number = Date.now()): number {
+  if (val === null || val === undefined) return fallback;
+  if (typeof val === 'number' && !isNaN(val)) return val;
+  if (typeof val?.toMillis === 'function') return val.toMillis();
+  if (typeof val?.seconds === 'number') return val.seconds * 1000 + Math.floor((val.nanoseconds || 0) / 1000000);
+  if (val instanceof Date) return val.getTime();
+  if (typeof val === 'string') {
+    const parsed = new Date(val).getTime();
+    if (!isNaN(parsed)) return parsed;
+  }
+  return fallback;
+}
 
 export interface TournamentTimeWindow {
   startDate: number;
@@ -25,15 +42,12 @@ export function calculateTournamentTimeWindow(tournament: Tournament): Tournamen
   // Enforce minimum 45 minutes per round requirement
   const roundDurationMins = Math.max(45, tournament.roundDurationMins || 45);
   
-  const startDate = tournament.startDate 
-    ? tournament.startDate 
-    : (tournament.createdAt ? tournament.createdAt + 3600000 : Date.now());
+  const createdMs = parseTimestampToMs(tournament.createdAt, Date.now());
+  const startDate = parseTimestampToMs(tournament.startDate || (tournament as any).startTime, createdMs + 3600000);
 
   const roundDurationMs = roundDurationMins * 60 * 1000;
   const totalDurationMs = totalRounds * roundDurationMs;
-  const estimatedEndTime = tournament.estimatedEndTime 
-    ? tournament.estimatedEndTime 
-    : startDate + totalDurationMs;
+  const estimatedEndTime = parseTimestampToMs(tournament.estimatedEndTime, startDate + totalDurationMs);
 
   const roundSchedules = [];
   for (let r = 1; r <= totalRounds; r++) {
@@ -103,6 +117,29 @@ export function getEffectiveTournamentStatus(tournament: Tournament): 'Upcoming'
   }
 
   return 'Upcoming';
+}
+
+/**
+ * Custom hook to get reactively updated effective status for a tournament card/view.
+ * Evaluates real-time state every second so badges & countdowns stay synchronized.
+ */
+export function useEffectiveTournamentStatus(tournament: Tournament | null | undefined): 'Upcoming' | 'Active' | 'Completed' {
+  const [status, setStatus] = useState(() => tournament ? getEffectiveTournamentStatus(tournament) : 'Upcoming');
+
+  useEffect(() => {
+    if (!tournament) return;
+
+    const updateStatus = () => {
+      const current = getEffectiveTournamentStatus(tournament);
+      setStatus(current);
+    };
+
+    updateStatus();
+    const interval = setInterval(updateStatus, 1000);
+    return () => clearInterval(interval);
+  }, [tournament?.id, tournament?.startDate, tournament?.status, tournament?.estimatedEndTime]);
+
+  return status;
 }
 
 /**
@@ -354,6 +391,18 @@ export async function autoCheckTournamentStatus(tournament: Tournament, matches?
         console.error('Failed to auto-complete tournament in Firestore:', err);
       }
       return true;
+    }
+  }
+
+  // Auto-activate upcoming tournament if start date has arrived
+  if (tournament.status === 'Upcoming' && now >= timeWindow.startDate) {
+    updated = true;
+    tournament.status = 'Active';
+    try {
+      const tournamentRef = doc(db, 'tournaments', tournament.id);
+      await updateDoc(tournamentRef, { status: 'Active' });
+    } catch (err) {
+      console.error('Failed to auto-activate starting tournament in Firestore:', err);
     }
   }
 
