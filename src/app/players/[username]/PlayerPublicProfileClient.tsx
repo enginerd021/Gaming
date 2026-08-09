@@ -382,7 +382,7 @@ export default function PlayerPublicProfileClient({ username }: { username: stri
           <section className="glass-panel fade-in" style={{ padding: '2rem', marginBottom: '2rem' }}>
             <h2 style={{ fontSize: '1.25rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
               <Gamepad2 size={18} style={{ color: 'var(--accent-cyan)' }} />
-              Live Game Records (League of Legends)
+              Live Game Records (Riot ID Linked)
             </h2>
 
             {loadingRiot ? (
@@ -401,42 +401,15 @@ export default function PlayerPublicProfileClient({ username }: { username: stri
                 )}
               </div>
             ) : riotStats ? (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2rem', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg-secondary)', padding: '1.25rem 1.5rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: '1.1rem', fontWeight: 800 }}>{riotStats.summonerName || profile.riotId}</span>
-                    <span className="badge badge-cyan" style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem' }}>Level {riotStats.summonerLevel}</span>
-                  </div>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.35rem', margin: 0 }}>
-                    Linked Riot ID: <strong style={{ color: 'var(--text-secondary)' }}>{profile.riotId}</strong>
-                  </p>
-                </div>
-
-                <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', background: 'var(--bg-secondary)', padding: '1.5rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                {/* User Row */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
                   <div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Rank Solo Duo</div>
-                    <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--accent-gold)', marginTop: '0.2rem' }}>
-                      {riotStats.rankInfo?.tier} {riotStats.rankInfo?.rank}
-                      {riotStats.rankInfo?.tier !== 'UNRANKED' && ` — ${riotStats.rankInfo?.leaguePoints} LP`}
-                    </div>
+                    <span style={{ fontSize: '1.15rem', fontWeight: 800, color: '#fff' }}>@{riotStats.summonerName || profile.riotId}</span>
+                    <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '0.2rem 0 0 0' }}>
+                      Riot Shard Source: <strong style={{ color: 'var(--accent-cyan)' }}>{riotStats.source || 'Riot Gateway'}</strong>
+                    </p>
                   </div>
-                  {riotStats.rankInfo?.tier !== 'UNRANKED' && (
-                    <>
-                      <div style={{ borderLeft: '1px solid var(--border-color)', paddingLeft: '1.5rem' }}>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Record</div>
-                        <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--accent-green)', marginTop: '0.2rem' }}>
-                          {riotStats.rankInfo?.wins}W - {riotStats.rankInfo?.losses}L
-                        </div>
-                      </div>
-                      <div style={{ borderLeft: '1px solid var(--border-color)', paddingLeft: '1.5rem' }}>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Win Rate</div>
-                        <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--accent-cyan)', marginTop: '0.2rem' }}>
-                          {riotStats.rankInfo?.winRate}%
-                        </div>
-                      </div>
-                    </>
-                  )}
-
                   <button
                     onClick={() => setCompareModalOpen(true)}
                     className="btn btn-outline"
@@ -444,6 +417,60 @@ export default function PlayerPublicProfileClient({ username }: { username: stri
                   >
                     <Swords size={14} /> Compare Stats
                   </button>
+                </div>
+
+                {/* Metrics Grid */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '1.25rem' }}>
+                  <div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.2rem' }}>Rank Level</div>
+                    <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--accent-gold)' }}>
+                      {riotStats.rankInfo?.tier} {riotStats.rankInfo?.rank}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.2rem' }}>Riot Score</div>
+                    <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--accent-cyan)' }}>
+                      {(riotStats.riotScore ?? 0).toLocaleString()} pts
+                    </div>
+                  </div>
+
+                  {riotStats.agent && (
+                    <div>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.2rem' }}>Agent / Character</div>
+                      <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--accent-violet)' }}>
+                        👤 {riotStats.agent}
+                      </div>
+                    </div>
+                  )}
+
+                  {riotStats.kills > 0 && (
+                    <div>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.2rem' }}>Kills / Deaths / Assists</div>
+                      <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--accent-green)' }}>
+                        ⚔️ {riotStats.kills}/{riotStats.deaths}/{riotStats.assists}
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginLeft: '0.4rem', fontWeight: 600 }}>({riotStats.kd} K/D)</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {riotStats.acs > 0 && (
+                    <div>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.2rem' }}>Score / Rounds Played</div>
+                      <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                        🔥 {riotStats.acs} ACS <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>({riotStats.roundsPlayed} rounds)</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {riotStats.adr > 0 && (
+                    <div>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.2rem' }}>Avg Damage / Round</div>
+                      <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--accent-red)' }}>
+                        💥 {riotStats.adr} ADR
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             ) : null}
