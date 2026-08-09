@@ -32,22 +32,11 @@ service cloud.firestore {
     // Confirms the Auth token carries email_verified = true.
     // This claim is set by Firebase Auth (Google OAuth always sets it;
     // email/password accounts set it after clicking the verification link).
-    // Client-side redirect to /verify-email is the UX gate;
-    // this rule is the real enforcement so unverified users cannot
-    // bypass the UI by calling Firestore directly.
     function isEmailVerified() {
       return isAuthenticated() && request.auth.token.email_verified == true;
     }
 
     // SECURITY SOURCE OF TRUTH for admin role.
-    // Client-side adminConfig.ts mirrors this list for UI display ONLY;
-    // it has no effect on actual DB permissions.
-    //
-    // IMPORTANT: Use lowercase emails only. Firebase Auth (Google OAuth) returns
-    // request.auth.token.email in lowercase — mixed-case entries will never match.
-    // Mirror this exact list (lowercase) in src/lib/adminConfig.ts → ADMIN_EMAILS.
-    // To add/remove admins: edit here + adminConfig.ts, then deploy:
-    //   firebase deploy --only firestore:rules
     function isAdminEmail() {
       return isAuthenticated() && request.auth.token.email in [
         'asthaojas30@gmail.com',
@@ -76,29 +65,24 @@ service cloud.firestore {
       allow delete: if false;
 
       // -- Notifications subcollection --
-      // Players can read/update their own notifications.
-      // Writes come from:
-      //   • team captains (team_invite)
-      //   • tournament organizer / admin (tournament_starting, new_tournament)
-      //   • the profile owner (registration_confirmed, match_result ack)
       match /notifications/{notificationId} {
         allow read, update: if isAuthenticated() && request.auth.uid == userId;
 
         allow create: if isAuthenticated() && (
-          // Owner can write their own notifications (e.g. registration_confirmed)
+          // Owner can write their own notifications
           request.auth.uid == userId
 
-          // Team captains can send invites, leadership updates, or registration confirmations
+          // Team captains / members sending notifications
           || request.resource.data.type == 'team_invite'
           || request.resource.data.type == 'captain_transferred'
           || request.resource.data.type == 'captain_updated'
           || request.resource.data.type == 'registration_confirmed'
 
-          // Organizer/admin-triggered types: tournament_starting, match_result, new_tournament
+          // Tournament notifications
           || request.resource.data.type == 'tournament_starting'
           || request.resource.data.type == 'match_result'
 
-          // Only admins can broadcast new_tournament notifications
+          // Admin notifications
           || (request.resource.data.type == 'new_tournament' && isAdminEmail())
         );
 
@@ -111,8 +95,6 @@ service cloud.firestore {
     // ----------------------------------------------------------
     match /teams/{teamId} {
       allow read: if true;
-      // Require email verification to create a team.
-      // Client redirect to /verify-email is UX; this rule is the real gate.
       allow create: if isEmailVerified();
       allow update: if isAuthenticated() && (
         // Case 1: Captain can update the team (invite, edit, disband)
@@ -125,7 +107,7 @@ service cloud.firestore {
           && request.auth.uid in request.resource.data.members
           && request.resource.data.members.size() == resource.data.members.size() + 1
         )
-        // Case 3: Non-captain member leaves the team voluntarily (removes themselves from members)
+        // Case 3: Non-captain member leaves the team voluntarily
         || (
           request.resource.data.captainId == resource.data.captainId
           && request.resource.data.name == resource.data.name
@@ -140,56 +122,58 @@ service cloud.firestore {
 
     // ----------------------------------------------------------
     // /tournaments/{tournamentId}
-    // CREATE is now restricted to admins only.
-    // Player registration (updating registeredTeamIds) is still open
-    // to any authenticated user — only creation is gated on admin.
     // ----------------------------------------------------------
     match /tournaments/{tournamentId} {
       allow read: if true;
 
-      // ✅ ADMIN-ONLY + EMAIL VERIFIED: Only verified admin emails can create tournaments.
+      // Only verified admin emails can create tournaments.
       allow create: if isAdminEmail() && isEmailVerified();
 
-      // Organizer (admin who created it) can edit/delete, or a team captain can register.
+      // Organizer, Admin, or registering Captain / Participant status sync
       allow update: if isAuthenticated() && (
-        // Case 1: Organizer updates the tournament
+        // Case 1: Organizer or Admin updates the tournament
         resource.data.organizerId == request.auth.uid
+        || isAdminEmail()
         // Case 2: Team captain registers their team for an upcoming tournament
         || (
           resource.data.status == 'Upcoming'
           && request.resource.data.organizerId == resource.data.organizerId
           && request.resource.data.name == resource.data.name
-          && request.resource.data.game == resource.data.game
-          && request.resource.data.maxTeams == resource.data.maxTeams
-          && request.resource.data.entryType == resource.data.entryType
-          && request.resource.data.status == resource.data.status
-          && request.resource.data.startTime == resource.data.startTime
-          // Verify that exactly one team is being registered
-          && request.resource.data.lastRegisteredTeamId != null
           && request.resource.data.registeredTeamIds.hasAll(resource.data.registeredTeamIds)
           && request.resource.data.registeredTeamIds.size() == resource.data.registeredTeamIds.size() + 1
           && request.resource.data.lastRegisteredTeamId in request.resource.data.registeredTeamIds
-          // Cross-reference: verify the user is the captain of the registering team
           && get(/databases/$(database)/documents/teams/$(request.resource.data.lastRegisteredTeamId)).data.captainId == request.auth.uid
+        )
+        // Case 3: Participant auto-updating bracket state / match auto-resolution
+        || (
+          request.resource.data.organizerId == resource.data.organizerId
+          && request.resource.data.name == resource.data.name
         )
       );
 
-      allow delete: if isAuthenticated()
-                    && resource.data.organizerId == request.auth.uid;
+      allow delete: if isAuthenticated() && (
+        resource.data.organizerId == request.auth.uid || isAdminEmail()
+      );
 
-      // Tournament live chat subcollection
+      // Matches subcollection (/tournaments/{tournamentId}/matches/{matchId})
+      match /matches/{matchId} {
+        allow read: if true;
+        allow create, update: if isAuthenticated();
+        allow delete: if isAdminEmail() || (isAuthenticated() && get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid);
+      }
+
+      // Tournament live chat subcollection (/tournaments/{tournamentId}/messages/{messageId})
       match /messages/{messageId} {
         allow read: if true;
         allow create: if isEmailVerified()
-                      && request.resource.data.uid == request.auth.uid;
-        allow update, delete: if false;
+                      && (request.resource.data.senderId == request.auth.uid || request.resource.data.uid == request.auth.uid);
+        allow update: if false;
+        allow delete: if isAdminEmail() || (isAuthenticated() && get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid);
       }
     }
 
     // ----------------------------------------------------------
     // /matchHistory/{matchId}
-    // Written by the tournament organizer when resolving a match score.
-    // Public read for leaderboards and profile match history.
     // ----------------------------------------------------------
     match /matchHistory/{matchId} {
       allow read: if true;
@@ -199,7 +183,6 @@ service cloud.firestore {
 
     // ----------------------------------------------------------
     // /matchVods/{vodId}
-    // Linked match video clips on player profiles.
     // ----------------------------------------------------------
     match /matchVods/{vodId} {
       allow read: if true;
@@ -261,3 +244,4 @@ service cloud.firestore {
 
   }
 }
+

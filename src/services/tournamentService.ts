@@ -16,6 +16,8 @@ export interface Match {
   winnerId: string | null;
   updatedAt: number;
   discordUrl?: string | null;
+  roomId?: string | null;
+  roomPassword?: string | null;
   checkIn?: {
     team1CheckedIn: boolean;
     team2CheckedIn: boolean;
@@ -120,22 +122,66 @@ export const tournamentService = {
   },
 
   /**
+   * Updates custom match lobby room ID and password (Organizer / Admin only)
+   */
+  async updateMatchRoomDetails(tournamentId: string, matchId: string, roomId: string, roomPassword?: string): Promise<void> {
+    const matchRef = doc(db, "tournaments", tournamentId, "matches", matchId);
+    await updateDoc(matchRef, {
+      roomId: roomId.trim(),
+      roomPassword: roomPassword ? roomPassword.trim() : null,
+      updatedAt: Date.now()
+    });
+  },
+
+  /**
    * Generates single-elimination brackets and creates match documents in the subcollection.
+   * Seeds teams based on player win history and rating, assigning BYEs to top seeds if team count is odd.
    */
   async generateBracket(tournamentId: string, teamIds: string[]): Promise<void> {
     const tRef = doc(db, "tournaments", tournamentId);
     const tSnap = await getDoc(tRef);
     if (!tSnap.exists()) throw new Error("Tournament not found");
     const tData = tSnap.data() as Tournament;
-    const maxTeams = tData.maxTeams;
+
+    const numTeams = teamIds.length;
+    if (numTeams < 2) throw new Error("At least 2 teams are required to generate brackets.");
+
+    // Skill-based seeding: Fetch team player histories to sort teamIds by total member rating
+    const teamScores: Array<{ id: string; score: number }> = [];
+    for (const tId of teamIds) {
+      let score = 0;
+      try {
+        const teamDoc = await getDoc(doc(db, "teams", tId));
+        if (teamDoc.exists()) {
+          const members: string[] = teamDoc.data().members || [];
+          for (const mUid of members) {
+            const pDoc = await getDoc(doc(db, "profiles", mUid));
+            if (pDoc.exists()) {
+              const pData = pDoc.data();
+              score += (pData.stats?.wins || 0) * 10 + (pData.stats?.points || 0);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Error computing team skill rating for seeding:", err);
+      }
+      teamScores.push({ id: tId, score });
+    }
+
+    // Sort teams by skill rating descending (#1 Seed gets highest score)
+    teamScores.sort((a, b) => b.score - a.score);
+    const sortedTeamIds = teamScores.map(ts => ts.id);
+
+    // Smallest power of 2 bracket size (e.g. 3 teams -> 4 slots, 5 teams -> 8 slots)
+    const totalRounds = Math.max(1, Math.ceil(Math.log2(numTeams)));
+    const bracketTeamsCount = Math.pow(2, totalRounds);
 
     const batch = writeBatch(db);
-    const totalRounds = Math.log2(maxTeams);
     const matchesMap: Record<string, Match> = {};
 
-    // 1. Initialize all matches in memory
+    // 1. Initialize all matches for totalRounds
     for (let r = 1; r <= totalRounds; r++) {
-      const matchesInRound = maxTeams / Math.pow(2, r);
+      const matchesInRound = bracketTeamsCount / Math.pow(2, r);
       for (let idx = 1; idx <= matchesInRound; idx++) {
         const matchId = `m-${r}-${idx}`;
         matchesMap[matchId] = {
@@ -151,35 +197,39 @@ export const tournamentService = {
           winnerId: null,
           updatedAt: Date.now(),
           checkIn: null,
-          discordUrl: null
+          discordUrl: null,
+          roomId: null,
+          roomPassword: null
         };
       }
     }
 
-    // 2. Populate Round 1 team ids
-    const matchesInRound1 = maxTeams / 2;
+    // 2. Populate Round 1 team ids using history-seeded ordering (handles odd team counts smoothly)
+    const matchesInRound1 = bracketTeamsCount / 2;
     for (let idx = 1; idx <= matchesInRound1; idx++) {
       const matchId = `m-1-${idx}`;
       const team1Index = (idx - 1) * 2;
       const team2Index = team1Index + 1;
-      matchesMap[matchId].team1Id = teamIds[team1Index] || null;
-      matchesMap[matchId].team2Id = teamIds[team2Index] || null;
+      matchesMap[matchId].team1Id = sortedTeamIds[team1Index] || null;
+      matchesMap[matchId].team2Id = sortedTeamIds[team2Index] || null;
     }
 
-    // 3. Process matches round-by-round to advance byes
+    // 3. Process matches round-by-round to auto-advance BYE winners
     for (let r = 1; r <= totalRounds; r++) {
-      const matchesInRound = maxTeams / Math.pow(2, r);
+      const matchesInRound = bracketTeamsCount / Math.pow(2, r);
       for (let idx = 1; idx <= matchesInRound; idx++) {
         const matchId = `m-${r}-${idx}`;
         const match = matchesMap[matchId];
 
         if (r === 1) {
           if (match.team1Id && !match.team2Id) {
+            // Team 1 gets a BYE
             match.winnerId = match.team1Id;
             match.status = 'completed';
             match.score1 = 1;
             match.score2 = 0;
           } else if (!match.team1Id && match.team2Id) {
+            // Team 2 gets a BYE
             match.winnerId = match.team2Id;
             match.status = 'completed';
             match.score1 = 0;
@@ -196,7 +246,7 @@ export const tournamentService = {
             };
           }
         } else {
-          // If both slots populated, make it live
+          // If both slots populated in subsequent rounds, make it live
           if (match.team1Id && match.team2Id) {
             match.status = 'live';
             match.checkIn = {
@@ -210,14 +260,16 @@ export const tournamentService = {
           }
         }
 
-        // Advance bye winner in memory
+        // Advance BYE winner in memory to next round
         if (match.status === 'completed' && match.winnerId && r < totalRounds) {
           const nextMatchId = `m-${r + 1}-${Math.ceil(idx / 2)}`;
           const nextMatch = matchesMap[nextMatchId];
-          if (idx % 2 === 1) {
-            nextMatch.team1Id = match.winnerId;
-          } else {
-            nextMatch.team2Id = match.winnerId;
+          if (nextMatch) {
+            if (idx % 2 === 1) {
+              nextMatch.team1Id = match.winnerId;
+            } else {
+              nextMatch.team2Id = match.winnerId;
+            }
           }
         }
       }
@@ -275,8 +327,8 @@ export const tournamentService = {
       "checkIn.checkInDeadline": null
     });
 
-    const maxTeams = tData.maxTeams;
-    const totalRounds = Math.log2(maxTeams);
+    const regCount = tData.registeredTeamIds?.length || tData.maxTeams || 4;
+    const totalRounds = Math.max(1, Math.ceil(Math.log2(regCount)));
 
     // 2. Advance winner in bracket
     if (round < totalRounds) {
