@@ -41,6 +41,9 @@ export interface Tournament {
   estimatedEndTime?: number;
   discordWebhookUrl?: string;
   discordBotEnabled?: boolean;
+  bracket?: {
+    matches: any[];
+  };
 }
 
 export const tournamentService = {
