@@ -134,54 +134,46 @@ export async function GET(request: Request) {
     const summonerUrl = `https://${platformRegion}.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/${puuid}`;
     const summonerRes = await fetch(summonerUrl, { headers });
 
-    if (!summonerRes.ok) {
-      if (summonerRes.status === 404) {
-        return NextResponse.json(
-          { error: `No League of Legends summoner found for '${riotId}' on ${platformRegion.toUpperCase()}. Make sure the account has played LoL on this region.` },
-          { status: 404 }
-        );
-      }
-      return NextResponse.json(
-        { error: `Summoner lookup failed (status ${summonerRes.status}).` },
-        { status: summonerRes.status }
-      );
-    }
+    let summonerData: any = null;
+    let rankInfo = {
+      tier: 'UNRANKED',
+      rank: '',
+      leaguePoints: 0,
+      wins: 0,
+      losses: 0,
+      winRate: 0,
+    };
 
-    const summonerData = await summonerRes.json();
+    if (summonerRes.ok) {
+      summonerData = await summonerRes.json();
 
-    // ── Step 3: Fetch Solo Queue ranked entries ──
-    const leagueUrl = `https://${platformRegion}.api.riotgames.com/lol/league/v4/entries/by-summoner/${summonerData.id}`;
-    const leagueRes = await fetch(leagueUrl, { headers });
-    const leagueEntries: any[] = leagueRes.ok ? await leagueRes.json() : [];
-    const soloQueue = leagueEntries.find(e => e.queueType === 'RANKED_SOLO_5x5') ?? null;
+      // ── Step 3: Fetch Solo Queue ranked entries by PUUID ──
+      const leagueUrl = `https://${platformRegion}.api.riotgames.com/lol/league/v4/entries/by-puuid/${puuid}`;
+      const leagueRes = await fetch(leagueUrl, { headers });
+      const leagueEntries: any[] = leagueRes.ok ? await leagueRes.json() : [];
+      const soloQueue = leagueEntries.find(e => e.queueType === 'RANKED_SOLO_5x5') ?? null;
 
-    const rankInfo = soloQueue
-      ? {
+      if (soloQueue) {
+        rankInfo = {
           tier: soloQueue.tier as string,
           rank: soloQueue.rank as string,
           leaguePoints: soloQueue.leaguePoints as number,
           wins: soloQueue.wins as number,
           losses: soloQueue.losses as number,
           winRate: parseFloat(((soloQueue.wins / (soloQueue.wins + soloQueue.losses)) * 100).toFixed(1)),
-        }
-      : {
-          tier: 'UNRANKED',
-          rank: '',
-          leaguePoints: 0,
-          wins: 0,
-          losses: 0,
-          winRate: 0,
         };
+      }
+    }
 
     const statsPayload = {
       riotId,
       summonerName: accountData.gameName || gameName,
       tagLine: accountData.tagLine || tagLine,
-      summonerLevel: summonerData.summonerLevel,
+      summonerLevel: summonerData ? summonerData.summonerLevel : 30, // Default to level 30 for unranked profiles
       rankInfo,
-      source: 'Official Riot Games API',
+      source: summonerData ? 'Official Riot Games API' : 'Official Riot Games API (Unranked)',
       riotScore: calculateRiotScore(
-        summonerData.summonerLevel,
+        summonerData ? summonerData.summonerLevel : 30,
         rankInfo.tier,
         rankInfo.rank,
         rankInfo.leaguePoints,
