@@ -122,6 +122,25 @@ export const tournamentService = {
   },
 
   /**
+   * Synchronizes the parent document's bracket.matches array with subcollection matches
+   */
+  async syncParentBracketMatches(tournamentId: string): Promise<void> {
+    try {
+      const matchesRef = collection(db, "tournaments", tournamentId, "matches");
+      const matchesSnap = await getDocs(matchesRef);
+      const list = matchesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      list.sort((a: any, b: any) => {
+        if (a.round !== b.round) return a.round - b.round;
+        return a.matchNumber - b.matchNumber;
+      });
+      const tRef = doc(db, "tournaments", tournamentId);
+      await updateDoc(tRef, { 'bracket.matches': list });
+    } catch (err) {
+      console.error("Failed to sync parent bracket matches:", err);
+    }
+  },
+
+  /**
    * Updates custom match lobby room ID and password (Organizer / Admin only)
    */
   async updateMatchRoomDetails(tournamentId: string, matchId: string, roomId: string, roomPassword?: string): Promise<void> {
@@ -131,6 +150,7 @@ export const tournamentService = {
       roomPassword: roomPassword ? roomPassword.trim() : null,
       updatedAt: Date.now()
     });
+    await this.syncParentBracketMatches(tournamentId);
   },
 
   /**
@@ -505,6 +525,7 @@ export const tournamentService = {
     }
 
     await batch.commit();
+    await this.syncParentBracketMatches(tournamentId);
   },
 
   /**
@@ -519,6 +540,7 @@ export const tournamentService = {
       updates['checkIn.team2CheckedIn'] = true;
     }
     await updateDoc(matchRef, updates);
+    await this.syncParentBracketMatches(tournamentId);
   },
 
   /**
@@ -531,6 +553,7 @@ export const tournamentService = {
       'checkIn.disputeReason': reason.trim(),
       'checkIn.disputedBy': teamName
     });
+    await this.syncParentBracketMatches(tournamentId);
   },
 
   /**
@@ -577,5 +600,6 @@ export const tournamentService = {
         'checkIn.disputedBy': null
       });
     }
+    await this.syncParentBracketMatches(tournamentId);
   }
 };

@@ -18,7 +18,8 @@ import {
   addDoc,
   serverTimestamp,
   deleteDoc,
-  writeBatch
+  writeBatch,
+  documentId
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAppStore, Team } from '@/store/useAppStore';
@@ -152,7 +153,7 @@ export default function TournamentDetailClient({ id }: { id: string }) {
           const unsubs: (() => void)[] = [];
 
           for (const chunk of chunks) {
-            const qTeams = query(teamsRef, where("__name__", "in", chunk));
+            const qTeams = query(teamsRef, where(documentId(), "in", chunk));
             const u = onSnapshot(qTeams, (snap) => {
               snap.docs.forEach(d => {
                 tempMap[d.id] = d.data().name;
