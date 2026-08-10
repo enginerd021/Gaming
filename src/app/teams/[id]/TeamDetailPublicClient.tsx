@@ -12,7 +12,8 @@ import {
   limit,
   startAfter,
   onSnapshot,
-  QueryDocumentSnapshot
+  QueryDocumentSnapshot,
+  documentId
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Trophy, Users, Shield, Calendar, ArrowLeft, Loader, AlertCircle } from 'lucide-react';
@@ -84,9 +85,10 @@ export default function TeamDetailPublicClient({ id }: { id: string }) {
       if (tData.members && tData.members.length > 0) {
         if (membersUnsub) membersUnsub();
         const profilesRef = collection(db, "profiles");
-        const qProfiles = query(profilesRef, where("uid", "in", tData.members));
+        const memberIds = tData.members.slice(0, 30);
+        const qProfiles = query(profilesRef, where(documentId(), "in", memberIds));
         membersUnsub = onSnapshot(qProfiles, (pSnap) => {
-          const pList = pSnap.docs.map(d => d.data() as Profile);
+          const pList = pSnap.docs.map(d => ({ uid: d.id, ...d.data() }) as Profile);
           setMemberProfiles(pList);
           const cap = pList.find(p => p.uid === tData.captainId);
           if (cap) setCaptainProfile(cap);

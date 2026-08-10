@@ -55,14 +55,19 @@ export default async function Page({ params }: Props) {
     notFound();
   }
 
+  let exists = true;
   try {
     const docRef = doc(db, "teams", teamId);
     const snap = await getDoc(docRef);
     if (!snap.exists()) {
-      notFound();
+      exists = false;
     }
   } catch (err) {
     console.error("Error checking team on server:", err);
+  }
+
+  if (!exists) {
+    notFound();
   }
 
   return <TeamDetailPublicClient id={teamId} />;
