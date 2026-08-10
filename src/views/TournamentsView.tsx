@@ -102,21 +102,8 @@ export default function TournamentsView() {
   useEffect(() => {
     const unsub = tournamentService.subscribeAllTournaments(
       (list) => {
-        list.forEach(t => autoCheckTournamentStatus(t));
         setTournaments(list);
         setLoading(false);
-
-        // Asynchronously sync any status changes (e.g. auto-ended or active) to Firestore
-        list.forEach(async (t) => {
-          const effStatus = getEffectiveTournamentStatus(t);
-          if (effStatus !== t.status) {
-            try {
-              await updateDoc(doc(db, "tournaments", t.id), { status: effStatus });
-            } catch (err) {
-              console.error("Auto status sync failed for tournament:", t.id, err);
-            }
-          }
-        });
       },
       () => setLoading(false)
     );

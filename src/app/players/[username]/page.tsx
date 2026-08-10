@@ -55,16 +55,21 @@ export default async function Page({ params }: Props) {
     notFound();
   }
 
+  let exists = true;
   // Server-side check for profile existence to trigger 404
   try {
     const username = decodeURIComponent(usernameParam).toLowerCase();
     const q = query(collection(db, "profiles"), where("gamertag", "==", username));
     const snap = await getDocs(q);
     if (snap.empty) {
-      notFound();
+      exists = false;
     }
   } catch (err) {
     console.error("Error checking player document on server:", err);
+  }
+
+  if (!exists) {
+    notFound();
   }
 
   return <PlayerPublicProfileClient username={usernameParam} />;

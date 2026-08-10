@@ -159,7 +159,6 @@ export default function HomeView() {
     const unsub = tournamentService.subscribeRecentTournaments(
       3,
       (list) => {
-        list.forEach(t => autoCheckTournamentStatus(t));
         setActiveTournaments(list);
         setLoading(false);
       },
