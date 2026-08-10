@@ -1,4 +1,4 @@
-import { collection, query, where, getDocs, doc, getDoc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc, updateDoc, documentId } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Tournament, Match, tournamentService } from '@/services/tournamentService';
 import { useState, useEffect } from 'react';
@@ -210,7 +210,7 @@ export async function checkPlayerTournamentOverlap(
     }
 
     for (const chunk of chunks) {
-      const q = query(collection(db, 'teams'), where('__name__', 'in', chunk));
+      const q = query(collection(db, 'teams'), where(documentId(), 'in', chunk));
       const snap = await getDocs(q);
 
       for (const docSnap of snap.docs) {

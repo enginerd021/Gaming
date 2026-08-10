@@ -54,17 +54,20 @@ export default async function Page({ params }: Props) {
     notFound();
   }
 
+  let exists = true;
   // Server-side check for existence to trigger 404
   try {
     const docRef = doc(db, 'tournaments', id);
     const docSnap = await getDoc(docRef);
     if (!docSnap.exists()) {
-      notFound();
+      exists = false;
     }
   } catch (err) {
     console.error("Error checking tournament document on server:", err);
-    // If it's a permission denied or network issue, we can throw the error or render.
-    // If it's a permission-denied we may want to throw it to let app/error.tsx catch it.
+  }
+
+  if (!exists) {
+    notFound();
   }
 
   return <TournamentDetailClient id={id} />;
