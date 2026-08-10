@@ -131,7 +131,7 @@ export function useEffectiveTournamentStatus(tournament: Tournament | null | und
 
     const updateStatus = () => {
       const current = getEffectiveTournamentStatus(tournament);
-      setStatus(current);
+      setStatus(prev => prev !== current ? current : prev);
     };
 
     updateStatus();
