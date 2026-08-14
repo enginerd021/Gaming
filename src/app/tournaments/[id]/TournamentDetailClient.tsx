@@ -73,6 +73,7 @@ interface Tournament {
   estimatedEndTime?: number;
   discordWebhookUrl?: string;
   discordBotEnabled?: boolean;
+  minRiotScore?: number;
 }
 
 interface ChatMessage {
