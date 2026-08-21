@@ -461,7 +461,16 @@ export default function RegisterClient() {
           <button
             type="submit"
             className="btn btn-primary"
-            style={{ width: '100%', marginTop: '0.75rem', height: '3rem' }}
+            style={{ 
+              width: '100%', 
+              marginTop: '0.75rem', 
+              height: '3rem',
+              opacity: (loading || !acceptedTerms) ? 0.45 : 1,
+              cursor: (loading || !acceptedTerms) ? 'default' : 'pointer',
+              pointerEvents: (loading || !acceptedTerms) ? 'none' : 'auto',
+              filter: !acceptedTerms ? 'grayscale(0.4)' : 'none',
+              transition: 'all 0.25 ease'
+            }}
             disabled={loading || !acceptedTerms}
           >
             {loading ? 'Creating Account...' : 'Sign Up'}
