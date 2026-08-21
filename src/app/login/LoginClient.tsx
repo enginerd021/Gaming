@@ -13,6 +13,7 @@ import {
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { Gamepad2, Mail, Lock, AlertCircle, CheckCircle2, Eye, EyeOff, KeyRound } from 'lucide-react';
+import { isAdmin } from '@/lib/adminConfig';
 
 const GoogleIcon = () => (
   <svg style={{ width: '18px', height: '18px', marginRight: '0.75rem' }} viewBox="0 0 24 24">
@@ -119,6 +120,11 @@ export default function LoginClient() {
         return;
       }
 
+      if (isAdmin(user.email)) {
+        router.push('/admin');
+        return;
+      }
+
       router.push('/');
     } catch (err: unknown) {
       console.error('Google Sign In error:', err);
@@ -162,6 +168,10 @@ export default function LoginClient() {
         return;
       }
 
+      if (isAdmin(user.email)) {
+        router.push('/admin');
+        return;
+      }
       router.push('/');
     } catch (err: unknown) {
       triggerShake();

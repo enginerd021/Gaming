@@ -22,6 +22,7 @@ import { MessageSquare, X, Send, Sparkles, LogIn, UserPlus, AlertTriangle, Check
 import InviteCard from './chat/InviteCard';
 import Button from './ui/Button';
 import { usePathname } from 'next/navigation';
+import { isAdmin } from '@/lib/adminConfig';
 
 interface ChatMessage {
   id: string;
@@ -56,7 +57,7 @@ export default function GlobalChatWidget() {
   const team = useAppStore((state) => state.team);
   const pathname = usePathname();
 
-  if (pathname === '/maintenance') {
+  if (pathname === '/maintenance' || pathname === '/admin' || isAdmin(user?.email)) {
     return null;
   }
 
