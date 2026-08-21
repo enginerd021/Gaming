@@ -526,10 +526,15 @@ export default function Navbar() {
                 )}
               </div>
 
-              {/* 6. PROFILE */}
+              {/* 6. PROFILE & SETTINGS */}
               <Link href="/profile" className="zentry-text-link">
                 PROFILE
               </Link>
+              {user && (
+                <Link href="/settings" className="zentry-text-link">
+                  SETTINGS
+                </Link>
+              )}
 
               {/* 7. LOGOUT / AUTH */}
               {user ? (
@@ -742,6 +747,7 @@ export default function Navbar() {
             {user ? (
                <>
                   <Link href="/profile" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700 }}>PROFILE</Link>
+                  <Link href="/settings" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700 }}>SETTINGS</Link>
                   <button onClick={promptLogout} style={{ background: 'none', border: 'none', color: 'var(--accent-red)', fontWeight: 700, textAlign: 'left', padding: 0 }}>SIGN OUT</button>
                </>
             ) : (

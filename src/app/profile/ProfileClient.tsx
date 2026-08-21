@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { 
   doc, 
@@ -28,6 +29,7 @@ import {
   Activity,
   Flame,
   Target,
+  Settings,
   Link as LinkIcon,
   CheckCircle2,
   ShieldCheck,
@@ -416,6 +418,16 @@ export default function ProfileClient() {
             <p style={{ color: 'var(--text-secondary)', marginTop: '0.25rem', fontSize: '0.95rem' }}>
               Riot Score: <strong style={{ color: 'var(--accent-gold)' }}>{(profile.stats?.points || 0).toLocaleString()} pts</strong> &bull; <strong style={{ color: 'var(--accent-green)' }}>{profile.stats?.wins || 0} Wins</strong>
             </p>
+          </div>
+          <div style={{ marginLeft: 'auto' }}>
+            <Link
+              href="/settings"
+              className="btn btn-outline"
+              style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.45rem 0.9rem', borderColor: 'var(--border-color)', color: 'var(--text-primary)' }}
+            >
+              <Settings size={14} style={{ color: 'var(--accent-cyan)' }} />
+              <span>Account Settings</span>
+            </Link>
           </div>
         </div>
 
