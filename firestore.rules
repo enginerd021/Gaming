@@ -46,7 +46,21 @@ service cloud.firestore {
     match /profiles/{userId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated() && request.auth.uid == userId;
-      allow update: if isAuthenticated() && request.auth.uid == userId;
+
+      // Owner can update any of their own fields.
+      // Admin can update any profile (e.g. to award stats/XP from match resolution).
+      // Tournament service (any auth'd user) can update ONLY stats/achievements fields
+      // — needed for batch writes from updateMatchScore running under the admin session.
+      allow update: if isAuthenticated() && (
+        request.auth.uid == userId
+        || isAdminEmail()
+        || (
+          // Only allow updating specific stats/achievements fields — not sensitive identity fields
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['stats', 'achievements', 'xp', 'level'])
+        )
+      );
+
       allow delete: if false;
 
       // -- Notifications subcollection --
@@ -66,6 +80,7 @@ service cloud.firestore {
           // Tournament notifications
           || request.resource.data.type == 'tournament_starting'
           || request.resource.data.type == 'match_result'
+          || request.resource.data.type == 'tournament_withdrawn'
 
           // Admin notifications
           || (request.resource.data.type == 'new_tournament' && isAdminEmail())
@@ -134,6 +149,14 @@ service cloud.firestore {
           request.resource.data.organizerId == resource.data.organizerId
           && request.resource.data.name == resource.data.name
         )
+        // Case 4: Team captain unregisters/leaves an upcoming tournament
+        || (
+          resource.data.status == 'Upcoming'
+          && request.resource.data.organizerId == resource.data.organizerId
+          && request.resource.data.name == resource.data.name
+          && resource.data.registeredTeamIds.hasAll(request.resource.data.registeredTeamIds)
+          && request.resource.data.registeredTeamIds.size() == resource.data.registeredTeamIds.size() - 1
+        )
       );
 
       allow delete: if isAuthenticated() && (
@@ -154,6 +177,13 @@ service cloud.firestore {
                       && (request.resource.data.senderId == request.auth.uid || request.resource.data.uid == request.auth.uid);
         allow update: if false;
         allow delete: if isAdminEmail() || (isAuthenticated() && get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid);
+      }
+
+      // Payments subcollection (/tournaments/{tournamentId}/payments/{paymentId})
+      match /payments/{paymentId} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated() && request.resource.data.captainId == request.auth.uid;
+        allow update, delete: if isAdminEmail();
       }
     }
 

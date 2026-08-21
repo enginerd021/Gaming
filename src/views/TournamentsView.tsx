@@ -53,7 +53,7 @@ function TournamentCardItem({ tournament }: { tournament: Tournament }) {
               )}
               {effectiveStatus === 'Completed' && <Badge variant="gold">Completed</Badge>}
               <Badge variant={tournament.entryType === 'Free' ? 'cyan' : 'gold'}>
-                {tournament.entryType}
+                {tournament.entryType === 'Paid' ? `PAID (₹${tournament.entryFee || 100})` : 'FREE ENTRY'}
               </Badge>
             </div>
 
@@ -141,6 +141,7 @@ function FilterPill({
 /* ─── Main View ─── */
 export default function TournamentsView() {
   const user = useAppStore((state) => state.user);
+  const userIsAdmin = !!user && isAdmin(user.email);
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -204,7 +205,7 @@ export default function TournamentsView() {
               </p>
             </div>
 
-            {user && (
+            {userIsAdmin && (
               <Link href="/tournaments/create">
                 <Button variant="primary" style={{ borderRadius: '10px', padding: '0.8rem 1.75rem' }}>
                   <PlusCircle size={18} /> Host Tournament

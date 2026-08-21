@@ -12,6 +12,7 @@ import {
   where, 
   getDocs, 
   arrayUnion,
+  arrayRemove,
   getDoc,
   orderBy,
   limit,
@@ -24,7 +25,7 @@ import {
 import { db } from '@/lib/firebase';
 import { useAppStore, Team } from '@/store/useAppStore';
 import { isAdmin } from '@/lib/adminConfig';
-import { Trophy, Calendar, Shield, Users, Layers, Award, Loader, AlertCircle, Edit3, Save, Play, Check, X, MessageSquare, Send, Trash2, Bell, Clock, ShieldAlert, CheckCircle, Flame, RefreshCw, GripVertical, ChevronUp, ChevronDown, Settings } from 'lucide-react';
+import { Trophy, Calendar, Shield, Users, Layers, Award, Loader, AlertCircle, Edit3, Save, Play, Check, X, MessageSquare, Send, Trash2, Bell, Clock, ShieldAlert, CheckCircle, Flame, RefreshCw, GripVertical, ChevronUp, ChevronDown, Settings, LogOut } from 'lucide-react';
 import Link from 'next/link';
 import Button from '@/components/ui/Button';
 import { TournamentCountdown } from '@/components/TournamentCountdown';
@@ -62,6 +63,7 @@ interface Tournament {
   organizerId: string;
   status: 'Upcoming' | 'Active' | 'Completed';
   entryType: 'Free' | 'Paid';
+  entryFee?: number;
   maxTeams: number;
   registeredTeamIds: string[];
   bracket: {
@@ -376,20 +378,179 @@ export default function TournamentDetailClient({ id }: { id: string }) {
         return;
       }
 
+      const completeRegistrationProcess = async (paymentId?: string) => {
+        const tournamentRef = doc(db, "tournaments", tournament.id);
+        await updateDoc(tournamentRef, {
+          registeredTeamIds: arrayUnion(team.id),
+          lastRegisteredTeamId: team.id
+        });
+
+        if (paymentId) {
+          await addDoc(collection(db, "tournaments", tournament.id, "payments"), {
+            teamId: team.id,
+            captainId: user!.uid,
+            amount: tournament.entryFee || 100,
+            paymentId,
+            paidAt: Date.now()
+          });
+        }
+
+        const nBatch = writeBatch(db);
+        if (team.members) {
+          team.members.forEach((mId) => {
+            const nRef = doc(collection(db, "profiles", mId, "notifications"));
+            nBatch.set(nRef, {
+              type: 'registration_confirmed',
+              message: `Your team ${team.name} has registered for tournament ${tournament.name}.${paymentId ? ` (Entry fee of ₹${tournament.entryFee || 100} paid)` : ''}`,
+              relatedId: tournament.id,
+              read: false,
+              createdAt: serverTimestamp(),
+              teamId: team.id
+            });
+          });
+        }
+        await nBatch.commit();
+
+        setSuccess(`Your team has registered successfully!${paymentId ? ' Payment verified.' : ''}`);
+      };
+
+      if (tournament.entryType === 'Paid') {
+        const loadScript = (): Promise<boolean> => {
+          return new Promise((resolve) => {
+            if (typeof window !== 'undefined' && (window as any).Razorpay) {
+              resolve(true);
+              return;
+            }
+            const script = document.createElement('script');
+            script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+            script.onload = () => resolve(true);
+            script.onerror = () => resolve(false);
+            document.body.appendChild(script);
+          });
+        };
+
+        const loaded = await loadScript();
+        if (!loaded) {
+          setError('Failed to load Razorpay payment gateway SDK. Please check your internet connection.');
+          setActionLoading(false);
+          return;
+        }
+
+        const feeAmount = tournament.entryFee || 100;
+        const orderRes = await fetch('/api/razorpay/create-order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tournamentId: tournament.id,
+            teamId: team.id,
+            amount: feeAmount,
+            name: tournament.name
+          })
+        });
+
+        const orderData = await orderRes.json();
+        if (!orderData.success) {
+          setError(orderData.error || 'Failed to initialize payment order.');
+          setActionLoading(false);
+          return;
+        }
+
+        const options = {
+          key: orderData.keyId,
+          amount: orderData.amount,
+          currency: orderData.currency || 'INR',
+          name: 'Shakti Gaming Esports',
+          description: `Entry Fee for ${tournament.name}`,
+          order_id: orderData.orderId.startsWith('order_test_') ? undefined : orderData.orderId,
+          handler: async function (response: any) {
+            setActionLoading(true);
+            try {
+              const verifyRes = await fetch('/api/razorpay/verify-payment', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  razorpay_order_id: response.razorpay_order_id || orderData.orderId,
+                  razorpay_payment_id: response.razorpay_payment_id || `pay_test_${Date.now()}`,
+                  razorpay_signature: response.razorpay_signature || '',
+                  tournamentId: tournament.id,
+                  teamId: team.id,
+                  amount: feeAmount
+                })
+              });
+              const verifyData = await verifyRes.json();
+              if (!verifyData.success) {
+                throw new Error(verifyData.error || 'Payment verification failed');
+              }
+              await completeRegistrationProcess(verifyData.paymentId);
+            } catch (err: any) {
+              setError(err.message || 'Payment verification failed.');
+            } finally {
+              setActionLoading(false);
+            }
+          },
+          prefill: {
+            name: user?.displayName || profile?.gamertag || 'Gamer',
+            email: user?.email || '',
+          },
+          theme: {
+            color: '#00f0ff',
+          },
+          modal: {
+            ondismiss: function () {
+              setActionLoading(false);
+            }
+          }
+        };
+
+        const rzp = new (window as any).Razorpay(options);
+        rzp.open();
+      } else {
+        await completeRegistrationProcess();
+        setActionLoading(false);
+      }
+    } catch (err: any) {
+      console.error(err);
+      if (err.code === 'permission-denied') {
+        setError("Registration failed: Action rejected by database rules. Confirm you are the Team Captain and that registration requirements are met.");
+      } else {
+        setError(err.message || "Failed to register for tournament.");
+      }
+      setActionLoading(false);
+    }
+  };
+
+  // Leave / Unregister from Tournament
+  const handleLeaveTournament = async () => {
+    clearMessages();
+    if (!tournament || !team || !user) return;
+
+    if (team.captainId !== user.uid) {
+      setError("Only the Team Captain can withdraw the team roster from the tournament.");
+      return;
+    }
+
+    if (effectiveStatus !== 'Upcoming') {
+      setError("Cannot leave tournament after it has already started or completed.");
+      return;
+    }
+
+    const confirmLeave = window.confirm(`Are you sure you want to withdraw team '${team.name}' from ${tournament.name}?`);
+    if (!confirmLeave) return;
+
+    setActionLoading(true);
+    try {
       const tournamentRef = doc(db, "tournaments", tournament.id);
       await updateDoc(tournamentRef, {
-        registeredTeamIds: arrayUnion(team.id),
-        lastRegisteredTeamId: team.id
+        registeredTeamIds: arrayRemove(team.id)
       });
 
-      // Write batch of registration_confirmed notifications to all members of the registering team
       const nBatch = writeBatch(db);
       if (team.members) {
         team.members.forEach((mId) => {
           const nRef = doc(collection(db, "profiles", mId, "notifications"));
           nBatch.set(nRef, {
-            type: 'registration_confirmed',
-            message: `Your team ${team.name} has registered for tournament ${tournament.name}.`,
+            type: 'tournament_withdrawn',
+            message: `Your team ${team.name} has withdrawn from tournament ${tournament.name}.`,
             relatedId: tournament.id,
             read: false,
             createdAt: serverTimestamp(),
@@ -399,14 +560,10 @@ export default function TournamentDetailClient({ id }: { id: string }) {
       }
       await nBatch.commit();
 
-      setSuccess("Your team has registered successfully!");
+      setSuccess(`Your team ${team.name} has withdrawn from the tournament.`);
     } catch (err: any) {
       console.error(err);
-      if (err.code === 'permission-denied') {
-        setError("Registration failed: Action rejected by database rules. Confirm you are the Team Captain and that registration requirements are met.");
-      } else {
-        setError(err.message || "Failed to register for tournament.");
-      }
+      setError(err.message || "Failed to leave tournament.");
     } finally {
       setActionLoading(false);
     }
@@ -1436,7 +1593,9 @@ export default function TournamentDetailClient({ id }: { id: string }) {
                   )}
                 </span>
                 <span className="badge badge-cyan">{tournament.game}</span>
-                <span className="badge badge-violet">{tournament.entryType} Entry</span>
+                <span className="badge badge-violet">
+                  {tournament.entryType} Entry{tournament.entryType === 'Paid' ? ` (₹${tournament.entryFee || 100})` : ''}
+                </span>
               </div>
 
               <h1 style={{ fontSize: '2.25rem', marginBottom: '0.75rem' }}>{tournament.name}</h1>
@@ -1491,16 +1650,30 @@ export default function TournamentDetailClient({ id }: { id: string }) {
                         <Play size={16} /> Generate Bracket & Start
                       </button>
                     ) : isRegistered ? (
-                      <button className="btn btn-outline" style={{ borderColor: 'var(--accent-green)', color: 'var(--accent-green)' }} disabled>
-                        <Check size={16} /> Roster Registered
-                      </button>
+                      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                        <button className="btn btn-outline" style={{ borderColor: 'var(--accent-green)', color: 'var(--accent-green)', opacity: 0.9 }} disabled>
+                          <Check size={16} /> Roster Registered
+                        </button>
+                        {team.captainId === user?.uid && (
+                          <button 
+                            onClick={handleLeaveTournament}
+                            className="btn btn-outline"
+                            disabled={actionLoading}
+                            style={{ borderColor: 'rgba(239, 45, 86, 0.5)', color: 'var(--accent-red)', background: 'rgba(239, 45, 86, 0.08)' }}
+                            title="Withdraw team roster from this tournament"
+                          >
+                            <LogOut size={16} /> Leave Tournament
+                          </button>
+                        )}
+                      </div>
                     ) : (
                       <button 
                         onClick={handleJoinTournament}
                         className="btn btn-primary"
                         disabled={actionLoading || tournament.registeredTeamIds.length >= tournament.maxTeams}
+                        style={tournament.entryType === 'Paid' ? { background: 'linear-gradient(135deg, #00f0ff 0%, #7000ff 100%)', border: 'none' } : undefined}
                       >
-                        Register Team Roster
+                        {tournament.entryType === 'Paid' ? `Pay Entry Fee (₹${tournament.entryFee || 100}) & Register` : 'Register Team Roster'}
                       </button>
                     )}
                   </>

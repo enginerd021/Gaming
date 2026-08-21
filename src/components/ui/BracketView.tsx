@@ -290,6 +290,8 @@ export default function BracketView({
                 const deadline = checkInObj?.checkInDeadline || null;
                 const expired = deadline ? now > deadline : false;
                 const isDisputed = checkInObj?.disputed || false;
+                // Match is locked for editing once timer expires or a winner is declared
+                const isMatchLocked = expired || !!m.winnerId;
 
                 const isTeam1Captain = team && m.team1Id === team.id && team.captainId === userUid;
                 const isTeam2Captain = team && m.team2Id === team.id && team.captainId === userUid;
@@ -539,7 +541,7 @@ export default function BracketView({
                               <div style={{ background: 'rgba(0, 240, 255, 0.08)', border: '1px solid var(--accent-cyan)', padding: '0.45rem', borderRadius: '6px', marginTop: '0.4rem', fontSize: '0.75rem' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.2rem' }}>
                                   <span style={{ fontWeight: 700, color: 'var(--accent-cyan)', fontSize: '0.7rem' }}>🎮 Custom Lobby Credentials</span>
-                                  {isOrganizer && (
+                                  {isOrganizer && !isMatchLocked && (
                                     <button
                                       type="button"
                                       onClick={() => { setEditingRoomMatchId(m.id); setInputRoomId(m.roomId || ''); setInputRoomPassword(m.roomPassword || ''); }}
@@ -556,7 +558,7 @@ export default function BracketView({
                               </div>
                             )}
 
-                            {isOrganizer && !m.roomId && m.status === 'live' && editingMatchId !== m.id && (
+                            {isOrganizer && !m.roomId && m.status === 'live' && !isMatchLocked && editingMatchId !== m.id && (
                               <button
                                 type="button"
                                 onClick={() => { setEditingRoomMatchId(m.id); setInputRoomId(''); setInputRoomPassword(''); }}
@@ -569,8 +571,8 @@ export default function BracketView({
                           </>
                         )}
 
-                        {/* Check-In and Dispute Indicators */}
-                        {m.status === 'live' && (
+                        {/* Check-In and Dispute Indicators — hidden once match is locked (timer expired or winner declared) */}
+                        {m.status === 'live' && !isMatchLocked && (
                           <div style={{ marginTop: '0.6rem', paddingTop: '0.6rem', borderTop: '1px dashed var(--border-color)', display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.8rem' }}>
                             
                             {/* Team 1 Check-In Badge */}
@@ -719,8 +721,66 @@ export default function BracketView({
                           </div>
                         )}
 
+                        {/* Flag Dispute — visible for any locked match (timer expired or winner declared) without active dispute */}
+                        {isMatchLocked && !isDisputed && (
+                          <div style={{ marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px dashed var(--border-color)' }}>
+                            <button
+                              onClick={() => handleDispute(m.id)}
+                              className="btn btn-outline"
+                              style={{ fontSize: '0.7rem', padding: '0.3rem', height: 'auto', borderColor: 'rgba(239, 45, 86, 0.3)', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem', width: '100%', cursor: 'pointer' }}
+                              disabled={actionLoading}
+                            >
+                              <ShieldAlert size={10} /> Flag Dispute
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Dispute Banner for locked matches */}
+                        {isMatchLocked && isDisputed && (
+                          <div style={{ marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px dashed var(--border-color)' }}>
+                            <div style={{ background: 'rgba(239, 45, 86, 0.08)', border: '1px dashed var(--accent-red)', padding: '0.5rem', borderRadius: '6px', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                              <span style={{ color: 'var(--accent-red)', fontWeight: 700, fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                                <ShieldAlert size={10} /> DISPUTED BY {checkInObj?.disputedBy?.substring(0, 15)}
+                              </span>
+                              <p style={{ color: 'var(--text-secondary)', fontSize: '0.7rem', margin: '0', fontStyle: 'italic', lineHeight: '1.2' }}>
+                                "{checkInObj?.disputeReason}"
+                              </p>
+                              {isOrganizer && (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', marginTop: '0.2rem' }}>
+                                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.3rem' }}>
+                                    <button
+                                      onClick={() => handleResolveDispute(m.id, 'win_t1')}
+                                      className="btn btn-primary"
+                                      style={{ padding: '0.3rem', fontSize: '0.65rem', height: 'auto', background: 'var(--accent-green)', borderColor: 'var(--accent-green)', color: 'var(--bg-primary)' }}
+                                      disabled={actionLoading}
+                                    >
+                                      Win T1
+                                    </button>
+                                    <button
+                                      onClick={() => handleResolveDispute(m.id, 'win_t2')}
+                                      className="btn btn-primary"
+                                      style={{ padding: '0.3rem', fontSize: '0.65rem', height: 'auto', background: 'var(--accent-green)', borderColor: 'var(--accent-green)', color: 'var(--bg-primary)' }}
+                                      disabled={actionLoading}
+                                    >
+                                      Win T2
+                                    </button>
+                                  </div>
+                                  <button
+                                    onClick={() => handleResolveDispute(m.id, 'reset_timer')}
+                                    className="btn btn-outline"
+                                    style={{ padding: '0.3rem', fontSize: '0.65rem', width: '100%', height: 'auto' }}
+                                    disabled={actionLoading}
+                                  >
+                                    Reset Timer / Clear Dispute
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
                         {/* Score update trigger for organizer */}
-                        {isOrganizer && m.status === 'live' && !m.winnerId && m.team1Id && m.team2Id && !isDisputed && (
+                        {isOrganizer && m.status === 'live' && !isMatchLocked && m.team1Id && m.team2Id && !isDisputed && (
                           <button 
                             onClick={() => {
                               setEditingMatchId(m.id);
