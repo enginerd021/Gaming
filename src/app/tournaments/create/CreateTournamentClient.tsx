@@ -44,6 +44,7 @@ export default function CreateTournamentClient() {
   const [name,              setName]              = useState('');
   const [game,              setGame]              = useState('Valorant');
   const [entryType,         setEntryType]         = useState<'Free' | 'Paid'>('Free');
+  const [entryFee,          setEntryFee]          = useState<number>(100);
   const [maxTeams,          setMaxTeams]          = useState<number>(4);
   const [startDateStr,      setStartDateStr]      = useState<string>(getDefaultStartDateStr());
   const [roundDurationMins, setRoundDurationMins] = useState<number>(45);
@@ -157,6 +158,7 @@ export default function CreateTournamentClient() {
         name:              name.trim(),
         game,
         entryType,
+        entryFee:          entryType === 'Paid' ? (Number(entryFee) || 100) : 0,
         maxTeams:          Number(maxTeams),
         startTime:         startTimestampObj,
         startDate:         startTimestampNum,
@@ -373,6 +375,27 @@ export default function CreateTournamentClient() {
               <option value="Paid">Paid Entry (Ticket/Pass Required)</option>
             </select>
           </div>
+
+          {entryType === 'Paid' && (
+            <div className="form-group">
+              <label htmlFor="create-tourney-entryfee" className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <DollarSign size={16} style={{ color: 'var(--accent-green)' }} />
+                Entry Fee (INR ₹)
+              </label>
+              <div className="input-glow-wrapper">
+                <input
+                  id="create-tourney-entryfee"
+                  type="number"
+                  min={1}
+                  className="glass-input"
+                  value={entryFee}
+                  onChange={(e) => setEntryFee(Math.max(1, Number(e.target.value)))}
+                  disabled={actionLoading}
+                  placeholder="100"
+                />
+              </div>
+            </div>
+          )}
 
           {/* Minimum Riot Score (Admin only) */}
           <div className="form-group">

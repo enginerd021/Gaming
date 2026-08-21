@@ -34,6 +34,7 @@ export interface Tournament {
   game: string;
   status: 'Upcoming' | 'Active' | 'Completed';
   entryType?: 'Free' | 'Paid';
+  entryFee?: number;     // Entry fee amount in INR (for Paid tournaments)
   maxTeams: number;
   registeredTeamIds: string[];
   organizerId?: string;
@@ -323,15 +324,43 @@ export const tournamentService = {
       }
     }
 
-    // 2. Populate Round 1 team ids using history-seeded ordering (handles odd team counts smoothly)
+    // 2. Populate Round 1 using Riot-Score seeding:
+    //    Highest-score teams earn BYEs (free pass to Round 2).
+    //    Lower seeds who must compete are placed in the first match slots.
+    //
+    //    numByes = bracketTeamsCount - numTeams (slots with no opponent)
+    //    numPlayingInR1 = 2*numTeams - bracketTeamsCount (teams that fight in R1)
+    //
+    //    Slot layout  →  [playing teams... , byeTeam, null, byeTeam, null ...]
+    //    Example 3 teams (S1=highest): [S2, S3, S1, null]
+    //      m-1-1: S2 vs S3  |  m-1-2: S1 vs null (BYE → R2)
+    const numByes = bracketTeamsCount - numTeams;
+    const numPlayingInR1 = numTeams - numByes; // = 2*numTeams - bracketTeamsCount
+
+    // Teams that MUST play in R1 (lower seeds, indices numByes..numTeams-1)
+    const playingTeams = sortedTeamIds.slice(numByes);
+    // Teams that get a BYE (top seeds, indices 0..numByes-1)
+    const byeTeams = sortedTeamIds.slice(0, numByes);
+
+    // Build the flat slot array: real match pairs first, then (byeTeam, null) pairs
+    const slotArray: (string | null)[] = [];
+    for (let i = 0; i < numPlayingInR1; i++) {
+      slotArray.push(playingTeams[i] || null);
+    }
+    for (const byeTeam of byeTeams) {
+      slotArray.push(byeTeam);
+      slotArray.push(null);
+    }
+
     const matchesInRound1 = bracketTeamsCount / 2;
     for (let idx = 1; idx <= matchesInRound1; idx++) {
       const matchId = `m-1-${idx}`;
-      const team1Index = (idx - 1) * 2;
-      const team2Index = team1Index + 1;
-      matchesMap[matchId].team1Id = sortedTeamIds[team1Index] || null;
-      matchesMap[matchId].team2Id = sortedTeamIds[team2Index] || null;
+      const t1Index = (idx - 1) * 2;
+      const t2Index = t1Index + 1;
+      matchesMap[matchId].team1Id = slotArray[t1Index] || null;
+      matchesMap[matchId].team2Id = slotArray[t2Index] || null;
     }
+
 
     // 3. Process matches round-by-round to auto-advance BYE winners
     for (let r = 1; r <= totalRounds; r++) {

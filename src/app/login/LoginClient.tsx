@@ -166,12 +166,12 @@ export default function LoginClient() {
 
       router.push('/');
     } catch (err: unknown) {
-      console.error('Login error:', err);
       triggerShake();
       const authErr = err as { code?: string; message?: string };
       if (authErr.code === 'auth/user-not-found' || authErr.code === 'auth/wrong-password' || authErr.code === 'auth/invalid-credential') {
         setError('Password does not match or email is not found. Please click "Forgot Password?" below to reset.');
       } else {
+        console.error('Login error:', err);
         setError(authErr.message || 'An error occurred during sign-in.');
       }
     } finally {
