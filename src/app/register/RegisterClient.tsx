@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { 
@@ -49,6 +49,15 @@ export default function RegisterClient() {
   const [loading, setLoading] = useState(false);
   const [shake, setShake] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('deleted') === 'true') {
+        setInfoMsg('Your account has been permanently deleted.');
+      }
+    }
+  }, []);
 
   const triggerShake = () => {
     setShake(true);

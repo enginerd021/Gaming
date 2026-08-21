@@ -64,6 +64,11 @@ export default function ProfileClient() {
   const [shake, setShake] = useState(false);
   const [loadedProfileUid, setLoadedProfileUid] = useState<string | null>(null);
 
+  // Account Deletion States
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deleting, setDeleting] = useState(false);
+
   const triggerShake = () => {
     setShake(true);
     setTimeout(() => setShake(false), 300);
@@ -253,6 +258,52 @@ export default function ProfileClient() {
       }
     } finally {
       setUpdating(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!profile || !user) return;
+    if (deleteConfirmText.trim() !== profile.gamertag) {
+      triggerShake();
+      return;
+    }
+
+    setDeleting(true);
+    setMessage(null);
+
+    try {
+      // 1. Get client ID Token from current user
+      const idToken = await user.getIdToken(true);
+
+      // 2. Call delete API
+      const res = await fetch('/api/profile/delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        }
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to delete account.');
+      }
+
+      // 3. Clear store and navigate away
+      const logout = useAppStore.getState().logout;
+      await logout();
+      
+      // Navigate to register/join page with a success message query
+      router.push('/register?deleted=true');
+    } catch (err: any) {
+      console.error('Account deletion error:', err);
+      triggerShake();
+      setMessage({ type: 'error', text: err.message || 'An error occurred during account deletion.' });
+      setShowDeleteConfirm(false);
+    } finally {
+      setDeleting(false);
+      setDeleteConfirmText('');
     }
   };
 
@@ -503,6 +554,44 @@ export default function ProfileClient() {
                 To update games or roles, contact a SHAKTRIX admin.
                 Your Riot ID can be linked from the <strong style={{ color: 'var(--accent-cyan)' }}>VALORANT Details</strong> tab.
               </span>
+            </div>
+
+            {/* Danger Zone: Delete Account */}
+            <div style={{ 
+              marginTop: '2.5rem', 
+              padding: '1.5rem', 
+              borderRadius: '12px', 
+              background: 'rgba(255, 60, 60, 0.03)', 
+              border: '1px solid rgba(255, 60, 60, 0.2)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '1rem'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <AlertCircle size={20} style={{ color: 'var(--accent-red)' }} />
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#fff', margin: 0 }}>Danger Zone</h3>
+              </div>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0, lineHeight: 1.5 }}>
+                Permanently delete your SHAKTRIX account, release your Gamertag <strong style={{ color: 'var(--accent-cyan)' }}>@{profile.gamertag}</strong>, and remove all associated team and profile records. This action is irreversible.
+              </p>
+              <button 
+                onClick={() => setShowDeleteConfirm(true)}
+                className="btn"
+                style={{ 
+                  width: 'fit-content', 
+                  padding: '0.5rem 1.25rem', 
+                  borderRadius: '8px', 
+                  background: 'linear-gradient(135deg, #ff3c3c 0%, #aa0000 100%)', 
+                  border: 'none', 
+                  color: '#fff', 
+                  fontWeight: 700, 
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  boxShadow: '0 0 10px rgba(255, 60, 60, 0.2)'
+                }}
+              >
+                Delete Account
+              </button>
             </div>
           </div>
         )}
@@ -839,6 +928,123 @@ export default function ProfileClient() {
         )}
 
       </div>
+      {/* ACCOUNT DELETION CONFIRMATION MODAL */}
+      {showDeleteConfirm && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 1000,
+          background: 'rgba(2, 6, 16, 0.85)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '1.5rem',
+          animation: 'dropdownFadeIn 0.2s ease forwards'
+        }}>
+          <div className="glass-panel" style={{
+            width: '100%',
+            maxWidth: '440px',
+            border: '1px solid rgba(255, 60, 60, 0.4)',
+            boxShadow: '0 20px 50px rgba(0, 0, 0, 0.8), 0 0 30px rgba(255, 60, 60, 0.2)',
+            borderRadius: '16px',
+            padding: '2.5rem',
+            textAlign: 'center',
+            position: 'relative'
+          }}>
+            <div style={{
+              width: '56px',
+              height: '56px',
+              borderRadius: '50%',
+              background: 'rgba(255, 60, 60, 0.15)',
+              border: '1px solid rgba(255, 60, 60, 0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 1.25rem auto',
+              color: 'var(--accent-red)'
+            }}>
+              <AlertCircle size={28} />
+            </div>
+
+            <h3 style={{ fontSize: '1.35rem', fontWeight: 800, marginBottom: '0.75rem', color: '#ffffff' }}>
+              Confirm Account Deletion
+            </h3>
+
+            <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', marginBottom: '1.5rem', lineHeight: 1.5 }}>
+              This is permanent and cannot be undone. To confirm, please type your gamertag <strong style={{ color: 'var(--accent-cyan)' }}>{profile.gamertag}</strong> below:
+            </p>
+
+            <div style={{ marginBottom: '1.5rem', textAlign: 'left' }}>
+              <input
+                type="text"
+                className="glass-input"
+                style={{ textAlign: 'center', fontSize: '1.05rem', letterSpacing: '0.05em' }}
+                placeholder="Type your gamertag"
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                disabled={deleting}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+              <button
+                onClick={() => { setShowDeleteConfirm(false); setDeleteConfirmText(''); }}
+                disabled={deleting}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem 1.25rem',
+                  borderRadius: '8px',
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  color: '#ffffff',
+                  fontWeight: 700,
+                  fontSize: '0.9rem',
+                  cursor: 'pointer',
+                  transition: 'all 0.25s ease'
+                }}
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deleting || deleteConfirmText.trim() !== profile.gamertag}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem 1.25rem',
+                  borderRadius: '8px',
+                  background: deleteConfirmText.trim() === profile.gamertag 
+                    ? 'linear-gradient(135deg, #ff3c3c 0%, #aa0000 100%)'
+                    : 'rgba(255, 255, 255, 0.04)',
+                  border: 'none',
+                  color: deleteConfirmText.trim() === profile.gamertag ? '#ffffff' : 'var(--text-muted)',
+                  fontWeight: 700,
+                  fontSize: '0.9rem',
+                  cursor: deleteConfirmText.trim() === profile.gamertag ? 'pointer' : 'not-allowed',
+                  boxShadow: deleteConfirmText.trim() === profile.gamertag ? '0 0 15px rgba(255, 60, 60, 0.4)' : 'none',
+                  transition: 'all 0.2s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem'
+                }}
+              >
+                {deleting ? (
+                  <>
+                    <Loader size={16} className="animate-spin" />
+                    Deleting...
+                  </>
+                ) : 'Delete Account'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
