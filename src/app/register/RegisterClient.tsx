@@ -13,7 +13,7 @@ import {
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { isAdmin } from '@/lib/adminConfig';
-import { Gamepad2, User, Mail, Lock, AlertCircle, CheckCircle2, Eye, EyeOff } from 'lucide-react';
+import { Gamepad2, User, Mail, Lock, AlertCircle, CheckCircle2, Eye, EyeOff, Calendar } from 'lucide-react';
 
 const GoogleIcon = () => (
   <svg style={{ width: '18px', height: '18px', marginRight: '0.75rem' }} viewBox="0 0 24 24">
@@ -40,6 +40,7 @@ export default function RegisterClient() {
   const [displayName, setDisplayName] = useState('');
   const [gamertag, setGamertag] = useState('');
   const [email, setEmail] = useState('');
+  const [dob, setDob] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
@@ -206,6 +207,7 @@ export default function RegisterClient() {
         uid: user.uid,
         gamertag: cleanGamertag,
         displayName: displayName.trim(),
+        dob: dob || '',
         registeredGames: [],
         preferredRoles: [],
         skillLevel: 'Intermediate',
@@ -390,6 +392,26 @@ export default function RegisterClient() {
                 disabled={loading}
               />
             </div>
+          </div>
+
+          {/* Date of Birth */}
+          <div className="form-group">
+            <label htmlFor="reg-dob" className="form-label">Date of Birth</label>
+            <div className="input-glow-wrapper" style={{ position: 'relative' }}>
+              <Calendar size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+              <input
+                id="reg-dob"
+                type="date"
+                className="glass-input"
+                style={{ paddingLeft: '2.75rem', colorScheme: 'dark' }}
+                value={dob}
+                onChange={(e) => setDob(e.target.value)}
+                disabled={loading}
+              />
+            </div>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+              Required for tournament age brackets & verification (Must be 13+).
+            </p>
           </div>
 
           {/* Password */}

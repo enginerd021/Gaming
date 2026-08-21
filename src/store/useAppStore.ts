@@ -21,6 +21,7 @@ export interface Profile {
   skillLevel: 'Beginner' | 'Intermediate' | 'Advanced';
   riotId?: string;
   bio?: string;
+  dob?: string;
   photoURL?: string;
   avatarUrl?: string;
   gameConnections?: {

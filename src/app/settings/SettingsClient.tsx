@@ -25,6 +25,7 @@ export default function SettingsClient() {
   // Profile state
   const [displayName, setDisplayName] = useState('');
   const [gamertag, setGamertag] = useState('');
+  const [dob, setDob] = useState('');
   const [bio, setBio] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
 
@@ -63,6 +64,7 @@ export default function SettingsClient() {
     if (profile) {
       setDisplayName(profile.displayName || '');
       setGamertag(profile.gamertag || '');
+      setDob(profile.dob || '');
       setBio(profile.bio || '');
       setAvatarUrl(profile.photoURL || profile.avatarUrl || '');
 
@@ -110,6 +112,7 @@ export default function SettingsClient() {
       await updateDoc(ref, {
         displayName: displayName.trim(),
         gamertag: gamertag.trim(),
+        dob: dob || '',
         bio: bio.trim(),
         avatarUrl: avatarUrl.trim(),
         gameConnections: {
@@ -281,6 +284,19 @@ export default function SettingsClient() {
                         value={gamertag}
                         onChange={(e) => setGamertag(e.target.value)}
                         className="glass-input"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="form-label" style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.35rem' }}>
+                        Date of Birth
+                      </label>
+                      <input
+                        type="date"
+                        value={dob}
+                        onChange={(e) => setDob(e.target.value)}
+                        className="glass-input"
+                        style={{ colorScheme: 'dark' }}
                       />
                     </div>
 
