@@ -74,55 +74,23 @@ export default function ProfileClient() {
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [deleting, setDeleting] = useState(false);
 
-  // Riot ID Linking Modal States
-  const [showRiotModal, setShowRiotModal] = useState(false);
-  const [riotModalInput, setRiotModalInput] = useState('');
-  const [linkingRiot, setLinkingRiot] = useState(false);
-  const [riotLinkError, setRiotLinkError] = useState<string | null>(null);
-  const [riotAuthStep, setRiotAuthStep] = useState<'input' | 'authorizing' | 'success'>('input');
+  // Riot ID Input State
+  const [riotInput, setRiotInput] = useState('');
 
-  const handleLinkRiotSubmit = async (tagToLink: string) => {
+  const handleNavigateToLinkRiot = (tagToLink: string) => {
     const cleanId = tagToLink.trim();
     if (!cleanId) {
-      setRiotLinkError('Please enter your Riot ID (e.g. YashiAdarsh#6946).');
+      setMessage({ type: 'error', text: 'Please enter your Riot ID (e.g. YashiAdarsh#6946 or TenZ#SEN).' });
+      triggerShake();
       return;
     }
     if (!/^[^#]+#[^#]+$/.test(cleanId)) {
-      setRiotLinkError('Invalid Riot ID format. Please use GameName#TagLine (e.g. YashiAdarsh#6946).');
+      setMessage({ type: 'error', text: 'Invalid Riot ID format. Use GameName#TagLine (e.g. YashiAdarsh#6946 or TenZ#SEN).' });
+      triggerShake();
       return;
     }
-
-    setLinkingRiot(true);
-    setRiotLinkError(null);
-    setRiotAuthStep('authorizing');
-
-    try {
-      if (!profile?.uid) throw new Error('Profile not loaded');
-
-      // Simulate OAuth handshake validation
-      await new Promise(res => setTimeout(res, 1200));
-
-      const profileRef = doc(db, 'profiles', profile.uid);
-      await updateDoc(profileRef, {
-        riotId: cleanId,
-        'gameConnections.riotId': cleanId,
-      });
-
-      setRiotId(cleanId);
-      await syncRiotScore(cleanId);
-
-      setRiotAuthStep('success');
-      setTimeout(() => {
-        setShowRiotModal(false);
-        setRiotAuthStep('input');
-        setMessage({ type: 'success', text: `Riot ID ${cleanId} linked successfully!` });
-      }, 1400);
-    } catch (err: any) {
-      setRiotLinkError(err.message || 'Failed to connect Riot account. Please check your Riot ID and try again.');
-      setRiotAuthStep('input');
-    } finally {
-      setLinkingRiot(false);
-    }
+    // Navigate to verification page in the same window
+    router.push(`/link-riot-id?tag=${encodeURIComponent(cleanId)}`);
   };
 
   const handleUnlinkRiot = async () => {
@@ -624,43 +592,43 @@ export default function ProfileClient() {
                   ) : (
                     <div style={{ 
                       marginTop: '0.35rem', 
-                      padding: '1rem 1.25rem', 
+                      padding: '1.25rem', 
                       borderRadius: '12px', 
-                      background: 'rgba(255, 70, 85, 0.06)', 
-                      border: '1px solid rgba(255, 70, 85, 0.25)', 
+                      background: 'rgba(6, 14, 30, 0.6)', 
+                      border: '1px solid var(--border-color)', 
                       display: 'flex', 
-                      alignItems: 'center', 
-                      justifyContent: 'space-between', 
-                      gap: '1rem', 
-                      flexWrap: 'wrap' 
+                      flexDirection: 'column', 
+                      gap: '0.75rem' 
                     }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                        <Gamepad2 size={20} style={{ color: '#FF4655', flexShrink: 0 }} />
-                        <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                          Link your Riot ID to sync VALORANT stats and tournament data.
-                        </span>
+                      <label style={{ fontSize: '0.825rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                        Riot ID (GameName#TagLine)
+                      </label>
+                      <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                        <input
+                          type="text"
+                          placeholder="e.g. YashiAdarsh#6946 or TenZ#SEN"
+                          value={riotInput}
+                          onChange={(e) => setRiotInput(e.target.value)}
+                          className="glass-input"
+                          style={{ flex: 1, minWidth: '220px' }}
+                        />
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => { setRiotModalInput(profile.riotId || ''); setShowRiotModal(true); }}
-                        className="btn"
-                        style={{
-                          background: 'linear-gradient(135deg, #FF4655 0%, #BD3744 100%)',
-                          color: '#ffffff',
-                          border: 'none',
-                          borderRadius: '8px',
-                          padding: '0.45rem 1.1rem',
-                          fontSize: '0.825rem',
-                          fontWeight: 800,
-                          cursor: 'pointer',
-                          boxShadow: '0 0 15px rgba(255, 70, 85, 0.35)',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.4rem'
-                        }}
-                      >
-                        <LinkIcon size={14} /> Link Riot ID
-                      </button>
+                      <div>
+                        <button
+                          type="button"
+                          onClick={() => handleNavigateToLinkRiot(riotInput)}
+                          className="btn btn-primary"
+                          style={{
+                            padding: '0.6rem 1.4rem',
+                            fontSize: '0.85rem',
+                            fontWeight: 800,
+                            borderRadius: '8px',
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
+                          Add Riot ID
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -873,33 +841,35 @@ export default function ProfileClient() {
                 </div>
               );
             })() : (
-              <div style={{ padding: '3.5rem 1.5rem', textAlign: 'center', border: '1px dashed rgba(255, 70, 85, 0.35)', borderRadius: '16px', background: 'rgba(255, 70, 85, 0.04)', color: 'var(--text-secondary)' }}>
-                <Gamepad2 size={46} style={{ margin: '0 auto 1.25rem auto', color: '#FF4655' }} />
+              <div style={{ padding: '3rem 1.5rem', textAlign: 'center', border: '1px dashed var(--border-color)', borderRadius: '16px', background: 'rgba(6, 14, 30, 0.6)', color: 'var(--text-secondary)' }}>
+                <Gamepad2 size={44} style={{ margin: '0 auto 1rem auto', color: 'var(--accent-cyan)' }} />
                 <h3 style={{ fontSize: '1.25rem', fontWeight: 900, marginBottom: '0.5rem', color: '#fff', fontFamily: 'var(--font-title)', textTransform: 'uppercase' }}>No Riot ID Linked</h3>
                 <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', maxWidth: '440px', margin: '0 auto 1.5rem auto', lineHeight: 1.55 }}>
                   Link your Riot ID to sync VALORANT stats and tournament data.
                 </p>
-                <button
-                  type="button"
-                  onClick={() => { setRiotModalInput(profile?.riotId || ''); setShowRiotModal(true); }}
-                  className="btn"
-                  style={{
-                    background: 'linear-gradient(135deg, #FF4655 0%, #BD3744 100%)',
-                    color: '#ffffff',
-                    border: 'none',
-                    borderRadius: '8px',
-                    padding: '0.65rem 1.4rem',
-                    fontSize: '0.875rem',
-                    fontWeight: 800,
-                    cursor: 'pointer',
-                    boxShadow: '0 0 20px rgba(255, 70, 85, 0.4)',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.5rem'
-                  }}
-                >
-                  <LinkIcon size={16} /> Link Riot ID
-                </button>
+                <div style={{ maxWidth: '400px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  <label style={{ fontSize: '0.825rem', fontWeight: 700, color: 'var(--text-secondary)', textAlign: 'left' }}>
+                    Riot ID (GameName#TagLine)
+                  </label>
+                  <div style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap' }}>
+                    <input
+                      type="text"
+                      placeholder="e.g. YashiAdarsh#6946 or TenZ#SEN"
+                      value={riotInput}
+                      onChange={(e) => setRiotInput(e.target.value)}
+                      className="glass-input"
+                      style={{ flex: 1, minWidth: '200px' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleNavigateToLinkRiot(riotInput)}
+                      className="btn btn-primary"
+                      style={{ padding: '0.6rem 1.25rem', fontSize: '0.85rem', fontWeight: 800, whiteSpace: 'nowrap' }}
+                    >
+                      Add Riot ID
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -1219,213 +1189,6 @@ export default function ProfileClient() {
                 ) : 'Delete Account'}
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* RIOT ID OAUTH & TAGLINE LINKING MODAL */}
-      {showRiotModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100vw',
-          height: '100vh',
-          zIndex: 10000,
-          background: 'rgba(2, 6, 16, 0.88)',
-          backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '1.5rem'
-        }} className="fade-in">
-          <div className="glass-panel" style={{
-            width: '100%',
-            maxWidth: '500px',
-            borderRadius: '20px',
-            border: '1px solid rgba(255, 70, 85, 0.35)',
-            background: 'rgba(6, 12, 28, 0.98)',
-            boxShadow: '0 25px 60px rgba(0, 0, 0, 0.8), 0 0 35px rgba(255, 70, 85, 0.2)',
-            padding: '2.25rem',
-            position: 'relative'
-          }}>
-            {/* Close button */}
-            <button 
-              onClick={() => { setShowRiotModal(false); setRiotAuthStep('input'); setRiotLinkError(null); }}
-              style={{
-                position: 'absolute',
-                top: '1.25rem',
-                right: '1.25rem',
-                background: 'none',
-                border: 'none',
-                color: 'var(--text-muted)',
-                cursor: 'pointer'
-              }}
-            >
-              <X size={20} />
-            </button>
-
-            {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', marginBottom: '1.5rem' }}>
-              <div style={{
-                width: '46px',
-                height: '46px',
-                borderRadius: '12px',
-                background: 'linear-gradient(135deg, #FF4655 0%, #BD3744 100%)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#fff',
-                boxShadow: '0 0 18px rgba(255, 70, 85, 0.4)',
-                flexShrink: 0
-              }}>
-                <Gamepad2 size={26} />
-              </div>
-              <div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 900, color: '#fff', margin: 0, fontFamily: 'var(--font-title)', textTransform: 'uppercase' }}>
-                  LINK RIOT GAMES ACCOUNT
-                </h3>
-                <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                  VALORANT Stats & Tournament Rating Handshake
-                </span>
-              </div>
-            </div>
-
-            {riotAuthStep === 'authorizing' && (
-              <div style={{ padding: '2.5rem 1rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
-                <Loader size={38} className="animate-spin" style={{ color: '#FF4655' }} />
-                <h4 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#fff', margin: 0 }}>
-                  Authorizing Riot OAuth &amp; Syncing Telemetry...
-                </h4>
-                <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
-                  Connecting to Riot Sign-In service and validating rank data for <strong style={{ color: 'var(--accent-cyan)' }}>{riotModalInput}</strong>...
-                </p>
-              </div>
-            )}
-
-            {riotAuthStep === 'success' && (
-              <div style={{ padding: '2rem 1rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
-                <div style={{
-                  width: '60px',
-                  height: '60px',
-                  borderRadius: '50%',
-                  background: 'rgba(0, 255, 170, 0.15)',
-                  border: '2px solid #00ffaa',
-                  color: '#00ffaa',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  boxShadow: '0 0 25px rgba(0, 255, 170, 0.3)'
-                }}>
-                  <CheckCircle2 size={34} />
-                </div>
-                <h4 style={{ fontSize: '1.2rem', fontWeight: 900, color: '#fff', margin: 0, fontFamily: 'var(--font-title)' }}>
-                  RIOT ID LINKED SUCCESSFULLY!
-                </h4>
-                <span style={{ fontSize: '0.9rem', color: 'var(--accent-cyan)', fontWeight: 800 }}>
-                  {riotModalInput}
-                </span>
-              </div>
-            )}
-
-            {riotAuthStep === 'input' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.55, margin: 0 }}>
-                  Link your Riot ID to sync VALORANT stats and tournament data, enable live rank displays, and check in for brackets.
-                </p>
-
-                {/* Quick OAuth Option */}
-                <div style={{ 
-                  padding: '1rem', 
-                  borderRadius: '12px', 
-                  background: 'rgba(255, 70, 85, 0.08)', 
-                  border: '1px solid rgba(255, 70, 85, 0.25)', 
-                  display: 'flex', 
-                  flexDirection: 'column', 
-                  gap: '0.75rem' 
-                }}>
-                  <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#FF4655', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                    Option 1: Sign In with Riot OAuth Flow
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const sampleTag = riotModalInput.trim() || profile?.riotId || 'YashiAdarsh#6946';
-                      setRiotModalInput(sampleTag);
-                      handleLinkRiotSubmit(sampleTag);
-                    }}
-                    disabled={linkingRiot}
-                    className="btn"
-                    style={{
-                      width: '100%',
-                      padding: '0.75rem',
-                      borderRadius: '8px',
-                      background: 'linear-gradient(135deg, #FF4655 0%, #BD3744 100%)',
-                      color: '#fff',
-                      fontWeight: 800,
-                      fontSize: '0.875rem',
-                      border: 'none',
-                      cursor: 'pointer',
-                      boxShadow: '0 0 15px rgba(255, 70, 85, 0.35)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '0.5rem'
-                    }}
-                  >
-                    <ShieldCheck size={18} /> Authorize via Riot Games Sign-In
-                  </button>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <div style={{ flex: 1, height: '1px', background: 'var(--border-color)' }} />
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>OR ENTER MANUALLY</span>
-                  <div style={{ flex: 1, height: '1px', background: 'var(--border-color)' }} />
-                </div>
-
-                {/* Manual Tag Entry */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.4rem' }}>
-                    Riot ID (GameName#TagLine)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. YashiAdarsh#6946 or TenZ#SEN"
-                    value={riotModalInput}
-                    onChange={(e) => setRiotModalInput(e.target.value)}
-                    className="glass-input"
-                    style={{ width: '100%' }}
-                  />
-                </div>
-
-                {riotLinkError && (
-                  <div style={{ fontSize: '0.8rem', color: 'var(--accent-red)', display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'rgba(255, 60, 60, 0.1)', border: '1px solid var(--accent-red)', borderRadius: '8px', padding: '0.5rem 0.85rem' }}>
-                    <AlertCircle size={14} style={{ flexShrink: 0 }} /> {riotLinkError}
-                  </div>
-                )}
-
-                <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
-                  <button
-                    type="button"
-                    onClick={() => setShowRiotModal(false)}
-                    className="btn btn-outline"
-                    style={{ padding: '0.6rem 1.25rem', fontSize: '0.825rem' }}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleLinkRiotSubmit(riotModalInput)}
-                    disabled={linkingRiot}
-                    className="btn btn-primary"
-                    style={{ padding: '0.6rem 1.25rem', fontSize: '0.825rem' }}
-                  >
-                    Verify &amp; Link Account
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       )}
