@@ -496,6 +496,7 @@ export default function Navbar() {
                 {aboutOpen && (
                   <div className="zentry-dropdown-menu right-0">
                     <Link href="/about/mission" onClick={() => setAboutOpen(false)} className="dropdown-item">Platform Mission</Link>
+                    <Link href="/legal" onClick={() => setAboutOpen(false)} className="dropdown-item">Legal & Compliance Hub</Link>
                     <Link href="/about/rulebook" onClick={() => setAboutOpen(false)} className="dropdown-item">Rulebook</Link>
                     <Link href="/community-guidelines" onClick={() => setAboutOpen(false)} className="dropdown-item">Community Guidelines</Link>
                     <Link href="/acceptable-use" onClick={() => setAboutOpen(false)} className="dropdown-item">Acceptable Use Policy</Link>
@@ -553,6 +554,7 @@ export default function Navbar() {
             <Link href="/teams" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>TEAMS</Link>
             <Link href="/leaderboard" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>LEADERBOARD</Link>
             <Link href="/about/mission" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>PLATFORM MISSION</Link>
+            <Link href="/legal" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>LEGAL & COMPLIANCE HUB</Link>
             <Link href="/about/rulebook" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>RULEBOOK</Link>
             <Link href="/community-guidelines" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>COMMUNITY GUIDELINES</Link>
             <Link href="/acceptable-use" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>ACCEPTABLE USE POLICY</Link>
