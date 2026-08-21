@@ -35,7 +35,12 @@ const GoogleIcon = () => (
   </svg>
 );
 
+import { useSearchParams } from 'next/navigation';
+
 export default function LoginClient() {
+  const searchParams = useSearchParams();
+  const isSessionExpired = searchParams.get('reason') === 'session_expired';
+  
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -254,6 +259,25 @@ export default function LoginClient() {
             }}>
               <CheckCircle2 size={18} style={{ flexShrink: 0 }} />
               <span>{successMsg}</span>
+            </div>
+          )}
+
+          {isSessionExpired && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+              background: 'rgba(255, 60, 60, 0.12)',
+              border: '1px solid var(--accent-red)',
+              borderRadius: '8px',
+              padding: '0.75rem 1rem',
+              marginBottom: '1.5rem',
+              color: 'var(--accent-red)',
+              fontSize: '0.875rem',
+              fontWeight: 600
+            }}>
+              <KeyRound size={18} style={{ flexShrink: 0 }} />
+              <span>Your session has expired for security reasons. Please log in again to continue.</span>
             </div>
           )}
 

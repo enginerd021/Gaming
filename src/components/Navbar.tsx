@@ -515,14 +515,21 @@ export default function Navbar() {
                   <div className="zentry-dropdown-menu right-0">
                     <Link href="/about/mission" onClick={() => setAboutOpen(false)} className="dropdown-item">Platform Mission</Link>
                     <Link href="/about/rulebook" onClick={() => setAboutOpen(false)} className="dropdown-item">Rulebook</Link>
+                    <Link href="/community-guidelines" onClick={() => setAboutOpen(false)} className="dropdown-item">Community Guidelines</Link>
+                    <Link href="/acceptable-use" onClick={() => setAboutOpen(false)} className="dropdown-item">Acceptable Use Policy</Link>
                   </div>
                 )}
               </div>
 
-              {/* 6. PROFILE */}
+              {/* 6. PROFILE & SETTINGS */}
               <Link href="/profile" className="zentry-text-link">
                 PROFILE
               </Link>
+              {user && (
+                <Link href="/settings" className="zentry-text-link">
+                  SETTINGS
+                </Link>
+              )}
 
               {/* 7. LOGOUT / AUTH */}
               {user ? (
@@ -715,6 +722,8 @@ export default function Navbar() {
             <Link href="/leaderboard" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>LEADERBOARD</Link>
             <Link href="/about/mission" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>PLATFORM MISSION</Link>
             <Link href="/about/rulebook" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>RULEBOOK</Link>
+            <Link href="/community-guidelines" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>COMMUNITY GUIDELINES</Link>
+            <Link href="/acceptable-use" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>ACCEPTABLE USE POLICY</Link>
             <button 
               onClick={() => { toggleTheme(); setMobileMenuOpen(false); }} 
               style={{ 
@@ -732,6 +741,7 @@ export default function Navbar() {
             {user ? (
                <>
                   <Link href="/profile" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700 }}>PROFILE</Link>
+                  <Link href="/settings" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700 }}>SETTINGS</Link>
                   <button onClick={promptLogout} style={{ background: 'none', border: 'none', color: 'var(--accent-red)', fontWeight: 700, textAlign: 'left', padding: 0 }}>SIGN OUT</button>
                </>
             ) : (
