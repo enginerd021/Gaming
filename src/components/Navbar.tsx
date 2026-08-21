@@ -44,8 +44,10 @@ export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [mobileNotifOpen, setMobileNotifOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
+  const mobileNotifRef = useRef<HTMLDivElement>(null);
   const aboutRef = useRef<HTMLDivElement>(null);
 
   // 2-Theme System (Neon Dark and Minimal Light)
@@ -90,6 +92,22 @@ export default function Navbar() {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [notifOpen]);
+
+  // Click outside mobile notification listener
+  useEffect(() => {
+    const handleClickOutsideMobile = (event: MouseEvent) => {
+      if (mobileNotifRef.current && !mobileNotifRef.current.contains(event.target as Node)) {
+        setMobileNotifOpen(false);
+      }
+    };
+
+    if (mobileNotifOpen) {
+      document.addEventListener('mousedown', handleClickOutsideMobile);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutsideMobile);
+    };
+  }, [mobileNotifOpen]);
 
   // Click outside ABOUT menu listener
   useEffect(() => {
@@ -309,7 +327,7 @@ export default function Navbar() {
           </div>
 
           {/* RIGHT SIDE: Single Theme Toggle -> Notification -> Nav Links */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '2.5rem' }}>
+          <div className="header-right-actions" style={{ display: 'flex', alignItems: 'center', gap: '2.5rem' }}>
             
             <nav className="desktop-nav" style={{ display: 'none', alignItems: 'center', gap: '1.75rem' }}>
               
@@ -501,14 +519,21 @@ export default function Navbar() {
                   <div className="zentry-dropdown-menu right-0">
                     <Link href="/about/mission" onClick={() => setAboutOpen(false)} className="dropdown-item">Platform Mission</Link>
                     <Link href="/about/rulebook" onClick={() => setAboutOpen(false)} className="dropdown-item">Rulebook</Link>
+                    <Link href="/community-guidelines" onClick={() => setAboutOpen(false)} className="dropdown-item">Community Guidelines</Link>
+                    <Link href="/acceptable-use" onClick={() => setAboutOpen(false)} className="dropdown-item">Acceptable Use Policy</Link>
                   </div>
                 )}
               </div>
 
-              {/* 6. PROFILE */}
+              {/* 6. PROFILE & SETTINGS */}
               <Link href="/profile" className="zentry-text-link">
                 PROFILE
               </Link>
+              {user && (
+                <Link href="/settings" className="zentry-text-link">
+                  SETTINGS
+                </Link>
+              )}
 
               {/* 7. LOGOUT / AUTH */}
               {user ? (
@@ -524,6 +549,156 @@ export default function Navbar() {
                 )
               )}
             </nav>
+
+            {/* Mobile Notification Symbol */}
+            {user && (
+              <div 
+                ref={mobileNotifRef} 
+                className="mobile-notif-container" 
+                style={{ 
+                  position: 'relative',
+                  display: 'none'
+                }}
+              >
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setMobileNotifOpen(!mobileNotifOpen);
+                  }}
+                  aria-label={`Notifications, ${notifications.length} unread`}
+                  aria-expanded={mobileNotifOpen}
+                  style={{
+                    position: 'relative',
+                    width: '38px',
+                    height: '38px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: mobileNotifOpen ? 'hsla(186, 100%, 48%, 0.1)' : 'rgba(255, 255, 255, 0.08)',
+                    border: mobileNotifOpen ? '1px solid var(--accent-cyan)' : '1px solid var(--border-color)',
+                    borderRadius: '8px',
+                    color: mobileNotifOpen ? 'var(--accent-cyan)' : 'var(--text-primary)',
+                    cursor: 'pointer',
+                    transition: 'all 0.25s ease',
+                    boxSizing: 'border-box'
+                  }}
+                >
+                  <Bell size={18} />
+                  {notifications.length > 0 && (
+                    <span 
+                      className="pulse-badge"
+                      style={{
+                        position: 'absolute',
+                        top: '-4px',
+                        right: '-4px',
+                        background: 'var(--accent-cyan)',
+                        color: 'var(--bg-primary)',
+                        fontSize: '0.65rem',
+                        fontWeight: 800,
+                        borderRadius: '50%',
+                        height: '16px',
+                        width: '16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                    >
+                      {notifications.length}
+                    </span>
+                  )}
+                </button>
+
+                {/* Mobile Notification Dropdown Panel */}
+                {mobileNotifOpen && (
+                  <div 
+                    className="glass-panel"
+                    style={{
+                      position: 'absolute',
+                      top: '3rem',
+                      right: 0,
+                      width: '280px',
+                      maxHeight: '350px',
+                      overflowY: 'auto',
+                      zIndex: 1000,
+                      padding: '1rem',
+                      border: '1px solid hsla(186, 100%, 48%, 0.15)',
+                      background: 'hsla(223, 20%, 5%, 0.98)',
+                      boxShadow: '0 10px 30px rgba(0, 0, 0, 0.5)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.75rem',
+                      borderRadius: '8px'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>Notifications</span>
+                      {notifications.length > 0 && (
+                        <button 
+                          onClick={handleMarkAllRead}
+                          style={{ background: 'none', border: 'none', color: 'var(--accent-cyan)', fontSize: '0.75rem', cursor: 'pointer', padding: 0 }}
+                        >
+                          Mark all
+                        </button>
+                      )}
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      {notifications.length === 0 ? (
+                        <div style={{ padding: '1.5rem 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', fontStyle: 'italic' }}>
+                          No unread notifications.
+                        </div>
+                      ) : (
+                        notifications.map(notif => (
+                          <div 
+                            key={notif.id}
+                            style={{
+                              padding: '0.6rem',
+                              borderRadius: '6px',
+                              background: 'var(--bg-secondary)',
+                              border: '1px solid var(--border-color)',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '0.25rem'
+                            }}
+                          >
+                            <p style={{ fontSize: '0.8rem', color: 'var(--text-primary)', margin: 0, lineHeight: 1.4 }}>
+                              {notif.message}
+                            </p>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.2rem' }}>
+                              <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                                {formatTimeAgo(notif.createdAt)}
+                              </span>
+                              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                <Link 
+                                  href={
+                                    notif.type === 'team_invite' 
+                                      ? '/teams' 
+                                      : `/tournaments/${notif.relatedId}`
+                                  }
+                                  onClick={() => {
+                                    handleMarkRead(notif.id);
+                                    setMobileNotifOpen(false);
+                                  }}
+                                  style={{ fontSize: '0.65rem', color: 'var(--accent-cyan)', textDecoration: 'none', fontWeight: 600 }}
+                                >
+                                  View
+                                </Link>
+                                <button 
+                                  onClick={() => handleMarkRead(notif.id)}
+                                  style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '0.65rem', cursor: 'pointer', padding: 0 }}
+                                >
+                                  Dismiss
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Mobile Hamburger Menu */}
             <button 
@@ -551,6 +726,8 @@ export default function Navbar() {
             <Link href="/leaderboard" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>LEADERBOARD</Link>
             <Link href="/about/mission" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>PLATFORM MISSION</Link>
             <Link href="/about/rulebook" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>RULEBOOK</Link>
+            <Link href="/community-guidelines" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>COMMUNITY GUIDELINES</Link>
+            <Link href="/acceptable-use" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>ACCEPTABLE USE POLICY</Link>
             <button 
               onClick={() => { toggleTheme(); setMobileMenuOpen(false); }} 
               style={{ 
@@ -568,6 +745,7 @@ export default function Navbar() {
             {user ? (
                <>
                   <Link href="/profile" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700 }}>PROFILE</Link>
+                  <Link href="/settings" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700 }}>SETTINGS</Link>
                   <button onClick={promptLogout} style={{ background: 'none', border: 'none', color: 'var(--accent-red)', fontWeight: 700, textAlign: 'left', padding: 0 }}>SIGN OUT</button>
                </>
             ) : (
@@ -587,6 +765,15 @@ export default function Navbar() {
           .mobile-toggle { display: none !important; }
           .mobile-dropdown { display: none !important; }
           .mobile-theme-btn { display: none !important; }
+        }
+        @media (max-width: 1024px) {
+          .mobile-notif-container { display: block !important; }
+          header {
+            padding: 1rem 1.5rem !important;
+          }
+          .header-right-actions {
+            gap: 1rem !important;
+          }
         }
         .zentry-pill-btn {
           display: flex;

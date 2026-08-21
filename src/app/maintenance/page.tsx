@@ -1,8 +1,9 @@
 'use client';
 
 import React from 'react';
-import { MessageSquare, ShieldAlert } from 'lucide-react';
+import { MessageSquare, ShieldAlert, Clock, RefreshCw, Zap } from 'lucide-react';
 import Button from '@/components/ui/Button';
+import GlassCard from '@/components/ui/GlassCard';
 
 export default function MaintenancePage() {
   return (
@@ -23,7 +24,7 @@ export default function MaintenancePage() {
       <div style={{
         position: 'relative',
         width: '100%',
-        maxWidth: '580px',
+        maxWidth: '600px',
         textAlign: 'center',
         zIndex: 1,
       }} className="fade-in">
@@ -35,83 +36,126 @@ export default function MaintenancePage() {
           letterSpacing: '0.18em',
           color: '#fff',
           fontFamily: 'var(--font-title)',
-          marginBottom: '2.5rem',
+          marginBottom: '2rem',
           textShadow: '0 0 15px rgba(0,240,255,0.4)',
         }}>
           SHAKT<span style={{ color: 'var(--accent-cyan)' }}>RIX</span>
         </div>
 
-        {/* Warning Indicator */}
-        <div style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: '64px',
-          height: '64px',
-          borderRadius: '12px',
-          background: 'rgba(0, 240, 255, 0.05)',
-          border: '1px solid var(--border-color)',
-          color: 'var(--accent-cyan)',
-          boxShadow: 'var(--border-glow)',
-          marginBottom: '2rem',
-          animation: 'pulseSkeleton 2s infinite ease-in-out'
-        }}>
-          <ShieldAlert size={30} />
-        </div>
-
-        <h1 style={{
-          fontSize: 'clamp(1.8rem, 5vw, 2.75rem)',
-          fontWeight: 900,
-          textTransform: 'uppercase',
-          color: 'var(--text-primary)',
-          letterSpacing: '0.05em',
-          marginBottom: '1rem',
-          fontFamily: 'var(--font-title)',
-          lineHeight: '1.2'
-        }}>
-          Upgrading the Arena
-        </h1>
-
-        <p style={{
-          color: 'var(--text-secondary)',
-          fontSize: 'clamp(0.95rem, 2vw, 1.05rem)',
-          lineHeight: '1.6',
-          maxWidth: '480px',
-          margin: '0 auto 2rem',
-          fontFamily: 'var(--font-body)',
-        }}>
-          The gaming network is undergoing scheduled hardware and software maintenance to enhance tournament synchronization and matchmaking speeds.
-        </p>
-
-        {/* Estimated Return Time Block */}
-        <div className="glass-panel" style={{
-          padding: '1rem 1.5rem',
-          border: '1px solid rgba(0, 240, 255, 0.2)',
-          borderRadius: '10px',
-          background: 'rgba(10, 16, 36, 0.6)',
-          display: 'inline-block',
-          marginBottom: '2.5rem',
-          fontFamily: 'monospace',
-          fontSize: '0.9rem',
-          color: 'var(--accent-cyan)',
-          letterSpacing: '0.05em',
-          boxShadow: '0 0 15px rgba(0, 240, 255, 0.05)'
-        }}>
-          ESTIMATED BACK ONLINE: AUGUST 21, 2026, 21:00 UTC
-        </div>
-
-        <div style={{
+        <GlassCard variant="panel" style={{
+          padding: '2.5rem 2rem',
+          textAlign: 'center',
+          borderRadius: '20px',
+          border: '1px solid rgba(0, 240, 255, 0.25)',
+          background: 'rgba(6, 14, 30, 0.95)',
+          boxShadow: '0 25px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(0, 240, 255, 0.15)',
           display: 'flex',
-          justifyContent: 'center',
+          flexDirection: 'column',
           alignItems: 'center',
-        }}>
-          <a href="https://discord.gg/shaktrix" target="_blank" rel="noopener noreferrer">
-            <Button variant="outline" style={{ padding: '0.8rem 1.8rem', display: 'flex', alignItems: 'center', gap: '0.5rem', borderRadius: '10px' }}>
-              <MessageSquare size={18} />
-              Join Discord Community
+          gap: '1.5rem'
+        }} hoverable={false}>
+          
+          {/* Warning Indicator */}
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '64px',
+            height: '64px',
+            borderRadius: '12px',
+            background: 'rgba(0, 240, 255, 0.05)',
+            border: '1px solid var(--border-color)',
+            color: 'var(--accent-cyan)',
+            boxShadow: 'var(--border-glow)',
+            animation: 'pulseSkeleton 2s infinite ease-in-out'
+          }}>
+            <ShieldAlert size={30} />
+          </div>
+
+          <h1 style={{
+            fontSize: 'clamp(1.6rem, 5vw, 2.2rem)',
+            fontWeight: 900,
+            textTransform: 'uppercase',
+            color: 'var(--text-primary)',
+            letterSpacing: '0.05em',
+            margin: 0,
+            fontFamily: 'var(--font-title)',
+            lineHeight: '1.2'
+          }}>
+            WE&apos;RE UPGRADING THE <span className="text-gradient-gold" style={{ background: 'linear-gradient(90deg, var(--accent-gold), #D97706)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>ARENA</span>
+          </h1>
+
+          <p style={{
+            color: 'var(--text-secondary)',
+            fontSize: '0.95rem',
+            lineHeight: '1.6',
+            maxWidth: '480px',
+            margin: 0,
+            fontFamily: 'var(--font-body)',
+          }}>
+            The gaming network is undergoing scheduled hardware and software maintenance for database optimization, bracket engine acceleration, and real-time anti-cheat updates.
+          </p>
+
+          {/* Downtime Stats Banner */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+            gap: '1rem',
+            background: 'rgba(6, 12, 28, 0.7)',
+            padding: '1.25rem',
+            borderRadius: '12px',
+            border: '1px solid rgba(0, 240, 255, 0.1)',
+            width: '100%',
+            textAlign: 'center'
+          }}>
+            <div>
+              <Clock size={18} style={{ color: 'var(--accent-cyan)', marginBottom: '0.2rem' }} />
+              <strong style={{ display: 'block', fontSize: '1.1rem', color: '#fff' }}>~ 45 Mins</strong>
+              <span style={{ fontSize: '0.725rem', color: 'var(--text-muted)' }}>ESTIMATED DOWNTIME</span>
+            </div>
+            <div>
+              <Zap size={18} style={{ color: 'var(--accent-gold)', marginBottom: '0.2rem' }} />
+              <strong style={{ display: 'block', fontSize: '1.1rem', color: '#fff' }}>v2.4.0</strong>
+              <span style={{ fontSize: '0.725rem', color: 'var(--text-muted)' }}>RELEASE VERSION</span>
+            </div>
+          </div>
+
+          {/* Estimated Return Time Block */}
+          <div style={{
+            padding: '0.8rem 1.2rem',
+            border: '1px solid rgba(0, 240, 255, 0.15)',
+            borderRadius: '10px',
+            background: 'rgba(10, 16, 36, 0.6)',
+            width: '100%',
+            fontFamily: 'monospace',
+            fontSize: '0.85rem',
+            color: 'var(--accent-cyan)',
+            letterSpacing: '0.05em',
+            boxShadow: '0 0 15px rgba(0, 240, 255, 0.05)'
+          }}>
+            ESTIMATED BACK ONLINE: AUGUST 21, 2026, 21:00 UTC
+          </div>
+
+          {/* Action buttons */}
+          <div style={{ display: 'flex', gap: '0.85rem', flexWrap: 'wrap', justifyContent: 'center', width: '100%' }}>
+            <Button
+              onClick={() => window.location.reload()}
+              variant="primary"
+              style={{ padding: '0.75rem 1.5rem', borderRadius: '10px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+            >
+              <RefreshCw size={16} /> REFRESH ARENA
             </Button>
-          </a>
-        </div>
+
+            <a href="https://discord.gg/shaktrix" target="_blank" rel="noopener noreferrer">
+              <Button
+                variant="outline"
+                style={{ padding: '0.75rem 1.5rem', borderRadius: '10px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+              >
+                <MessageSquare size={16} /> DISCORD HUB
+              </Button>
+            </a>
+          </div>
+        </GlassCard>
       </div>
     </main>
   );

@@ -20,6 +20,20 @@ export interface Profile {
   preferredRoles: string[];
   skillLevel: 'Beginner' | 'Intermediate' | 'Advanced';
   riotId?: string;
+  bio?: string;
+  photoURL?: string;
+  avatarUrl?: string;
+  gameConnections?: {
+    riotId?: string;
+    steamId?: string;
+    bgmiId?: string;
+    discordHandle?: string;
+  };
+  notificationSettings?: {
+    emailNotifs?: boolean;
+    teamInviteNotifs?: boolean;
+    matchReminderNotifs?: boolean;
+  };
   /**
    * Display-only role field. Set at registration based on admin email list.
    * ⚠️ NOT used for security enforcement — the real gate is isAdminEmail()

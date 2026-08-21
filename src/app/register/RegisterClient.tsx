@@ -215,10 +215,17 @@ export default function RegisterClient() {
         router.push('/verify-email');
       }, 800);
     } catch (err: unknown) {
-      console.error('Registration error:', err);
-      triggerShake();
       const rErr = err as { code?: string; message?: string };
-      if (rErr.code === 'auth/email-already-in-use') {
+      const isExpectedError = rErr.code === 'auth/email-already-in-use';
+      
+      if (!isExpectedError) {
+        console.error('Registration error:', err);
+      } else {
+        console.warn('Registration failed:', rErr.code);
+      }
+      
+      triggerShake();
+      if (isExpectedError) {
         setError('This email is already registered.');
       } else {
         setError(rErr.message || 'An error occurred during registration.');
