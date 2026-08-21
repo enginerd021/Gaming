@@ -1,4 +1,5 @@
-import { collection, onSnapshot, doc, query, orderBy, limit, Unsubscribe, writeBatch, getDoc, getDocs, updateDoc, setDoc, deleteDoc, serverTimestamp, where } from 'firebase/firestore';
+import { collection, doc, query, orderBy, limit, Unsubscribe, serverTimestamp, where } from 'firebase/firestore';
+import { onSnapshot, writeBatch, getDoc, getDocs, updateDoc, setDoc, deleteDoc } from '@/lib/firebaseCall';
 import { db } from '@/lib/firebase';
 import { calculateRiotScore } from '@/lib/riotScoreCalculator';
 import { achievementService } from '@/services/achievementService';
@@ -61,7 +62,7 @@ export const tournamentService = {
       limit(max)
     );
     return onSnapshot(q, (snap) => {
-      const list = snap.docs.map(d => ({ id: d.id, ...d.data() } as Tournament));
+      const list = snap.docs.map((d: any) => ({ id: d.id, ...d.data() } as Tournament));
       onUpdate(list);
     }, (err) => {
       console.error("Error in subscribeRecentTournaments:", err);
@@ -78,7 +79,7 @@ export const tournamentService = {
       orderBy("createdAt", "desc")
     );
     return onSnapshot(q, (snap) => {
-      const list = snap.docs.map(d => ({ id: d.id, ...d.data() } as Tournament));
+      const list = snap.docs.map((d: any) => ({ id: d.id, ...d.data() } as Tournament));
       onUpdate(list);
     }, (err) => {
       console.error("Error in subscribeAllTournaments:", err);
@@ -110,9 +111,9 @@ export const tournamentService = {
   subscribeMatches(tournamentId: string, onUpdate: (matches: Match[]) => void, onError?: (err: any) => void): Unsubscribe {
     const ref = collection(db, "tournaments", tournamentId, "matches");
     return onSnapshot(ref, (snap) => {
-      const list = snap.docs.map(d => ({ id: d.id, ...d.data() } as Match));
+      const list = snap.docs.map((d: any) => ({ id: d.id, ...d.data() } as Match));
       // Sort in memory by round and matchNumber
-      list.sort((a, b) => {
+      list.sort((a: any, b: any) => {
         if (a.round !== b.round) return a.round - b.round;
         return a.matchNumber - b.matchNumber;
       });
@@ -130,7 +131,7 @@ export const tournamentService = {
     try {
       const matchesRef = collection(db, "tournaments", tournamentId, "matches");
       const matchesSnap = await getDocs(matchesRef);
-      const list = matchesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const list = matchesSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
       list.sort((a: any, b: any) => {
         if (a.round !== b.round) return a.round - b.round;
         return a.matchNumber - b.matchNumber;
@@ -183,7 +184,7 @@ export const tournamentService = {
       const matchesRef = collection(db, "tournaments", tournamentId, "matches");
       const matchesSnap = await getDocs(matchesRef);
       const batch = writeBatch(db);
-      matchesSnap.docs.forEach(d => batch.delete(d.ref));
+      matchesSnap.docs.forEach((d: any) => batch.delete(d.ref));
       // Reset tournament document
       batch.update(tRef, {
         status: 'Upcoming',

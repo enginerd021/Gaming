@@ -9,6 +9,7 @@ import { Trophy, Search, Gamepad2, PlusCircle, X, Zap, Clock, CheckCircle, Radio
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import { TournamentCountdown } from '@/components/TournamentCountdown';
+import EmptySearchResult from '@/components/ui/EmptySearchResult';
 import { getEffectiveTournamentStatus, useEffectiveTournamentStatus } from '@/lib/tournamentUtils';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -346,36 +347,14 @@ export default function TournamentsView() {
             ))}
           </div>
         ) : filteredTournaments.length === 0 ? (
-          <div className="empty-state-pro">
-            <div className="empty-state-icon">
-              <Trophy size={36} />
-            </div>
-            <h3 style={{ fontSize: '1.4rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.5rem', letterSpacing: '-0.01em' }}>
-              No Tournaments Found
-            </h3>
-            <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem', maxWidth: '400px', margin: '0 auto 2rem', fontSize: '0.95rem' }}>
-              {hasFilters
-                ? 'Try adjusting your filters or clearing the search.'
-                : 'No tournaments have been scheduled yet. Be the first to host one!'}
-            </p>
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-              {hasFilters && (
-                <Button
-                  variant="outline"
-                  onClick={() => { setSearchTerm(''); setSelectedGame('All'); setSelectedStatus('All'); setSelectedEntryType('All'); }}
-                >
-                  <X size={16} /> Clear All Filters
-                </Button>
-              )}
-              {user && (
-                <Link href="/tournaments/create">
-                  <Button variant="primary" style={{ borderRadius: '10px' }}>
-                    <PlusCircle size={16} /> Host First Tournament
-                  </Button>
-                </Link>
-              )}
-            </div>
-          </div>
+          <EmptySearchResult
+            title="No Tournaments Found"
+            searchQuery={searchTerm}
+            description={hasFilters ? "No tournaments matched your selected search filters or game tags." : "No tournaments have been scheduled yet. Be the first to host one!"}
+            onReset={hasFilters ? () => { setSearchTerm(''); setSelectedGame('All'); setSelectedStatus('All'); setSelectedEntryType('All'); } : undefined}
+            actionLabel={isAdmin(user?.email) ? "Host New Tournament" : "Explore Leaderboard"}
+            onAction={isAdmin(user?.email) ? () => window.location.href = '/tournaments/create' : () => window.location.href = '/leaderboard'}
+          />
         ) : (
           <div className="grid-responsive">
             {filteredTournaments.map(tournament => (

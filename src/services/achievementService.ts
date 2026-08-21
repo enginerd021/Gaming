@@ -1,6 +1,7 @@
-import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { doc, arrayUnion } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { ACHIEVEMENTS } from '@/lib/achievements';
+import { updateDoc } from '@/lib/firebaseCall';
 
 /**
  * Service to handle checking, unlocking, and notifying achievements.
