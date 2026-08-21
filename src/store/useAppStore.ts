@@ -34,6 +34,14 @@ export interface Profile {
     teamInviteNotifs?: boolean;
     matchReminderNotifs?: boolean;
   };
+  websitePreferences?: {
+    themeMode?: 'neon' | 'light';
+    serverRegion?: string;
+    reducedMotion?: boolean;
+    soundEffects?: boolean;
+    publicProfile?: boolean;
+    performanceMode?: boolean;
+  };
   /**
    * Display-only role field. Set at registration based on admin email list.
    * ⚠️ NOT used for security enforcement — the real gate is isAdminEmail()
