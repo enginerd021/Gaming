@@ -168,7 +168,12 @@ export default function LoginClient() {
     } catch (err: unknown) {
       triggerShake();
       const authErr = err as { code?: string; message?: string };
-      if (authErr.code === 'auth/user-not-found' || authErr.code === 'auth/wrong-password' || authErr.code === 'auth/invalid-credential') {
+      const isExpectedError = 
+        authErr.code === 'auth/user-not-found' || 
+        authErr.code === 'auth/wrong-password' || 
+        authErr.code === 'auth/invalid-credential';
+      
+      if (isExpectedError) {
         setError('Password does not match or email is not found. Please click "Forgot Password?" below to reset.');
       } else {
         console.error('Login error:', err);
