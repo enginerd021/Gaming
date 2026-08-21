@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useAppStore, startUserListeners, stopUserListeners } from '@/store/useAppStore';
+import { isAdmin } from '@/lib/adminConfig';
 import SkeletonLoader from '@/components/ui/SkeletonLoader';
 
 // Session expiration duration: 2 hours (7,200,000 milliseconds)
@@ -42,6 +43,20 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       router.push('/setup-gamer-id');
     }
   }, [user, profile, loading, pathname, router]);
+
+  // Auto redirect logged-in admins to /admin whenever they access regular player pages
+  useEffect(() => {
+    if (
+      user &&
+      !loading &&
+      isAdmin(user.email) &&
+      pathname !== '/admin' &&
+      !pathname.startsWith('/tournaments') &&
+      pathname !== '/login'
+    ) {
+      router.push('/admin');
+    }
+  }, [user, loading, pathname, router]);
 
   // Offline / Network listener
   useEffect(() => {

@@ -4,7 +4,8 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAppStore } from '@/store/useAppStore';
-import { User, LogOut, Menu, X, Bell, ChevronDown, Home, Palette, Check, Sun, Moon, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { User, LogOut, Menu, X, Bell, ChevronDown, Home, Palette, Check, Sun, Moon, AlertTriangle, CheckCircle2, Shield } from 'lucide-react';
+import { isAdmin } from '@/lib/adminConfig';
 import { 
   collection, 
   query, 
@@ -495,59 +496,84 @@ export default function Navbar() {
                 </div>
               )}
 
-              {/* 2. LEADERBOARD */}
-              <Link href="/leaderboard" className="zentry-text-link">
-                LEADERBOARD
-              </Link>
-
-              {/* 3. TOURNAMENTS */}
-              <Link href="/tournaments" className="zentry-text-link">
-                TOURNAMENTS
-              </Link>
-
-              {/* 4. TEAMS */}
-              <Link href="/teams" className="zentry-text-link">
-                TEAMS
-              </Link>
-
-              {/* 5. ABOUT US */}
-              <div ref={aboutRef} style={{ position: 'relative' }}>
-                <button onClick={() => { setAboutOpen(!aboutOpen); setProductsOpen(false); }} className="zentry-text-link flex items-center gap-1">
-                  ABOUT <ChevronDown size={12} />
-                </button>
-                {aboutOpen && (
-                  <div className="zentry-dropdown-menu right-0">
-                    <Link href="/about/mission" onClick={() => setAboutOpen(false)} className="dropdown-item">Platform Mission</Link>
-                    <Link href="/legal" onClick={() => setAboutOpen(false)} className="dropdown-item">Legal & Compliance Hub</Link>
-                    <Link href="/about/rulebook" onClick={() => setAboutOpen(false)} className="dropdown-item">Rulebook</Link>
-                    <Link href="/community-guidelines" onClick={() => setAboutOpen(false)} className="dropdown-item">Community Guidelines</Link>
-                    <Link href="/acceptable-use" onClick={() => setAboutOpen(false)} className="dropdown-item">Acceptable Use Policy</Link>
-                  </div>
-                )}
-              </div>
-
-              {/* 6. PROFILE & SETTINGS */}
-              <Link href="/profile" className="zentry-text-link">
-                PROFILE
-              </Link>
-              {user && (
-                <Link href="/settings" className="zentry-text-link">
-                  SETTINGS
-                </Link>
-              )}
-
-              {/* 7. LOGOUT / AUTH */}
-              {user ? (
-                <button onClick={promptLogout} style={{ background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', opacity: 0.8 }} className="hover-opacity" aria-label="Log out">
-                  <LogOut size={18} />
-                </button>
+              {/* Admin gets a stripped-down nav — only ADMIN PANEL + Sign Out */}
+              {user && isAdmin(user.email) ? (
+                <>
+                  <span style={{
+                    padding: '0.15rem 0.6rem', borderRadius: '9999px',
+                    background: 'rgba(176, 38, 255, 0.15)', border: '1px solid rgba(176, 38, 255, 0.4)',
+                    color: 'var(--accent-violet)', fontSize: '0.65rem', fontWeight: 800, letterSpacing: '0.1em',
+                    display: 'flex', alignItems: 'center', gap: '0.3rem'
+                  }}>
+                    <Shield size={11} /> ADMIN
+                  </span>
+                  <Link href="/admin" className="zentry-text-link" style={{ color: 'var(--accent-cyan)' }}>
+                    ADMIN PANEL
+                  </Link>
+                  <Link href="/tournaments" className="zentry-text-link">
+                    TOURNAMENTS
+                  </Link>
+                  <button onClick={promptLogout} style={{ background: 'none', border: 'none', color: 'var(--accent-red)', cursor: 'pointer', opacity: 0.9, display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em' }} className="hover-opacity" aria-label="Log out">
+                    <LogOut size={15} /> Sign Out
+                  </button>
+                </>
               ) : (
-                !loading && (
-                  <>
-                    <Link href="/login" className="zentry-text-link">LOGIN</Link>
-                    <Link href="/register" className="zentry-text-link">JOIN NOW</Link>
-                  </>
-                )
+                <>
+                  {/* 1. LEADERBOARD */}
+                  <Link href="/leaderboard" className="zentry-text-link">
+                    LEADERBOARD
+                  </Link>
+
+                  {/* 3. TOURNAMENTS */}
+                  <Link href="/tournaments" className="zentry-text-link">
+                    TOURNAMENTS
+                  </Link>
+
+                  {/* 4. TEAMS */}
+                  <Link href="/teams" className="zentry-text-link">
+                    TEAMS
+                  </Link>
+
+                  {/* 5. ABOUT US */}
+                  <div ref={aboutRef} style={{ position: 'relative' }}>
+                    <button onClick={() => { setAboutOpen(!aboutOpen); setProductsOpen(false); }} className="zentry-text-link flex items-center gap-1">
+                      ABOUT <ChevronDown size={12} />
+                    </button>
+                    {aboutOpen && (
+                      <div className="zentry-dropdown-menu right-0">
+                        <Link href="/about/mission" onClick={() => setAboutOpen(false)} className="dropdown-item">Platform Mission</Link>
+                        <Link href="/legal" onClick={() => setAboutOpen(false)} className="dropdown-item">Legal &amp; Compliance Hub</Link>
+                        <Link href="/about/rulebook" onClick={() => setAboutOpen(false)} className="dropdown-item">Rulebook</Link>
+                        <Link href="/community-guidelines" onClick={() => setAboutOpen(false)} className="dropdown-item">Community Guidelines</Link>
+                        <Link href="/acceptable-use" onClick={() => setAboutOpen(false)} className="dropdown-item">Acceptable Use Policy</Link>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 6. PROFILE & SETTINGS */}
+                  <Link href="/profile" className="zentry-text-link">
+                    PROFILE
+                  </Link>
+                  {user && (
+                    <Link href="/settings" className="zentry-text-link">
+                      SETTINGS
+                    </Link>
+                  )}
+
+                  {/* 7. LOGOUT / AUTH */}
+                  {user ? (
+                    <button onClick={promptLogout} style={{ background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', opacity: 0.8 }} className="hover-opacity" aria-label="Log out">
+                      <LogOut size={18} />
+                    </button>
+                  ) : (
+                    !loading && (
+                      <>
+                        <Link href="/login" className="zentry-text-link">LOGIN</Link>
+                        <Link href="/register" className="zentry-text-link">JOIN NOW</Link>
+                      </>
+                    )
+                  )}
+                </>
               )}
             </nav>
 
@@ -722,39 +748,57 @@ export default function Navbar() {
             display: 'flex', flexDirection: 'column', gap: '1rem', border: '1px solid rgba(0, 240, 255, 0.2)',
             boxShadow: '0 20px 40px rgba(0,0,0,0.8)'
          }} className="mobile-dropdown">
-            <Link href="/tournaments" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>TOURNAMENTS</Link>
-            <Link href="/teams" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>TEAMS</Link>
-            <Link href="/leaderboard" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>LEADERBOARD</Link>
-            <Link href="/about/mission" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>PLATFORM MISSION</Link>
-            <Link href="/legal" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>LEGAL & COMPLIANCE HUB</Link>
-            <Link href="/about/rulebook" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>RULEBOOK</Link>
-            <Link href="/community-guidelines" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>COMMUNITY GUIDELINES</Link>
-            <Link href="/acceptable-use" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>ACCEPTABLE USE POLICY</Link>
-            <button 
-              onClick={() => { toggleTheme(); setMobileMenuOpen(false); }} 
-              style={{ 
-                background: 'rgba(255,255,255,0.08)', border: '1px solid var(--border-color)', borderRadius: '8px', 
-                padding: '0.5rem', color: theme === 'neon' ? 'var(--neon-blue)' : 'var(--accent-gold)', 
-                display: 'flex', alignItems: 'center', justifyContent: 'center', 
-                cursor: 'pointer', width: 'fit-content'
-              }}
-              aria-label={`Switch to ${theme === 'neon' ? 'Light' : 'Dark'} Mode`}
-              title={`Switch to ${theme === 'neon' ? 'Light' : 'Dark'} Mode`}
-            >
-              {theme === 'neon' ? <Moon size={18} /> : <Sun size={18} />}
-            </button>
-            <hr style={{ borderColor: 'rgba(255,255,255,0.1)' }}/>
-            {user ? (
-               <>
-                  <Link href="/profile" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700 }}>PROFILE</Link>
-                  <Link href="/settings" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700 }}>SETTINGS</Link>
-                  <button onClick={promptLogout} style={{ background: 'none', border: 'none', color: 'var(--accent-red)', fontWeight: 700, textAlign: 'left', padding: 0 }}>SIGN OUT</button>
-               </>
+            {user && isAdmin(user.email) ? (
+              /* Admin mobile menu — stripped down */
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.25rem 0', marginBottom: '0.25rem' }}>
+                  <Shield size={14} style={{ color: 'var(--accent-violet)' }} />
+                  <span style={{ color: 'var(--accent-violet)', fontWeight: 800, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Admin Account</span>
+                </div>
+                <Link href="/admin" onClick={() => setMobileMenuOpen(false)} style={{ color: 'var(--accent-cyan)', fontWeight: 800, fontSize: '1.1rem' }}>ADMIN PANEL</Link>
+                <Link href="/tournaments" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>TOURNAMENTS</Link>
+                <Link href="/tournaments/create" onClick={() => setMobileMenuOpen(false)} style={{ color: 'var(--accent-cyan)', fontWeight: 700, fontSize: '1rem' }}>+ Create Tournament</Link>
+                <hr style={{ borderColor: 'rgba(255,255,255,0.1)'}}/>
+                <button onClick={promptLogout} style={{ background: 'none', border: 'none', color: 'var(--accent-red)', fontWeight: 700, textAlign: 'left', padding: 0, fontSize: '1rem' }}>SIGN OUT</button>
+              </>
             ) : (
-               <>
-                  <Link href="/login" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700 }}>LOGIN</Link>
-                  <Link href="/register" onClick={() => setMobileMenuOpen(false)} style={{ color: 'var(--accent-cyan)', fontWeight: 700 }}>JOIN NOW</Link>
-               </>
+              /* Regular player mobile menu */
+              <>
+                <Link href="/tournaments" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>TOURNAMENTS</Link>
+                <Link href="/teams" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>TEAMS</Link>
+                <Link href="/leaderboard" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>LEADERBOARD</Link>
+                <Link href="/about/mission" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>PLATFORM MISSION</Link>
+                <Link href="/legal" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>LEGAL &amp; COMPLIANCE HUB</Link>
+                <Link href="/about/rulebook" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>RULEBOOK</Link>
+                <Link href="/community-guidelines" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>COMMUNITY GUIDELINES</Link>
+                <Link href="/acceptable-use" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700, fontSize: '1.1rem' }}>ACCEPTABLE USE POLICY</Link>
+                <button 
+                  onClick={() => { toggleTheme(); setMobileMenuOpen(false); }} 
+                  style={{ 
+                    background: 'rgba(255,255,255,0.08)', border: '1px solid var(--border-color)', borderRadius: '8px', 
+                    padding: '0.5rem', color: theme === 'neon' ? 'var(--neon-blue)' : 'var(--accent-gold)', 
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                    cursor: 'pointer', width: 'fit-content'
+                  }}
+                  aria-label={`Switch to ${theme === 'neon' ? 'Light' : 'Dark'} Mode`}
+                  title={`Switch to ${theme === 'neon' ? 'Light' : 'Dark'} Mode`}
+                >
+                  {theme === 'neon' ? <Moon size={18} /> : <Sun size={18} />}
+                </button>
+                <hr style={{ borderColor: 'rgba(255,255,255,0.1)'}}/>
+                {user ? (
+                  <>
+                    <Link href="/profile" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700 }}>PROFILE</Link>
+                    <Link href="/settings" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700 }}>SETTINGS</Link>
+                    <button onClick={promptLogout} style={{ background: 'none', border: 'none', color: 'var(--accent-red)', fontWeight: 700, textAlign: 'left', padding: 0 }}>SIGN OUT</button>
+                  </>
+                ) : (
+                  <>
+                    <Link href="/login" onClick={() => setMobileMenuOpen(false)} style={{ color: '#fff', fontWeight: 700 }}>LOGIN</Link>
+                    <Link href="/register" onClick={() => setMobileMenuOpen(false)} style={{ color: 'var(--accent-cyan)', fontWeight: 700 }}>JOIN NOW</Link>
+                  </>
+                )}
+              </>
             )}
          </nav>
       )}
