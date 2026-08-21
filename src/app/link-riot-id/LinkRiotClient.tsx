@@ -29,41 +29,72 @@ export default function LinkRiotClient() {
       
       if (!cleanTag || !/^[^#]+#[^#]+$/.test(cleanTag)) {
         setStatus('error');
-        setErrorMessage('Invalid Riot ID format provided. Please use GameName#TagLine format (e.g. YashiAdarsh#6946).');
+        setErrorMessage('Invalid Riot ID format provided. Please use GameName#TagLine format (e.g. YashiAdarsh#6946 or TenZ#SEN).');
         return;
       }
 
       try {
-        setStepText(`Validating Riot ID "${cleanTag}"...`);
-        await new Promise((r) => setTimeout(r, 800));
+        setStepText(`Validating Riot ID "${cleanTag}" with Riot Games servers...`);
 
-        setStepText('Handshaking with VALORANT telemetry service...');
-        // Query game stats API
-        try {
-          await fetch(`/api/game-stats?riotId=${encodeURIComponent(cleanTag)}`);
-        } catch {
-          // Ignore network glitch — proceed with linking
+        const res = await fetch(`/api/game-stats?riotId=${encodeURIComponent(cleanTag)}`);
+        const data = await res.json();
+
+        if (!res.ok) {
+          setStatus('error');
+          if (res.status === 404) {
+            setErrorMessage(`Riot ID "${cleanTag}" could not be found on Riot Games servers. Please check your GameName and TagLine (e.g. TenZ#SEN or your actual Riot ID) and try again.`);
+          } else {
+            setErrorMessage(data.error || `Riot API Verification Failed (${res.status}). Please verify your Riot ID.`);
+          }
+          return;
         }
 
-        setStepText('Saving Riot ID to your SHAKTRIX profile...');
+        if (!data || data.error) {
+          setStatus('error');
+          setErrorMessage(data.error || 'Verification failed. Riot account not found.');
+          return;
+        }
+
+        setStepText('Riot ID verified! Saving to your SHAKTRIX profile...');
         const profileRef = doc(db, 'profiles', user.uid);
         await updateDoc(profileRef, {
-          riotId: cleanTag,
-          'gameConnections.riotId': cleanTag,
+          riotId: data.riotId || cleanTag,
+          'gameConnections.riotId': data.riotId || cleanTag,
+          'stats.points': data.riotScore || 0,
+          'stats.wins': data.rankInfo?.wins || 0,
+          'stats.losses': data.rankInfo?.losses || 0,
+          riotStats: {
+            summonerName: data.summonerName,
+            tagLine: data.tagLine,
+            summonerLevel: data.summonerLevel,
+            rankInfo: data.rankInfo,
+            lastSynced: Date.now(),
+            agent: data.agent,
+            wins: data.wins,
+            losses: data.losses,
+            kills: data.kills,
+            deaths: data.deaths,
+            assists: data.assists,
+            acs: data.acs,
+            adr: data.adr,
+            kd: data.kd,
+            headshotPct: data.headshotPct,
+            shaktrixRating: data.shaktrixRating
+          },
           updatedAt: Date.now()
         });
 
         setStatus('success');
-        setStepText('Riot ID linked successfully! Returning to profile...');
+        setStepText('Riot ID verified & linked successfully! Returning to profile...');
 
         setTimeout(() => {
           router.push('/profile');
-        }, 1500);
+        }, 1400);
 
       } catch (err: any) {
         console.error('Error linking Riot ID:', err);
         setStatus('error');
-        setErrorMessage(err.message || 'Failed to link Riot ID to your account. Please try again.');
+        setErrorMessage(err.message || 'Failed to connect to Riot Games verification service. Please try again.');
       }
     };
 
