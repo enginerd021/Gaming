@@ -60,7 +60,7 @@ export default function SessionExpiredPage() {
           lineHeight: 1.55,
           marginBottom: '2rem'
         }}>
-          Your security session or Firebase authentication token has expired. Please log back in to access your profile, active tournament brackets, and team lounge.
+          Your 2-hour security session or Firebase authentication token has expired. Please log back in to access your profile, active tournament brackets, and team lounge.
         </p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
