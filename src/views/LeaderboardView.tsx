@@ -10,6 +10,7 @@ import Badge from '@/components/ui/Badge';
 import GlassCard from '@/components/ui/GlassCard';
 import Podium from '@/components/ui/Podium';
 import PlayerCompareModal from '@/components/ui/PlayerCompareModal';
+import EmptySearchResult from '@/components/ui/EmptySearchResult';
 
 export default function LeaderboardView() {
   const [activeTab, setActiveTab] = useState<'players' | 'teams'>('players');
@@ -215,64 +216,73 @@ export default function LeaderboardView() {
           <>
             {/* PLAYERS LEADERBOARD */}
             {activeTab === 'players' && (
-              <>
-                {/* Reusable Podium Component */}
-                <Podium topThree={topThreePlayers} />
+              filteredPlayers.length === 0 ? (
+                <EmptySearchResult
+                  title="No Players Found"
+                  searchQuery={searchQuery}
+                  description="No players matched your search query or game filter."
+                  onReset={() => { setSearchQuery(''); setSelectedGame('All'); }}
+                />
+              ) : (
+                <>
+                  {/* Reusable Podium Component */}
+                  <Podium topThree={topThreePlayers} />
 
-                {/* Table for Players */}
-                <GlassCard variant="panel" className="responsive-table" style={{ padding: '1.5rem' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                    <caption>Player Leaderboard rankings based on live Riot rank data and match performance.</caption>
-                    <thead>
-                      <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                        <th style={{ padding: '1rem' }}>Rank</th>
-                        <th style={{ padding: '1rem' }}>Player</th>
-                        <th style={{ padding: '1rem' }}>Active Games</th>
-                        <th style={{ padding: '1rem' }}>Skill Level</th>
-                        <th style={{ padding: '1rem', textAlign: 'right' }}>Riot Score</th>
-                      </tr>
-                    </thead>
-                    <tbody aria-live="polite">
-                      {filteredPlayers.map((player, idx) => (
-                        <tr key={`${player.uid}-${idx}`} style={{ borderBottom: '1px solid var(--border-color)', fontSize: '0.95rem' }} className="table-row-hover status-flash">
-                          <td data-label="Rank" style={{ padding: '1rem', fontWeight: 800, color: idx === 0 ? 'var(--accent-gold)' : idx === 1 ? 'var(--accent-violet)' : idx === 2 ? 'var(--accent-cyan)' : 'var(--text-muted)' }}>
-                            #{idx + 1}
-                          </td>
-                          <td data-label="Player" style={{ padding: '1rem' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                              <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, border: '1px solid var(--border-color)', fontSize: '0.8rem' }}>
-                                {player.displayName.substring(0, 2).toUpperCase()}
-                              </div>
-                              <div style={{ textAlign: 'left' }}>
-                                <Link href={`/players/${player.gamertag}`} style={{ fontWeight: 700 }} className="hover-cyan">
-                                  {player.displayName}
-                                </Link>
-                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>@{player.gamertag}</div>
-                              </div>
-                            </div>
-                          </td>
-                          <td data-label="Active Games" style={{ padding: '1rem' }}>
-                            <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
-                              {player.registeredGames?.slice(0, 2).map(g => (
-                                <Badge key={g} variant="cyan" style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem', textTransform: 'none' }}>{g}</Badge>
-                              ))}
-                              {player.registeredGames?.length > 2 && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>+{player.registeredGames.length - 2}</span>}
-                            </div>
-                          </td>
-                          <td data-label="Skill Level" style={{ padding: '1rem' }}>
-                            <Badge variant={player.skillLevel === 'Advanced' ? 'gold' : player.skillLevel === 'Intermediate' ? 'violet' : 'cyan'} style={{ fontSize: '0.7rem' }}>
-                              {player.skillLevel}
-                            </Badge>
-                          </td>
-                          <td data-label="Riot Score" style={{ padding: '1rem', textAlign: 'right', fontWeight: 800, color: 'var(--accent-cyan)' }}>
-                            {player.stats?.points || 1000}
-                          </td>
+                  {/* Table for Players */}
+                  <GlassCard variant="panel" className="responsive-table" style={{ padding: '1.5rem' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                      <caption>Player Leaderboard rankings based on live Riot rank data and match performance.</caption>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                          <th style={{ padding: '1rem' }}>Rank</th>
+                          <th style={{ padding: '1rem' }}>Player</th>
+                          <th style={{ padding: '1rem' }}>Active Games</th>
+                          <th style={{ padding: '1rem' }}>Skill Level</th>
+                          <th style={{ padding: '1rem', textAlign: 'right' }}>Riot Score</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </GlassCard>
-              </>
+                      </thead>
+                      <tbody aria-live="polite">
+                        {filteredPlayers.map((player, idx) => (
+                          <tr key={`${player.uid}-${idx}`} style={{ borderBottom: '1px solid var(--border-color)', fontSize: '0.95rem' }} className="table-row-hover status-flash">
+                            <td data-label="Rank" style={{ padding: '1rem', fontWeight: 800, color: idx === 0 ? 'var(--accent-gold)' : idx === 1 ? 'var(--accent-violet)' : idx === 2 ? 'var(--accent-cyan)' : 'var(--text-muted)' }}>
+                              #{idx + 1}
+                            </td>
+                            <td data-label="Player" style={{ padding: '1rem' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, border: '1px solid var(--border-color)', fontSize: '0.8rem' }}>
+                                  {player.displayName.substring(0, 2).toUpperCase()}
+                                </div>
+                                <div style={{ textAlign: 'left' }}>
+                                  <Link href={`/players/${player.gamertag}`} style={{ fontWeight: 700 }} className="hover-cyan">
+                                    {player.displayName}
+                                  </Link>
+                                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>@{player.gamertag}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td data-label="Active Games" style={{ padding: '1rem' }}>
+                              <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
+                                {player.registeredGames?.slice(0, 2).map(g => (
+                                  <Badge key={g} variant="cyan" style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem', textTransform: 'none' }}>{g}</Badge>
+                                ))}
+                                {player.registeredGames?.length > 2 && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>+{player.registeredGames.length - 2}</span>}
+                              </div>
+                            </td>
+                            <td data-label="Skill Level" style={{ padding: '1rem' }}>
+                              <Badge variant={player.skillLevel === 'Advanced' ? 'gold' : player.skillLevel === 'Intermediate' ? 'violet' : 'cyan'} style={{ fontSize: '0.7rem' }}>
+                                {player.skillLevel}
+                              </Badge>
+                            </td>
+                            <td data-label="Riot Score" style={{ padding: '1rem', textAlign: 'right', fontWeight: 800, color: 'var(--accent-cyan)' }}>
+                              {player.stats?.points || 1000}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </GlassCard>
+                </>
+              )
             )}
 
             {/* TEAMS LEADERBOARD */}
