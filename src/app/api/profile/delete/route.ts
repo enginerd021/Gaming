@@ -77,7 +77,7 @@ export async function POST(request: Request) {
           // Fetch new captain's profile to personalize notification
           const newCapProfileRef = adminDb.doc(`profiles/${nextCaptainId}`);
           const newCapSnap = await newCapProfileRef.get();
-          const newCapGamertag = newCapSnap.exists() ? (newCapSnap.data()?.gamertag || 'Player') : 'Player';
+          const newCapGamertag = newCapSnap.exists ? (newCapSnap.data()?.gamertag || 'Player') : 'Player';
 
           // Notification for the new Captain
           const newCapNotifRef = adminDb.collection(`profiles/${nextCaptainId}/notifications`).doc();
