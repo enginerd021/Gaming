@@ -407,6 +407,16 @@ export default function TournamentDetailClient({ id }: { id: string }) {
               createdAt: serverTimestamp(),
               teamId: team.id
             });
+
+            // Write per-member tournamentRegistrations doc so profile history shows this tournament
+            const regRef = doc(db, "tournamentRegistrations", `${mId}_${tournament.id}`);
+            nBatch.set(regRef, {
+              userId: mId,
+              tournamentId: tournament.id,
+              teamId: team.id,
+              registeredAt: Date.now(),
+              joinedAt: serverTimestamp()
+            }, { merge: true });
           });
         }
         await nBatch.commit();
