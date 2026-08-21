@@ -1,6 +1,7 @@
-import { collection, onSnapshot, query, orderBy, limit, Unsubscribe } from 'firebase/firestore';
+import { collection, query, orderBy, limit, Unsubscribe } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Profile, Team } from '@/store/useAppStore';
+import { onSnapshot } from '@/lib/firebaseCall';
 
 export const leaderboardService = {
   subscribeProfiles(maxLimit: number, onUpdate: (profiles: Profile[]) => void, onError?: (err: unknown) => void): Unsubscribe {
@@ -10,7 +11,7 @@ export const leaderboardService = {
       limit(maxLimit)
     );
     return onSnapshot(q, (snap) => {
-      const list = snap.docs.map(doc => doc.data() as Profile);
+      const list = snap.docs.map((doc: any) => doc.data() as Profile);
       onUpdate(list);
     }, (err) => {
       console.error("Leaderboard profiles listener error:", err);
@@ -24,7 +25,7 @@ export const leaderboardService = {
       limit(maxLimit)
     );
     return onSnapshot(q, (snap) => {
-      const list = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Team));
+      const list = snap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() } as Team));
       onUpdate(list);
     }, (err) => {
       console.error("Leaderboard teams listener error:", err);
