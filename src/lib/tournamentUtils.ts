@@ -264,7 +264,26 @@ export async function autoCheckTournamentStatus(tournament: Tournament, matches?
 
   const matchArray: Match[] = matches || (tournament as any).bracket?.matches || [];
 
-  // 0. Auto-generate bracket when tournament start date is reached
+  // 0. Auto-end tournament instantly if start date arrives with 0 participants
+  if (
+    (tournament.status as string) === 'Upcoming' &&
+    now >= timeWindow.startDate &&
+    (!tournament.registeredTeamIds || tournament.registeredTeamIds.length === 0)
+  ) {
+    try {
+      const tournamentRef = doc(db, 'tournaments', tournament.id);
+      await updateDoc(tournamentRef, {
+        status: 'Completed',
+        cancelledReason: 'No teams registered before the tournament started.'
+      });
+      tournament.status = 'Completed';
+      return true;
+    } catch (err) {
+      console.error('Failed to auto-end no-participant tournament:', err);
+    }
+  }
+
+  // 0b. Auto-generate bracket when tournament start date is reached
   if (
     (tournament.status as string) === 'Upcoming' &&
     now >= timeWindow.startDate &&
@@ -395,15 +414,23 @@ export async function autoCheckTournamentStatus(tournament: Tournament, matches?
   }
 
   // Auto-activate upcoming tournament if start date has arrived
+  // If no teams registered at all, end it immediately instead of going Active
   if (tournament.status === 'Upcoming' && now >= timeWindow.startDate) {
     updated = true;
-    tournament.status = 'Active';
+    const hasTeams = tournament.registeredTeamIds && tournament.registeredTeamIds.length > 0;
+    const newStatus = hasTeams ? 'Active' : 'Completed';
+    tournament.status = newStatus;
     try {
       const tournamentRef = doc(db, 'tournaments', tournament.id);
-      await updateDoc(tournamentRef, { status: 'Active' });
+      const updatePayload: Record<string, any> = { status: newStatus };
+      if (!hasTeams) {
+        updatePayload.cancelledReason = 'No teams registered before the tournament started.';
+      }
+      await updateDoc(tournamentRef, updatePayload);
     } catch (err) {
-      console.error('Failed to auto-activate starting tournament in Firestore:', err);
+      console.error('Failed to auto-transition tournament status in Firestore:', err);
     }
+    if (!hasTeams) return true;
   }
 
   // Also check overall tournament estimated end time

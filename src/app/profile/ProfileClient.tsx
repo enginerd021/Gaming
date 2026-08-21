@@ -245,6 +245,9 @@ export default function ProfileClient() {
           const tDoc = await getDoc(doc(db, 'tournaments', reg.tournamentId));
           if (tDoc.exists()) {
             const tData = tDoc.data();
+            // Support both numeric registeredAt and Firestore Timestamp joinedAt
+            const rawTs = reg.registeredAt ?? reg.joinedAt;
+            const resolvedTs = rawTs?.toMillis ? rawTs.toMillis() : (rawTs || 0);
             historyList.push({
               id: tDoc.id,
               name: tData.name,
@@ -252,7 +255,7 @@ export default function ProfileClient() {
               startTime: tData.startTime,
               winnerId: tData.winnerId || null,
               teamId: reg.teamId,
-              registeredAt: reg.registeredAt
+              registeredAt: resolvedTs
             });
           }
         } catch (e) {
@@ -260,7 +263,7 @@ export default function ProfileClient() {
         }
       }
       
-      // Sort by registeredAt desc
+      // Sort by registeredAt desc (most recent first)
       historyList.sort((a, b) => b.registeredAt - a.registeredAt);
       setTournamentHistory(historyList);
       setLoadingHistory(false);
@@ -954,7 +957,7 @@ export default function ProfileClient() {
                           <div>
                             <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#fff' }}>{t.name}</div>
                             <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                              <Clock size={12} /> Registered for {t.startTime ? new Date(t.startTime).toLocaleDateString() : 'TBD'}
+                              <Clock size={12} /> Registered for {t.startTime ? new Date(t.startTime?.toMillis ? t.startTime.toMillis() : t.startTime).toLocaleDateString() : 'TBD'}
                             </div>
                           </div>
                           <span className="badge badge-cyan" style={{ fontSize: '0.7rem', padding: '0.15rem 0.5rem', textTransform: 'uppercase' }}>
@@ -996,7 +999,7 @@ export default function ProfileClient() {
                             <div>
                               <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#fff' }}>{t.name}</div>
                               <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-                                Finished on {t.startTime ? new Date(t.startTime).toLocaleDateString() : 'Past'}
+                                Finished on {t.startTime ? new Date(t.startTime?.toMillis ? t.startTime.toMillis() : t.startTime).toLocaleDateString() : 'Past'}
                               </div>
                             </div>
                             <span 

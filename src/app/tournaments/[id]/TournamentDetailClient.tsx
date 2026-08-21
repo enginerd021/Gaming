@@ -76,6 +76,7 @@ interface Tournament {
   discordWebhookUrl?: string;
   discordBotEnabled?: boolean;
   minRiotScore?: number;
+  cancelledReason?: string;
 }
 
 interface ChatMessage {
@@ -407,6 +408,16 @@ export default function TournamentDetailClient({ id }: { id: string }) {
               createdAt: serverTimestamp(),
               teamId: team.id
             });
+
+            // Write per-member tournamentRegistrations doc so profile history shows this tournament
+            const regRef = doc(db, "tournamentRegistrations", `${mId}_${tournament.id}`);
+            nBatch.set(regRef, {
+              userId: mId,
+              tournamentId: tournament.id,
+              teamId: team.id,
+              registeredAt: Date.now(),
+              joinedAt: serverTimestamp()
+            }, { merge: true });
           });
         }
         await nBatch.commit();
@@ -1607,6 +1618,22 @@ export default function TournamentDetailClient({ id }: { id: string }) {
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
                 Bracket capacity: <strong>{tournament.registeredTeamIds.length} / {tournament.maxTeams}</strong> rosters registered.
               </p>
+              {tournament.cancelledReason && (
+                <div style={{
+                  marginTop: '0.75rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  background: 'rgba(255, 80, 80, 0.08)',
+                  border: '1px solid rgba(255, 80, 80, 0.35)',
+                  borderRadius: '8px',
+                  padding: '0.65rem 1rem',
+                  fontSize: '0.82rem',
+                  color: '#ff6b6b'
+                }}>
+                  ⚠️ <span>{tournament.cancelledReason}</span>
+                </div>
+              )}
               {tournament.minRiotScore && tournament.minRiotScore > 0 && (
                 <p style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.82rem', marginTop: '0.4rem' }}>
                   <span style={{ padding: '0.2rem 0.65rem', borderRadius: '9999px', background: 'rgba(255, 200, 0, 0.12)', border: '1px solid rgba(255, 200, 0, 0.35)', color: 'var(--accent-gold)', fontFamily: 'var(--font-title)', fontWeight: 700, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
