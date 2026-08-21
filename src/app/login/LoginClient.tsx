@@ -277,7 +277,7 @@ export default function LoginClient() {
               fontWeight: 600
             }}>
               <KeyRound size={18} style={{ flexShrink: 0 }} />
-              <span>Your session has expired for security reasons. Please log in again to continue.</span>
+              <span>Your 2-hour session has expired for security reasons. Please log in again to continue.</span>
             </div>
           )}
 
