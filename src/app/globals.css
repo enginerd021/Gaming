@@ -878,6 +878,31 @@ h3 {
   border-radius: 6px;
 }
 
+@keyframes shimmerAnim {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.shimmer-skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(10, 16, 36, 0.65) 25%,
+    rgba(22, 32, 69, 0.9) 37%,
+    rgba(10, 16, 36, 0.65) 63%
+  );
+  background-size: 200% 100%;
+  animation: shimmerAnim 1.6s infinite linear;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
 @keyframes slideInMatchAdvancing {
   from {
     transform: translateX(18px);

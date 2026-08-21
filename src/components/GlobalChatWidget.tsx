@@ -21,6 +21,7 @@ import {
 import { MessageSquare, X, Send, Sparkles, LogIn, UserPlus, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import InviteCard from './chat/InviteCard';
 import Button from './ui/Button';
+import { usePathname } from 'next/navigation';
 
 interface ChatMessage {
   id: string;
@@ -53,6 +54,11 @@ export default function GlobalChatWidget() {
   const user = useAppStore((state) => state.user);
   const profile = useAppStore((state) => state.profile);
   const team = useAppStore((state) => state.team);
+  const pathname = usePathname();
+
+  if (pathname === '/maintenance') {
+    return null;
+  }
 
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);

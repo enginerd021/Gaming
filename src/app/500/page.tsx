@@ -1,18 +1,10 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import ErrorState from '@/components/ui/ErrorState';
 
-interface ErrorProps {
-  error: Error & { digest?: string };
-  reset: () => void;
-}
-
-export default function ErrorBoundary({ error, reset }: ErrorProps) {
-  useEffect(() => {
-    // Log the error to console
-    console.error('Unhandled dynamic runtime error:', error);
-  }, [error]);
+export default function Page500() {
+  const router = useRouter();
 
   return (
     <main style={{
@@ -30,9 +22,9 @@ export default function ErrorBoundary({ error, reset }: ErrorProps) {
       <div className="hero-glow hero-glow-2" style={{ bottom: '10%', right: '10%' }} />
 
       <ErrorState 
-        title="System Malfunction"
-        message={error.message || "A critical system error occurred during execution. This could be due to a transient database synchronization drop or invalid route parameters."}
-        onRetry={reset}
+        title="500 - Arena Collapse"
+        message="A critical server-side error occurred. The arena server is temporarily unresponsive. Our tech squads have been dispatched."
+        onRetry={() => router.refresh()}
       />
     </main>
   );
