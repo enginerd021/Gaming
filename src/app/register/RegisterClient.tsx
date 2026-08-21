@@ -148,6 +148,24 @@ export default function RegisterClient() {
       return;
     }
 
+    if (dob) {
+      const selectedDate = new Date(dob);
+      const today = new Date();
+      if (selectedDate > today) {
+        setError('Date of Birth cannot be in the future.');
+        triggerShake();
+        return;
+      }
+      const ageDiffMs = today.getTime() - selectedDate.getTime();
+      const ageDate = new Date(ageDiffMs);
+      const age = Math.abs(ageDate.getUTCFullYear() - 1970);
+      if (age < 13) {
+        setError('You must be at least 13 years old to register for esports tournaments.');
+        triggerShake();
+        return;
+      }
+    }
+
     if (!acceptedTerms) {
       setError('Please agree to the Terms & Conditions to create an account.');
       triggerShake();
@@ -402,6 +420,7 @@ export default function RegisterClient() {
               <input
                 id="reg-dob"
                 type="date"
+                max={new Date().toISOString().split('T')[0]}
                 className="glass-input"
                 style={{ paddingLeft: '2.75rem', colorScheme: 'dark' }}
                 value={dob}

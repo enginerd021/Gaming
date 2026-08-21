@@ -293,6 +293,7 @@ export default function SettingsClient() {
                       </label>
                       <input
                         type="date"
+                        max={new Date().toISOString().split('T')[0]}
                         value={dob}
                         onChange={(e) => setDob(e.target.value)}
                         className="glass-input"
