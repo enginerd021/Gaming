@@ -571,15 +571,6 @@ export default function ProfileClient() {
 
                       <button
                         type="button"
-                        onClick={() => syncRiotScore(profile.riotId || '')}
-                        disabled={loadingRiotSync}
-                        style={{ background: 'none', border: 'none', color: 'var(--accent-cyan)', cursor: 'pointer', fontSize: '0.75rem', textDecoration: 'underline', fontWeight: 600 }}
-                      >
-                        {loadingRiotSync ? 'Syncing...' : 'Re-sync'}
-                      </button>
-
-                      <button
-                        type="button"
                         onClick={handleUnlinkRiot}
                         style={{ background: 'none', border: 'none', color: 'var(--accent-red)', cursor: 'pointer', fontSize: '0.75rem', textDecoration: 'underline' }}
                       >
@@ -727,26 +718,6 @@ export default function ProfileClient() {
                 <Gamepad2 size={20} style={{ color: 'var(--accent-cyan)' }} />
                 <h2 style={{ fontSize: '1.4rem', margin: 0 }}>VALORANT Career Details</h2>
               </div>
-              {profile.riotId && (
-                <button
-                  type="button"
-                  className="btn btn-outline"
-                  onClick={() => syncRiotScore(profile.riotId || '')}
-                  disabled={loadingRiotSync}
-                  style={{
-                    fontSize: '0.8rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.4rem',
-                    borderColor: 'var(--accent-cyan)',
-                    color: 'var(--accent-cyan)',
-                    padding: '0.4rem 0.85rem'
-                  }}
-                >
-                  {loadingRiotSync ? <Loader size={14} className="animate-spin" /> : <Activity size={14} />}
-                  <span>Refresh Stats</span>
-                </button>
-              )}
             </div>
 
             {profile.riotId ? (() => {
