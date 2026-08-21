@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-export function middleware(request: NextRequest) {
-  const maintenanceMode = process.env.MAINTENANCE_MODE === 'true';
+export function proxy(request: NextRequest) {
+  const maintenanceMode = process.env.NEXT_PUBLIC_MAINTENANCE_MODE === 'true';
   const { pathname } = request.nextUrl;
 
   // Exclude static assets, api routes, and public files to avoid loop redirects or broken resources
