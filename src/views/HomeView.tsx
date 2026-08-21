@@ -9,7 +9,6 @@ import { Trophy, Gamepad2, Users, Flame, ChevronRight, Activity, Radio, Zap, Arr
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import GlassCard from '@/components/ui/GlassCard';
-import StatsTicker from '@/components/ui/StatsTicker';
 import BentoGrid from '@/components/ui/BentoGrid';
 import { TournamentCountdown } from '@/components/TournamentCountdown';
 import { getEffectiveTournamentStatus, autoCheckTournamentStatus, useEffectiveTournamentStatus } from '@/lib/tournamentUtils';
@@ -293,11 +292,6 @@ export default function HomeView() {
 
         </div>
       </section>
-
-      {/* Stats Ticker Banner */}
-      <div className="container" style={{ position: 'relative', zIndex: 10, marginTop: '2rem', marginBottom: '4rem' }}>
-        <StatsTicker />
-      </div>
 
       {/* Chapter 2: Zentry Bento Grid Feature Showcase */}
       <div data-scroll-section>
