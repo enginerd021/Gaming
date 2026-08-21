@@ -3,14 +3,12 @@ import {
   collection, 
   query, 
   where, 
-  getDocs, 
   doc, 
   updateDoc, 
   arrayRemove, 
-  writeBatch, 
-  serverTimestamp,
-  getDoc
+  serverTimestamp
 } from 'firebase/firestore';
+import { getDocs, getDoc, writeBatch } from '@/lib/firebaseCall';
 
 export interface ScheduledTournament {
   id: string;
@@ -46,7 +44,7 @@ export async function detectTeamScheduleConflicts(teamId: string): Promise<Confl
     const snap = await getDocs(q);
     if (snap.empty || snap.docs.length < 2) return [];
 
-    const tournaments: ScheduledTournament[] = snap.docs.map((docSnap) => {
+    const tournaments: ScheduledTournament[] = snap.docs.map((docSnap: any) => {
       const data = docSnap.data();
       return {
         id: docSnap.id,

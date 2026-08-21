@@ -83,6 +83,7 @@ interface AppState {
   initialized: boolean;
   isOffline: boolean;
   connectionStatus: 'online' | 'reconnecting' | 'offline';
+  sessionExpired: boolean;
   
   // Actions
   setUser: (user: User | null) => void;
@@ -94,6 +95,7 @@ interface AppState {
   setInitialized: (initialized: boolean) => void;
   setIsOffline: (isOffline: boolean) => void;
   setConnectionStatus: (status: 'online' | 'reconnecting' | 'offline') => void;
+  setSessionExpired: (sessionExpired: boolean) => void;
   logout: () => Promise<void>;
 }
 
@@ -112,6 +114,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   initialized: false,
   isOffline: false,
   connectionStatus: 'online',
+  sessionExpired: false,
 
   setUser: (user) => set({ user }),
   setProfile: (profile) => set({ profile }),
@@ -130,11 +133,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   setInitialized: (initialized) => set({ initialized }),
   setIsOffline: (isOffline) => set({ isOffline }),
   setConnectionStatus: (connectionStatus) => set({ connectionStatus }),
+  setSessionExpired: (sessionExpired) => set({ sessionExpired }),
   
   logout: async () => {
     stopUserListeners();
     await auth.signOut();
-    set({ user: null, profile: null, teams: [], activeTeamId: null, team: null, loading: false });
+    set({ user: null, profile: null, teams: [], activeTeamId: null, team: null, loading: false, sessionExpired: false });
   }
 }));
 

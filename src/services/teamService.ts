@@ -3,11 +3,9 @@ import {
   doc, 
   collection, 
   updateDoc, 
-  deleteDoc, 
-  writeBatch, 
-  serverTimestamp,
-  getDoc
+  serverTimestamp
 } from "firebase/firestore";
+import { getDoc, deleteDoc, writeBatch } from "@/lib/firebaseCall";
 import { Team } from "@/store/useAppStore";
 
 export interface TransferResult {

@@ -36,6 +36,10 @@ export default function Navbar() {
   const connectionStatus = useAppStore((state) => state.connectionStatus);
   const pathname = usePathname();
   const isHome = pathname === '/';
+
+  if (pathname === '/maintenance') {
+    return null;
+  }
   
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
