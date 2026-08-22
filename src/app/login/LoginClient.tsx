@@ -12,8 +12,9 @@ import {
 } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
-import { Gamepad2, Mail, Lock, AlertCircle, CheckCircle2, Eye, EyeOff, KeyRound } from 'lucide-react';
+import { useAppStore } from '@/store/useAppStore';
 import { isAdmin } from '@/lib/adminConfig';
+import { Gamepad2, Mail, Lock, AlertCircle, CheckCircle, CheckCircle2, Eye, EyeOff, KeyRound, Clock } from 'lucide-react';
 
 const GoogleIcon = () => (
   <svg style={{ width: '18px', height: '18px', marginRight: '0.75rem' }} viewBox="0 0 24 24">
@@ -41,6 +42,8 @@ import { useSearchParams } from 'next/navigation';
 export default function LoginClient() {
   const searchParams = useSearchParams();
   const isSessionExpired = searchParams.get('reason') === 'session_expired';
+  const isDeletionScheduled = searchParams.get('deletion_scheduled') === 'true';
+  const deletionCanceledNotice = useAppStore((state) => state.deletionCanceledNotice);
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -257,6 +260,44 @@ export default function LoginClient() {
             }}>
               <CheckCircle2 size={18} style={{ flexShrink: 0 }} />
               <span>{successMsg}</span>
+            </div>
+          )}
+
+          {isDeletionScheduled && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+              background: 'rgba(0, 229, 255, 0.12)',
+              border: '1px solid var(--accent-cyan)',
+              borderRadius: '8px',
+              padding: '0.75rem 1rem',
+              marginBottom: '1.5rem',
+              color: 'var(--accent-cyan)',
+              fontSize: '0.875rem',
+              fontWeight: 600
+            }}>
+              <Clock size={18} style={{ flexShrink: 0 }} />
+              <span>⏳ Account deletion request scheduled! Your account is scheduled for deletion in 7 days. If you log back in anytime before then, your request will be automatically canceled.</span>
+            </div>
+          )}
+
+          {deletionCanceledNotice && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+              background: 'hsla(145, 80%, 45%, 0.15)',
+              border: '1px solid var(--accent-green)',
+              borderRadius: '8px',
+              padding: '0.75rem 1rem',
+              marginBottom: '1.5rem',
+              color: 'var(--accent-green)',
+              fontSize: '0.875rem',
+              fontWeight: 600
+            }}>
+              <CheckCircle size={18} style={{ flexShrink: 0 }} />
+              <span>🛡️ Welcome back! Your account deletion request was automatically canceled because you logged back in.</span>
             </div>
           )}
 

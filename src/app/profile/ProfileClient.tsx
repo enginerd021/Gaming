@@ -10,7 +10,8 @@ import {
   query, 
   where, 
   onSnapshot, 
-  getDoc
+  getDoc,
+  deleteField
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAppStore } from '@/store/useAppStore';
@@ -75,6 +76,38 @@ export default function ProfileClient() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const [cancelingDeletion, setCancelingDeletion] = useState(false);
+  const [timeLeft, setTimeLeft] = useState<{ days: number; hours: number; minutes: number; seconds: number } | null>(null);
+
+  useEffect(() => {
+    if (!profile?.scheduledDeletionDate && !profile?.deletionRequestedAt) {
+      setTimeLeft(null);
+      return;
+    }
+
+    const scheduledTime = profile.scheduledDeletionDate || (profile.deletionRequestedAt ? profile.deletionRequestedAt + (7 * 24 * 60 * 60 * 1000) : 0);
+
+    const updateTimer = () => {
+      const now = Date.now();
+      const diff = scheduledTime - now;
+
+      if (diff <= 0) {
+        setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+        return;
+      }
+
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+      const minutes = Math.floor((diff / 1000 / 60) % 60);
+      const seconds = Math.floor((diff / 1000) % 60);
+
+      setTimeLeft({ days, hours, minutes, seconds });
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [profile?.scheduledDeletionDate, profile?.deletionRequestedAt]);
 
   // Riot ID Input State
   const [riotInput, setRiotInput] = useState('');
@@ -319,38 +352,53 @@ export default function ProfileClient() {
     setMessage(null);
 
     try {
-      // 1. Get client ID Token from current user
-      const idToken = await user.getIdToken(true);
+      const now = Date.now();
+      const scheduledDate = now + (7 * 24 * 60 * 60 * 1000);
 
-      // 2. Call delete API
-      const res = await fetch('/api/profile/delete', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`
-        }
+      const profileRef = doc(db, 'profiles', profile.uid);
+      await updateDoc(profileRef, {
+        deletionRequestedAt: now,
+        scheduledDeletionDate: scheduledDate
       });
 
-      const data = await res.json();
+      setShowDeleteConfirm(false);
+      setDeleteConfirmText('');
 
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to delete account.');
-      }
-
-      // 3. Clear store and navigate away
+      // Clear store and navigate away
       const logout = useAppStore.getState().logout;
       await logout();
       
-      // Navigate to register/join page with a success message query
-      router.push('/register?deleted=true');
+      // Navigate to login page with deletion_scheduled parameter
+      router.push('/login?deletion_scheduled=true');
     } catch (err: any) {
-      console.error('Account deletion error:', err);
+      console.error('Account deletion scheduling error:', err);
       triggerShake();
-      setMessage({ type: 'error', text: err.message || 'An error occurred during account deletion.' });
+      setMessage({ type: 'error', text: err.message || 'An error occurred while scheduling account deletion.' });
       setShowDeleteConfirm(false);
     } finally {
       setDeleting(false);
       setDeleteConfirmText('');
+    }
+  };
+
+  const handleCancelDeletionRequest = async () => {
+    if (!profile) return;
+    setCancelingDeletion(true);
+    setMessage(null);
+
+    try {
+      const profileRef = doc(db, 'profiles', profile.uid);
+      await updateDoc(profileRef, {
+        deletionRequestedAt: deleteField(),
+        scheduledDeletionDate: deleteField()
+      });
+      setMessage({ type: 'success', text: '🛡️ Account deletion request canceled successfully! Your account remains active.' });
+    } catch (err: any) {
+      console.error('Error canceling deletion request:', err);
+      triggerShake();
+      setMessage({ type: 'error', text: err.message || 'Failed to cancel deletion request.' });
+    } finally {
+      setCancelingDeletion(false);
     }
   };
 
@@ -430,6 +478,116 @@ export default function ProfileClient() {
             </Link>
           </div>
         </div>
+
+        {/* PENDING 7-DAY ACCOUNT DELETION BANNER */}
+        {(profile.scheduledDeletionDate || profile.deletionRequestedAt) && (
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(255, 60, 60, 0.15) 0%, rgba(200, 30, 30, 0.25) 100%)',
+            border: '1px solid rgba(255, 60, 60, 0.6)',
+            boxShadow: '0 0 25px rgba(255, 60, 60, 0.2)',
+            borderRadius: '12px',
+            padding: '1.25rem 1.5rem',
+            marginBottom: '1.5rem',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '1rem'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <Clock size={24} style={{ color: 'var(--accent-red)' }} />
+                <div>
+                  <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: '#ffffff' }}>
+                    Account Scheduled for Permanent Deletion
+                  </h4>
+                  <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                    Your account will be permanently deleted when the 7-day timer below expires.
+                  </p>
+                </div>
+              </div>
+
+              {/* Countdown Timer Display */}
+              {timeLeft && (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  background: 'rgba(0, 0, 0, 0.4)',
+                  border: '1px solid rgba(255, 60, 60, 0.4)',
+                  padding: '0.5rem 1rem',
+                  borderRadius: '8px'
+                }}>
+                  <div style={{ textAlign: 'center' }}>
+                    <span style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--accent-cyan)' }}>{String(timeLeft.days).padStart(2, '0')}</span>
+                    <span style={{ fontSize: '0.65rem', display: 'block', color: 'var(--text-muted)' }}>DAYS</span>
+                  </div>
+                  <span style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-muted)' }}>:</span>
+                  <div style={{ textAlign: 'center' }}>
+                    <span style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--accent-cyan)' }}>{String(timeLeft.hours).padStart(2, '0')}</span>
+                    <span style={{ fontSize: '0.65rem', display: 'block', color: 'var(--text-muted)' }}>HRS</span>
+                  </div>
+                  <span style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-muted)' }}>:</span>
+                  <div style={{ textAlign: 'center' }}>
+                    <span style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--accent-cyan)' }}>{String(timeLeft.minutes).padStart(2, '0')}</span>
+                    <span style={{ fontSize: '0.65rem', display: 'block', color: 'var(--text-muted)' }}>MIN</span>
+                  </div>
+                  <span style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-muted)' }}>:</span>
+                  <div style={{ textAlign: 'center' }}>
+                    <span style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--accent-red)' }}>{String(timeLeft.seconds).padStart(2, '0')}</span>
+                    <span style={{ fontSize: '0.65rem', display: 'block', color: 'var(--text-muted)' }}>SEC</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Disclaimer & Action buttons */}
+            <div style={{
+              fontSize: '0.85rem',
+              color: 'var(--text-secondary)',
+              background: 'rgba(0, 0, 0, 0.25)',
+              padding: '0.75rem 1rem',
+              borderRadius: '8px',
+              borderLeft: '3px solid var(--accent-cyan)'
+            }}>
+              ℹ️ <strong>Disclaimer</strong>: If you log back in to your account at any time within these 7 days, your account deletion request will be <strong>automatically canceled</strong>. You can also manually cancel it right now below.
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <button
+                onClick={handleCancelDeletionRequest}
+                disabled={cancelingDeletion}
+                className="btn btn-primary"
+                style={{
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  padding: '0.5rem 1.25rem',
+                  fontSize: '0.85rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
+                }}
+              >
+                {cancelingDeletion ? <Loader size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
+                Cancel Deletion Request
+              </button>
+              
+              <button
+                onClick={async () => {
+                  await useAppStore.getState().logout();
+                  router.push('/login');
+                }}
+                className="btn"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  color: '#ffffff',
+                  padding: '0.5rem 1.25rem',
+                  fontSize: '0.85rem'
+                }}
+              >
+                Log Out Now
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Global Feedback message */}
         <div aria-live="assertive">
@@ -1102,11 +1260,28 @@ export default function ProfileClient() {
             </div>
 
             <h3 style={{ fontSize: '1.35rem', fontWeight: 800, marginBottom: '0.75rem', color: '#ffffff' }}>
-              Confirm Account Deletion
+              Request Account Deletion (7-Day Grace Period)
             </h3>
 
-            <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', marginBottom: '1.5rem', lineHeight: 1.5 }}>
-              This is permanent and cannot be undone. To confirm, please type your gamertag <strong style={{ color: 'var(--accent-cyan)' }}>{profile.gamertag}</strong> below:
+            <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', marginBottom: '1rem', lineHeight: 1.5 }}>
+              Your account will be scheduled for permanent deletion in <strong>7 days</strong>.
+            </p>
+
+            <div style={{
+              fontSize: '0.82rem',
+              color: 'var(--text-secondary)',
+              background: 'rgba(0, 229, 255, 0.08)',
+              border: '1px solid rgba(0, 229, 255, 0.3)',
+              borderRadius: '8px',
+              padding: '0.75rem 1rem',
+              marginBottom: '1.25rem',
+              textAlign: 'left'
+            }}>
+              ℹ️ <strong>Disclaimer</strong>: If you log back in to your account at any time within the next 7 days, your account deletion request will be <strong>automatically canceled</strong> and your account will remain active.
+            </div>
+
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
+              To confirm scheduling, please type your gamertag <strong style={{ color: 'var(--accent-cyan)' }}>{profile.gamertag}</strong> below:
             </p>
 
             <div style={{ marginBottom: '1.5rem', textAlign: 'left' }}>
@@ -1167,9 +1342,9 @@ export default function ProfileClient() {
                 {deleting ? (
                   <>
                     <Loader size={16} className="animate-spin" />
-                    Deleting...
+                    Scheduling...
                   </>
-                ) : 'Delete Account'}
+                ) : 'Schedule Deletion'}
               </button>
             </div>
           </div>

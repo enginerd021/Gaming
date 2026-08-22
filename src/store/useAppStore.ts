@@ -7,6 +7,7 @@ import {
   where, 
   onSnapshot,
   updateDoc,
+  deleteField,
   Unsubscribe
 } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
@@ -62,6 +63,8 @@ export interface Profile {
   createdAt: number;
   chatStrikes?: number;
   mutedUntil?: number;
+  deletionRequestedAt?: number;
+  scheduledDeletionDate?: number;
 }
 
 export interface Team {
@@ -85,6 +88,7 @@ interface AppState {
   isOffline: boolean;
   connectionStatus: 'online' | 'reconnecting' | 'offline';
   sessionExpired: boolean;
+  deletionCanceledNotice: boolean;
   
   // Actions
   setUser: (user: User | null) => void;
@@ -97,6 +101,7 @@ interface AppState {
   setIsOffline: (isOffline: boolean) => void;
   setConnectionStatus: (status: 'online' | 'reconnecting' | 'offline') => void;
   setSessionExpired: (sessionExpired: boolean) => void;
+  setDeletionCanceledNotice: (notice: boolean) => void;
   logout: () => Promise<void>;
 }
 
@@ -116,6 +121,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   isOffline: false,
   connectionStatus: 'online',
   sessionExpired: false,
+  deletionCanceledNotice: false,
 
   setUser: (user) => set({ user }),
   setProfile: (profile) => set({ profile }),
@@ -135,11 +141,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   setIsOffline: (isOffline) => set({ isOffline }),
   setConnectionStatus: (connectionStatus) => set({ connectionStatus }),
   setSessionExpired: (sessionExpired) => set({ sessionExpired }),
+  setDeletionCanceledNotice: (deletionCanceledNotice) => set({ deletionCanceledNotice }),
   
   logout: async () => {
     stopUserListeners();
     await auth.signOut();
-    set({ user: null, profile: null, teams: [], activeTeamId: null, team: null, loading: false, sessionExpired: false });
+    set({ user: null, profile: null, teams: [], activeTeamId: null, team: null, loading: false, sessionExpired: false, deletionCanceledNotice: false });
   }
 }));
 
@@ -157,6 +164,42 @@ export const startUserListeners = (uid: string) => {
     if (docSnap.exists()) {
       const profileData = { uid, ...docSnap.data() } as Profile;
       useAppStore.setState({ profile: profileData, loading: false });
+
+      // Auto-cancel deletion request if user logged back in within 7 days
+      const now = Date.now();
+      const scheduledDate = profileData.scheduledDeletionDate || (profileData.deletionRequestedAt ? profileData.deletionRequestedAt + (7 * 24 * 60 * 60 * 1000) : null);
+      if (scheduledDate) {
+        if (now < scheduledDate) {
+          // Auto-cancel deletion request because user logged back in before 7 days
+          updateDoc(doc(db, "profiles", uid), {
+            deletionRequestedAt: deleteField(),
+            scheduledDeletionDate: deleteField()
+          }).then(() => {
+            useAppStore.setState({ deletionCanceledNotice: true });
+          }).catch((err) => {
+            console.error("Failed to auto-cancel account deletion request:", err);
+          });
+        } else {
+          // 7 days have passed; execute account deletion via API
+          const currentUser = auth.currentUser;
+          if (currentUser) {
+            currentUser.getIdToken(true).then((idToken) => {
+              fetch('/api/profile/delete', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${idToken}`
+                }
+              }).then(async (res) => {
+                if (res.ok) {
+                  await useAppStore.getState().logout();
+                  window.location.href = '/register?deleted=true';
+                }
+              }).catch(console.error);
+            });
+          }
+        }
+      }
 
       // Role self-heal: if the stored role disagrees with the current admin list
       // (e.g. account registered before being added as admin, or admin removed),
