@@ -541,7 +541,6 @@ export default function AdminClient() {
                   { label: 'Create New Tournament', href: '/tournaments/create', icon: <Plus size={16} />, color: 'var(--accent-cyan)' },
                   { label: 'Search & Ban Players', onClick: () => setActiveTab('players'), icon: <Ban size={16} />, color: '#ff4d4d' },
                   { label: 'Manage Tournaments & Status', onClick: () => setActiveTab('tournaments'), icon: <Trophy size={16} />, color: 'var(--accent-gold)' },
-                  { label: 'Chat Moderation Panel', href: '/chat', icon: <Shield size={16} />, color: '#34d399' },
                 ].map((action, idx) => (
                   action.href ? (
                     <Link key={idx} href={action.href} style={{
