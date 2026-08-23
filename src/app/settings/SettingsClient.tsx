@@ -8,9 +8,8 @@ import { doc, updateDoc } from 'firebase/firestore';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { 
-  User, Settings, Bell, Lock, Gamepad2, Shield, Check, AlertCircle, 
-  Moon, Sun, CheckCircle2, Save, RefreshCw, Key, Globe, Monitor, 
-  Volume2, VolumeX, Eye, Download, Sliders, Sparkles
+  User, Settings, Bell, Lock, Gamepad2, Shield, AlertCircle, 
+  CheckCircle2, Save, RefreshCw, Key, Download
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import GlassCard from '@/components/ui/GlassCard';
@@ -20,7 +19,7 @@ export default function SettingsClient() {
   const profile = useAppStore((state) => state.profile);
   const router = useRouter();
 
-  const [activeTab, setActiveTab] = useState<'profile' | 'games' | 'website' | 'notifications' | 'security'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'games' | 'notifications' | 'security'>('profile');
   
   // Profile state
   const [displayName, setDisplayName] = useState('');
@@ -35,13 +34,8 @@ export default function SettingsClient() {
   const [bgmiId, setBgmiId] = useState('');
   const [discordHandle, setDiscordHandle] = useState('');
 
-  // Website & Platform Preferences
-  const [themeMode, setThemeMode] = useState<'neon' | 'light'>('neon');
-  const [serverRegion, setServerRegion] = useState('Asia South (India)');
-  const [reducedMotion, setReducedMotion] = useState(false);
-  const [soundEffects, setSoundEffects] = useState(true);
+  // Security & Privacy
   const [publicProfile, setPublicProfile] = useState(true);
-  const [performanceMode, setPerformanceMode] = useState(false);
 
   // Notifications
   const [emailNotifs, setEmailNotifs] = useState(true);
@@ -55,12 +49,6 @@ export default function SettingsClient() {
   const [resetEmailSent, setResetEmailSent] = useState(false);
 
   useEffect(() => {
-    // Load local theme
-    if (typeof window !== 'undefined') {
-      const savedTheme = (localStorage.getItem('shaktrix_theme') as 'neon' | 'light') || 'neon';
-      setThemeMode(savedTheme);
-    }
-
     if (profile) {
       setDisplayName(profile.displayName || '');
       setGamertag(profile.gamertag || '');
@@ -75,12 +63,8 @@ export default function SettingsClient() {
         setDiscordHandle(profile.gameConnections.discordHandle || '');
       }
 
-      if (profile.websitePreferences) {
-        setServerRegion(profile.websitePreferences.serverRegion || 'Asia South (India)');
-        setReducedMotion(!!profile.websitePreferences.reducedMotion);
-        setSoundEffects(profile.websitePreferences.soundEffects ?? true);
-        setPublicProfile(profile.websitePreferences.publicProfile ?? true);
-        setPerformanceMode(!!profile.websitePreferences.performanceMode);
+      if (profile.websitePreferences?.publicProfile !== undefined) {
+        setPublicProfile(!!profile.websitePreferences.publicProfile);
       }
 
       if (profile.notificationSettings) {
@@ -90,14 +74,6 @@ export default function SettingsClient() {
       }
     }
   }, [profile]);
-
-  const handleToggleTheme = (newTheme: 'neon' | 'light') => {
-    setThemeMode(newTheme);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('shaktrix_theme', newTheme);
-      document.documentElement.setAttribute('data-theme', newTheme);
-    }
-  };
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -115,20 +91,16 @@ export default function SettingsClient() {
         dob: dob || '',
         bio: bio.trim(),
         avatarUrl: avatarUrl.trim(),
+        websitePreferences: {
+          ...(profile?.websitePreferences || {}),
+          publicProfile
+        },
         gameConnections: {
           // If riot ID is already linked in profile, never overwrite it
           riotId: profile?.gameConnections?.riotId || riotId.trim(),
           steamId: steamId.trim(),
           bgmiId: bgmiId.trim(),
           discordHandle: discordHandle.trim()
-        },
-        websitePreferences: {
-          themeMode,
-          serverRegion,
-          reducedMotion,
-          soundEffects,
-          publicProfile,
-          performanceMode
         },
         notificationSettings: {
           emailNotifs,
@@ -138,7 +110,7 @@ export default function SettingsClient() {
         updatedAt: Date.now()
       });
 
-      setSuccessMsg('Account and Website settings saved successfully!');
+      setSuccessMsg('Account settings saved successfully!');
       setTimeout(() => setSuccessMsg(''), 4000);
     } catch (err: any) {
       console.error('Failed to update settings:', err);
@@ -195,7 +167,7 @@ export default function SettingsClient() {
         {/* HEADER */}
         <div style={{ marginBottom: '2rem' }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', padding: '0.3rem 0.85rem', borderRadius: '9999px', background: 'rgba(0, 240, 255, 0.08)', border: '1px solid rgba(0, 240, 255, 0.2)', color: 'var(--accent-cyan)', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.5rem' }}>
-            <Settings size={14} /> PLAYER & WEBSITE SETTINGS CONTROL CENTER
+            <Settings size={14} /> PLAYER SETTINGS CONTROL CENTER
           </div>
           <h1 style={{ fontSize: '2rem', fontWeight: 900, fontFamily: 'var(--font-title)', textTransform: 'uppercase' }}>
             ACCOUNT <span className="text-gradient-cyan">SETTINGS</span>
@@ -223,7 +195,6 @@ export default function SettingsClient() {
             {[
               { id: 'profile', label: 'Profile Information', icon: <User size={16} /> },
               { id: 'games', label: 'Connected Game IDs', icon: <Gamepad2 size={16} /> },
-              { id: 'website', label: 'Website Preferences', icon: <Monitor size={16} /> },
               { id: 'notifications', label: 'Notifications', icon: <Bell size={16} /> },
               { id: 'security', label: 'Security & Privacy', icon: <Shield size={16} /> }
             ].map(tab => (
@@ -433,131 +404,8 @@ export default function SettingsClient() {
                   </div>
                 )}
 
-                {/* TAB 3: WEBSITE & PLATFORM PREFERENCES */}
-                {activeTab === 'website' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                    <h2 style={{ fontSize: '1.2rem', fontWeight: 800, borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', margin: 0 }}>
-                      Website & Platform Preferences
-                    </h2>
-                    <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: 0 }}>
-                      Customize website appearance, animations, server region, sound effects, and performance settings.
-                    </p>
 
-                    {/* Theme Mode Selection */}
-                    <div>
-                      <label className="form-label" style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.5rem' }}>
-                        Website Theme
-                      </label>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-                        <div
-                          onClick={() => handleToggleTheme('neon')}
-                          style={{
-                            padding: '1rem',
-                            borderRadius: '12px',
-                            cursor: 'pointer',
-                            background: themeMode === 'neon' ? 'rgba(0, 240, 255, 0.12)' : 'rgba(255, 255, 255, 0.04)',
-                            border: themeMode === 'neon' ? '1px solid var(--accent-cyan)' : '1px solid var(--border-color)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.75rem',
-                            transition: 'all 0.2s ease'
-                          }}
-                        >
-                          <Moon size={20} style={{ color: 'var(--neon-blue)' }} />
-                          <div>
-                            <strong style={{ display: 'block', fontSize: '0.9rem', color: '#fff' }}>Neon Dark Mode</strong>
-                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Cyberpunk glow aesthetic</span>
-                          </div>
-                          {themeMode === 'neon' && <CheckCircle2 size={18} style={{ color: 'var(--accent-cyan)', marginLeft: 'auto' }} />}
-                        </div>
 
-                        <div
-                          onClick={() => handleToggleTheme('light')}
-                          style={{
-                            padding: '1rem',
-                            borderRadius: '12px',
-                            cursor: 'pointer',
-                            background: themeMode === 'light' ? 'rgba(245, 158, 11, 0.12)' : 'rgba(255, 255, 255, 0.04)',
-                            border: themeMode === 'light' ? '1px solid var(--accent-gold)' : '1px solid var(--border-color)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.75rem',
-                            transition: 'all 0.2s ease'
-                          }}
-                        >
-                          <Sun size={20} style={{ color: 'var(--accent-gold)' }} />
-                          <div>
-                            <strong style={{ display: 'block', fontSize: '0.9rem', color: '#fff' }}>Minimal Light Mode</strong>
-                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Clean high-contrast theme</span>
-                          </div>
-                          {themeMode === 'light' && <CheckCircle2 size={18} style={{ color: 'var(--accent-gold)', marginLeft: 'auto' }} />}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Server Region Selector */}
-                    <div>
-                      <label className="form-label" style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.35rem' }}>
-                        Preferred Tournament Server Region
-                      </label>
-                      <select
-                        value={serverRegion}
-                        onChange={(e) => setServerRegion(e.target.value)}
-                        className="glass-input"
-                        style={{ cursor: 'pointer' }}
-                      >
-                        <option value="Asia South (India)" style={{ background: '#0a1228', color: '#fff' }}>Asia South (India / Mumbai)</option>
-                        <option value="South East Asia (Singapore)" style={{ background: '#0a1228', color: '#fff' }}>South East Asia (Singapore)</option>
-                        <option value="Middle East (Bahrain)" style={{ background: '#0a1228', color: '#fff' }}>Middle East (Bahrain / Dubai)</option>
-                        <option value="Europe West (Frankfurt)" style={{ background: '#0a1228', color: '#fff' }}>Europe West (Frankfurt)</option>
-                        <option value="North America (Virginia)" style={{ background: '#0a1228', color: '#fff' }}>North America (Virginia)</option>
-                      </select>
-                    </div>
-
-                    {/* Toggles List */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-                      <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.85rem 1rem', borderRadius: '10px', background: 'rgba(255, 255, 255, 0.04)', border: '1px solid var(--border-color)', cursor: 'pointer' }}>
-                        <div>
-                          <strong style={{ display: 'block', fontSize: '0.875rem', color: 'var(--text-primary)' }}>Reduced Motion & Animations</strong>
-                          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Disable background particle loops & 3D tilt effects</span>
-                        </div>
-                        <input
-                          type="checkbox"
-                          checked={reducedMotion}
-                          onChange={(e) => setReducedMotion(e.target.checked)}
-                          style={{ width: '18px', height: '18px', accentColor: 'var(--accent-cyan)' }}
-                        />
-                      </label>
-
-                      <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.85rem 1rem', borderRadius: '10px', background: 'rgba(255, 255, 255, 0.04)', border: '1px solid var(--border-color)', cursor: 'pointer' }}>
-                        <div>
-                          <strong style={{ display: 'block', fontSize: '0.875rem', color: 'var(--text-primary)' }}>Tournament Match & Chat Sound Effects</strong>
-                          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Play audio cues for match invites & countdowns</span>
-                        </div>
-                        <input
-                          type="checkbox"
-                          checked={soundEffects}
-                          onChange={(e) => setSoundEffects(e.target.checked)}
-                          style={{ width: '18px', height: '18px', accentColor: 'var(--accent-cyan)' }}
-                        />
-                      </label>
-
-                      <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.85rem 1rem', borderRadius: '10px', background: 'rgba(255, 255, 255, 0.04)', border: '1px solid var(--border-color)', cursor: 'pointer' }}>
-                        <div>
-                          <strong style={{ display: 'block', fontSize: '0.875rem', color: 'var(--text-primary)' }}>Performance Boost Mode</strong>
-                          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Optimize rendering for low-spec laptops & mobile devices</span>
-                        </div>
-                        <input
-                          type="checkbox"
-                          checked={performanceMode}
-                          onChange={(e) => setPerformanceMode(e.target.checked)}
-                          style={{ width: '18px', height: '18px', accentColor: 'var(--accent-cyan)' }}
-                        />
-                      </label>
-                    </div>
-
-                  </div>
-                )}
 
                 {/* TAB 4: NOTIFICATIONS */}
                 {activeTab === 'notifications' && (
