@@ -54,8 +54,10 @@ export default function SettingsClient() {
       setBio(profile.bio || '');
       setAvatarUrl(profile.photoURL || profile.avatarUrl || '');
 
+      const linkedRiot = profile?.riotId || profile?.gameConnections?.riotId || '';
+      setRiotId(linkedRiot);
+
       if (profile.gameConnections) {
-        setRiotId(profile.gameConnections.riotId || '');
         setSteamId(profile.gameConnections.steamId || '');
         setBgmiId(profile.gameConnections.bgmiId || '');
         setDiscordHandle(profile.gameConnections.discordHandle || '');
@@ -81,6 +83,8 @@ export default function SettingsClient() {
     setSuccessMsg('');
     setErrorMsg('');
 
+    const savedRiotId = profile?.riotId || profile?.gameConnections?.riotId || riotId.trim();
+
     try {
       const ref = doc(db, "profiles", user.uid);
       await updateDoc(ref, {
@@ -88,13 +92,13 @@ export default function SettingsClient() {
         gamertag: gamertag.trim(),
         bio: bio.trim(),
         avatarUrl: avatarUrl.trim(),
+        riotId: savedRiotId,
         websitePreferences: {
           ...(profile?.websitePreferences || {}),
           publicProfile
         },
         gameConnections: {
-          // If riot ID is already linked in profile, never overwrite it
-          riotId: profile?.gameConnections?.riotId || riotId.trim(),
+          riotId: savedRiotId,
           steamId: steamId.trim(),
           bgmiId: bgmiId.trim(),
           discordHandle: discordHandle.trim()
@@ -299,12 +303,12 @@ export default function SettingsClient() {
                       <label className="form-label" style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.35rem' }}>
                         Riot ID (Valorant / League)
                       </label>
-                      {profile?.gameConnections?.riotId ? (
+                      {(profile?.riotId || profile?.gameConnections?.riotId) ? (
                         /* Riot ID is already linked — display locked state */
                         <div style={{ position: 'relative' }}>
                           <input
                             type="text"
-                            value={riotId}
+                            value={profile?.riotId || profile?.gameConnections?.riotId || riotId}
                             readOnly
                             className="glass-input"
                             style={{ paddingRight: '8.5rem', cursor: 'not-allowed', opacity: 0.85, background: 'rgba(0, 240, 255, 0.04)', borderColor: 'rgba(0, 240, 255, 0.3)', color: 'var(--text-primary)' }}
@@ -340,7 +344,7 @@ export default function SettingsClient() {
                         />
                       )}
                       <p style={{ margin: '0.3rem 0 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                        {profile?.gameConnections?.riotId
+                        {(profile?.riotId || profile?.gameConnections?.riotId)
                           ? 'Your Riot ID is permanently linked. Contact support to request changes.'
                           : 'Once saved, your Riot ID cannot be changed. Choose carefully.'}
                       </p>
