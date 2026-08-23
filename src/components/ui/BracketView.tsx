@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { tournamentService, Match } from '@/services/tournamentService';
-import { Trophy, Shield, Edit3, Check, X, ShieldAlert, CheckCircle, Clock } from 'lucide-react';
+import { Trophy, Shield, Edit3, Check, X, ShieldAlert, CheckCircle, Clock, Upload, ImageIcon, Video, FileImage } from 'lucide-react';
 
 interface BracketViewProps {
   tournamentId: string;
@@ -50,6 +50,18 @@ export default function BracketView({
   const [editingRoomMatchId, setEditingRoomMatchId] = useState<string | null>(null);
   const [inputRoomId, setInputRoomId] = useState('');
   const [inputRoomPassword, setInputRoomPassword] = useState('');
+
+  // Dispute modal state
+  const [disputeModalMatchId, setDisputeModalMatchId] = useState<string | null>(null);
+  const [disputeReason, setDisputeReason] = useState('');
+  const [disputeAttachment, setDisputeAttachment] = useState<File | null>(null);
+  const [disputeAttachmentPreview, setDisputeAttachmentPreview] = useState<string | null>(null);
+  const disputeFileRef = useRef<HTMLInputElement>(null);
+
+  // Live match evidence upload state (per match: matchId -> file)
+  const [matchEvidenceFile, setMatchEvidenceFile] = useState<Record<string, File | null>>({});
+  const [matchEvidencePreview, setMatchEvidencePreview] = useState<Record<string, string | null>>({});
+  const [matchEvidenceLabel, setMatchEvidenceLabel] = useState<Record<string, string>>({});
 
   const handleSaveRoomDetails = async (matchId: string) => {
     setError(null);
@@ -175,22 +187,65 @@ export default function BracketView({
     }
   };
 
-  const handleDispute = async (matchId: string) => {
+  const handleDispute = async () => {
+    if (!disputeModalMatchId || !disputeReason.trim()) return;
+
     setError(null);
     setSuccess(null);
-    const reason = window.prompt("Enter dispute details for the tournament organizers:");
-    if (!reason || !reason.trim()) return;
-
     setActionLoading(true);
     try {
       const teamName = team?.name || "Participant";
-      await tournamentService.flagDispute(tournamentId, matchId, teamName, reason);
+      const reasonWithAttachment = disputeAttachment
+        ? `${disputeReason.trim()} [Attachment: ${disputeAttachment.name}]`
+        : disputeReason.trim();
+      await tournamentService.flagDispute(tournamentId, disputeModalMatchId, teamName, reasonWithAttachment);
       setSuccess("Dispute flagged successfully. The organizer has been alerted.");
+      setDisputeModalMatchId(null);
+      setDisputeReason('');
+      setDisputeAttachment(null);
+      setDisputeAttachmentPreview(null);
     } catch (err: any) {
       console.error(err);
       setError("Failed to flag dispute.");
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const handleDisputeFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    setDisputeAttachment(file);
+    if (file) {
+      if (file.type.startsWith('image/')) {
+        const url = URL.createObjectURL(file);
+        setDisputeAttachmentPreview(url);
+      } else if (file.type.startsWith('video/')) {
+        setDisputeAttachmentPreview('video');
+      } else {
+        setDisputeAttachmentPreview(null);
+      }
+    } else {
+      setDisputeAttachmentPreview(null);
+    }
+  };
+
+  const handleMatchEvidenceChange = (matchId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    setMatchEvidenceFile(prev => ({ ...prev, [matchId]: file }));
+    if (file) {
+      const label = file.type.startsWith('video/')
+        ? `🎬 ${file.name}`
+        : `📸 ${file.name}`;
+      setMatchEvidenceLabel(prev => ({ ...prev, [matchId]: label }));
+      if (file.type.startsWith('image/')) {
+        const url = URL.createObjectURL(file);
+        setMatchEvidencePreview(prev => ({ ...prev, [matchId]: url }));
+      } else {
+        setMatchEvidencePreview(prev => ({ ...prev, [matchId]: 'video' }));
+      }
+    } else {
+      setMatchEvidenceLabel(prev => ({ ...prev, [matchId]: '' }));
+      setMatchEvidencePreview(prev => ({ ...prev, [matchId]: null }));
     }
   };
 
@@ -262,7 +317,7 @@ export default function BracketView({
     );
   }
 
-  return (
+  return (<>
     <div style={{ display: 'flex', gap: '2.5rem', minWidth: '800px', padding: '1rem 0' }}>
       {roundsArray.map((rNum) => {
         const roundMatches = matchesByRound[rNum] || [];
@@ -611,7 +666,58 @@ export default function BracketView({
                               </div>
                             )}
 
-                            {/* Check-In Buttons for players */}
+                            {/* Live Match Evidence Upload (admin review) */}
+                            {(isTeam1Captain || isTeam2Captain) && (
+                              <div style={{ marginTop: '0.5rem', padding: '0.5rem', background: 'rgba(0, 240, 255, 0.04)', border: '1px dashed rgba(0, 240, 255, 0.2)', borderRadius: '6px' }}>
+                                <label style={{ fontSize: '0.7rem', color: 'var(--accent-cyan)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.25rem', marginBottom: '0.35rem' }}>
+                                  <Upload size={10} /> Attach Match Evidence (Image / Video)
+                                </label>
+                                <input
+                                  id={`evidence-upload-${m.id}`}
+                                  type="file"
+                                  accept="image/*,video/*"
+                                  style={{ display: 'none' }}
+                                  onChange={(e) => handleMatchEvidenceChange(m.id, e)}
+                                />
+                                <label
+                                  htmlFor={`evidence-upload-${m.id}`}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '0.3rem',
+                                    padding: '0.4rem 0.5rem',
+                                    background: matchEvidenceFile[m.id] ? 'rgba(0, 240, 255, 0.1)' : 'transparent',
+                                    border: `1px dashed ${matchEvidenceFile[m.id] ? 'var(--accent-cyan)' : 'rgba(0, 240, 255, 0.3)'}`,
+                                    borderRadius: '5px',
+                                    cursor: 'pointer',
+                                    fontSize: '0.7rem',
+                                    color: matchEvidenceFile[m.id] ? 'var(--accent-cyan)' : 'var(--text-muted)',
+                                    fontWeight: 600,
+                                    transition: 'all 0.2s ease'
+                                  }}
+                                >
+                                  {matchEvidenceFile[m.id] ? (
+                                    <>{matchEvidencePreview[m.id] === 'video' ? <Video size={10} /> : <ImageIcon size={10} />} {matchEvidenceLabel[m.id]?.substring(0, 22)}</>
+                                  ) : (
+                                    <><FileImage size={10} /> Choose Screenshot / Clip</>  
+                                  )}
+                                </label>
+                                {matchEvidencePreview[m.id] && matchEvidencePreview[m.id] !== 'video' && (
+                                  <img
+                                    src={matchEvidencePreview[m.id]!}
+                                    alt="Evidence preview"
+                                    style={{ width: '100%', borderRadius: '4px', marginTop: '0.3rem', maxHeight: '80px', objectFit: 'cover', border: '1px solid rgba(0,240,255,0.2)' }}
+                                  />
+                                )}
+                                {matchEvidencePreview[m.id] === 'video' && (
+                                  <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '0.3rem', padding: '0.2rem 0.4rem', background: 'rgba(0,0,0,0.3)', borderRadius: '3px' }}>
+                                    🎬 Video clip attached for admin review
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
                             {deadline && !expired && !isDisputed && (
                               <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.2rem' }}>
                                 {isTeam1Captain && !t1Checked && (
@@ -666,7 +772,7 @@ export default function BracketView({
                             {/* Dispute Flagging trigger for players */}
                             {!isDisputed && (
                               <button
-                                onClick={() => handleDispute(m.id)}
+                                onClick={() => setDisputeModalMatchId(m.id)}
                                 className="btn btn-outline"
                                 style={{ fontSize: '0.7rem', padding: '0.3rem', height: 'auto', borderColor: 'rgba(239, 45, 86, 0.3)', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem', width: '100%', cursor: 'pointer' }}
                                 disabled={actionLoading}
@@ -725,7 +831,7 @@ export default function BracketView({
                         {isMatchLocked && !isDisputed && (
                           <div style={{ marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px dashed var(--border-color)' }}>
                             <button
-                              onClick={() => handleDispute(m.id)}
+                              onClick={() => setDisputeModalMatchId(m.id)}
                               className="btn btn-outline"
                               style={{ fontSize: '0.7rem', padding: '0.3rem', height: 'auto', borderColor: 'rgba(239, 45, 86, 0.3)', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem', width: '100%', cursor: 'pointer' }}
                               disabled={actionLoading}
@@ -804,5 +910,153 @@ export default function BracketView({
         );
       })}
     </div>
-  );
+
+    {/* === DISPUTE MODAL === */}
+    {disputeModalMatchId && (
+      <div
+        onClick={(e) => { if (e.target === e.currentTarget) { setDisputeModalMatchId(null); setDisputeReason(''); setDisputeAttachment(null); setDisputeAttachmentPreview(null); } }}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 9999,
+          background: 'rgba(2, 4, 10, 0.75)',
+          backdropFilter: 'blur(12px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '1rem'
+        }}
+      >
+        <div
+          style={{
+            width: '100%',
+            maxWidth: '480px',
+            background: 'var(--bg-card)',
+            border: '1px solid rgba(239, 45, 86, 0.3)',
+            borderRadius: '16px',
+            padding: '1.75rem',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.6), 0 0 30px rgba(239,45,86,0.1)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '1.25rem'
+          }}
+        >
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <ShieldAlert size={20} style={{ color: 'var(--accent-red)' }} />
+              <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)' }}>Flag Match Dispute</h3>
+            </div>
+            <button
+              onClick={() => { setDisputeModalMatchId(null); setDisputeReason(''); setDisputeAttachment(null); setDisputeAttachmentPreview(null); }}
+              style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '0.25rem' }}
+            >
+              <X size={18} />
+            </button>
+          </div>
+
+          <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
+            Describe the issue clearly. The tournament organizer will review your dispute and decide the outcome.
+          </p>
+
+          {/* Reason textarea */}
+          <div>
+            <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', display: 'block', marginBottom: '0.4rem' }}>
+              Dispute Reason <span style={{ color: 'var(--accent-red)' }}>*</span>
+            </label>
+            <textarea
+              value={disputeReason}
+              onChange={(e) => setDisputeReason(e.target.value)}
+              placeholder="e.g. Opponent disconnected mid-round, lobby code wrong, team refused to play..."
+              rows={4}
+              className="glass-input"
+              style={{ resize: 'vertical', fontSize: '0.875rem', lineHeight: '1.5' }}
+              maxLength={500}
+            />
+            <div style={{ textAlign: 'right', fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>{disputeReason.length}/500</div>
+          </div>
+
+          {/* Evidence upload */}
+          <div>
+            <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', display: 'block', marginBottom: '0.4rem' }}>
+              Attach Evidence <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 400 }}>(optional — screenshot or video clip)</span>
+            </label>
+            <input
+              ref={disputeFileRef}
+              type="file"
+              accept="image/*,video/*"
+              style={{ display: 'none' }}
+              onChange={handleDisputeFileChange}
+            />
+            <div
+              onClick={() => disputeFileRef.current?.click()}
+              style={{
+                border: `2px dashed ${disputeAttachment ? 'var(--accent-cyan)' : 'var(--border-color)'}`,
+                borderRadius: '10px',
+                padding: '1rem',
+                textAlign: 'center',
+                cursor: 'pointer',
+                background: disputeAttachment ? 'rgba(0, 240, 255, 0.05)' : 'rgba(255,255,255,0.02)',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              {disputeAttachment ? (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
+                  {disputeAttachmentPreview && disputeAttachmentPreview !== 'video' ? (
+                    <img src={disputeAttachmentPreview} alt="preview" style={{ maxHeight: '100px', borderRadius: '6px', objectFit: 'cover' }} />
+                  ) : (
+                    <Video size={28} style={{ color: 'var(--accent-cyan)' }} />
+                  )}
+                  <span style={{ fontSize: '0.8rem', color: 'var(--accent-cyan)', fontWeight: 600 }}>{disputeAttachment.name}</span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setDisputeAttachment(null); setDisputeAttachmentPreview(null); if (disputeFileRef.current) disputeFileRef.current.value = ''; }}
+                    style={{ fontSize: '0.7rem', color: 'var(--accent-red)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+                  >Remove</button>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem' }}>
+                  <Upload size={22} style={{ color: 'var(--text-muted)' }} />
+                  <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Click to upload screenshot or video</span>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>PNG, JPG, MP4, MOV supported</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div style={{ display: 'flex', gap: '0.75rem' }}>
+            <button
+              onClick={() => { setDisputeModalMatchId(null); setDisputeReason(''); setDisputeAttachment(null); setDisputeAttachmentPreview(null); }}
+              className="btn btn-outline"
+              style={{ flex: 1, padding: '0.6rem', fontSize: '0.85rem', height: 'auto' }}
+              disabled={actionLoading}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleDispute}
+              className="btn btn-primary"
+              disabled={!disputeReason.trim() || actionLoading}
+              style={{
+                flex: 2,
+                padding: '0.6rem',
+                fontSize: '0.85rem',
+                height: 'auto',
+                background: 'linear-gradient(135deg, #ef2d56 0%, #c0152f 100%)',
+                borderColor: 'var(--accent-red)',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.4rem'
+              }}
+            >
+              <ShieldAlert size={14} />
+              {actionLoading ? 'Flagging...' : 'Submit Dispute'}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+  </>);
 }

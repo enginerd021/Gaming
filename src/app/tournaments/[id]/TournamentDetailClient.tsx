@@ -1650,21 +1650,6 @@ export default function TournamentDetailClient({ id }: { id: string }) {
                   title={tournament.name}
                   description={`${tournament.game} • ${effectiveStatus} • ${tournament.registeredTeamIds.length}/${tournament.maxTeams} teams`}
                 />
-                {isOrganizer && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--bg-secondary)', padding: '0.4rem 0.8rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                      💬 Discord Integration
-                    </span>
-                    <input 
-                      type="checkbox" 
-                      id="discord-bot-toggle"
-                      checked={discordEnabled}
-                      onChange={(e) => handleToggleDiscord(e.target.checked)}
-                      style={{ cursor: 'pointer', accentColor: 'var(--accent-cyan)' }}
-                      disabled={actionLoading}
-                    />
-                  </div>
-                )}
                 {effectiveStatus === 'Upcoming' && (
                   <>
                     {isOrganizer ? (

@@ -116,7 +116,8 @@ export default function SettingsClient() {
         bio: bio.trim(),
         avatarUrl: avatarUrl.trim(),
         gameConnections: {
-          riotId: riotId.trim(),
+          // If riot ID is already linked in profile, never overwrite it
+          riotId: profile?.gameConnections?.riotId || riotId.trim(),
           steamId: steamId.trim(),
           bgmiId: bgmiId.trim(),
           discordHandle: discordHandle.trim()
@@ -344,13 +345,51 @@ export default function SettingsClient() {
                       <label className="form-label" style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.35rem' }}>
                         Riot ID (Valorant / League)
                       </label>
-                      <input
-                        type="text"
-                        value={riotId}
-                        onChange={(e) => setRiotId(e.target.value)}
-                        placeholder="Gamertag#TAG"
-                        className="glass-input"
-                      />
+                      {profile?.gameConnections?.riotId ? (
+                        /* Riot ID is already linked — display locked state */
+                        <div style={{ position: 'relative' }}>
+                          <input
+                            type="text"
+                            value={riotId}
+                            readOnly
+                            className="glass-input"
+                            style={{ paddingRight: '8.5rem', cursor: 'not-allowed', opacity: 0.85, background: 'rgba(0, 240, 255, 0.04)', borderColor: 'rgba(0, 240, 255, 0.3)', color: 'var(--text-primary)' }}
+                          />
+                          <span style={{
+                            position: 'absolute',
+                            right: '0.75rem',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            fontSize: '0.7rem',
+                            fontWeight: 700,
+                            background: 'rgba(0, 240, 255, 0.12)',
+                            border: '1px solid var(--accent-cyan)',
+                            color: 'var(--accent-cyan)',
+                            borderRadius: '5px',
+                            padding: '0.15rem 0.5rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.2rem',
+                            whiteSpace: 'nowrap'
+                          }}>
+                            ✓ Verified & Locked
+                          </span>
+                        </div>
+                      ) : (
+                        /* First-time Riot ID entry */
+                        <input
+                          type="text"
+                          value={riotId}
+                          onChange={(e) => setRiotId(e.target.value)}
+                          placeholder="Gamertag#TAG"
+                          className="glass-input"
+                        />
+                      )}
+                      <p style={{ margin: '0.3rem 0 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        {profile?.gameConnections?.riotId
+                          ? 'Your Riot ID is permanently linked. Contact support to request changes.'
+                          : 'Once saved, your Riot ID cannot be changed. Choose carefully.'}
+                      </p>
                     </div>
 
                     <div>
